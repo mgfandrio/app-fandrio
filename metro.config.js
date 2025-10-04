@@ -3,4 +3,5 @@ const { withNativeWind } = require('nativewind/metro');
  
 const config = getDefaultConfig(__dirname)
  
-module.exports = withNativeWind(config, { input: './global.css' })
+// Point to the actual globals file that imports Tailwind directives
+module.exports = withNativeWind(config, { input: './globals.css' })
