@@ -1,17 +1,6 @@
-import { Text, View } from "react-native";
+import { Redirect } from 'expo-router';
 
 export default function Index() {
-  return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Text className="text-xl font-bold text-green-500">
-        Edit app/index.tsx to edit this screen.
-      </Text>
-    </View>
-  );
+  // Use declarative Redirect so navigation happens after layout is mounted
+  return <Redirect href="/screens/loginScreen" />;
 }
