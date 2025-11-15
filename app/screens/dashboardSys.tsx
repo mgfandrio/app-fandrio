@@ -14,6 +14,7 @@ import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import { RenderCompagnies } from '../components/RenderCompagnies';
 import { RenderDashboard } from '../components/RenderDashbord';
 import { RenderUsers } from '../components/RenderUsers';
+import { RenderProvinces } from '../components/RenderProvinces';
 
 export default function DashboardSys() {
   const router = useRouter();
@@ -142,6 +143,7 @@ export default function DashboardSys() {
         {activeTab === 'dashboard' && <RenderDashboard />}
         {activeTab === 'users' && <RenderUsers />}
         {activeTab === 'companies' && <RenderCompagnies />}
+        {activeTab === 'provinces' && <RenderProvinces />}
         {activeTab === 'settings' && renderSettings()}
       </View>
 
@@ -208,6 +210,27 @@ export default function DashboardSys() {
               }`}
             >
               Compagnies
+            </Text>
+          </TouchableOpacity>
+
+          {/* Provinces */}
+          <TouchableOpacity
+            className={`items-center justify-center py-2 px-4 rounded-xl ${
+              activeTab === 'provinces' ? 'bg-blue-500' : ''
+            }`}
+            onPress={() => setActiveTab('provinces')}
+          >
+            <Ionicons
+              name={activeTab === 'provinces' ? 'map' : 'map-outline'}
+              size={24}
+              color={activeTab === 'provinces' ? '#fff' : '#9ca3af'}
+            />
+            <Text
+              className={`text-xs mt-1 ${
+                activeTab === 'provinces' ? 'text-white font-semibold' : 'text-gray-400'
+              }`}
+            >
+              Provinces
             </Text>
           </TouchableOpacity>
 

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -8,13 +9,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import compagnieService from '../services/compagnies/compagnieService';
 import {
   Compagnie,
   FiltresCompagnies,
   StatistiquesCompagnies,
 } from '../types/compagnie';
-import compagnieService from '../services/compagnies/compagnieService';
 import { useConfirmDialog } from './common/ConfirmDialog';
 import { CompagnieDetailModal } from './modals/CompagnieDetailModal';
 import { CompagnieFormModal } from './modals/CompagnieFormModal';
@@ -49,12 +49,12 @@ export const RenderCompagnies = () => {
 
   const chargerCompagnies = async () => {
     const response = await compagnieService.listerCompagnies(filtres);
-    if (response.statut && response.data) {
+    if (response.statut && 'data' in response && response.data) {
       setCompagnies(response.data.compagnies);
     } else {
       showDialog({
         title: 'Erreur',
-        message: response.message || 'Impossible de charger les compagnies',
+        message: ('message' in response ? response.message : 'Impossible de charger les compagnies') || 'Impossible de charger les compagnies',
         type: 'danger',
         confirmText: 'OK',
         onConfirm: () => {},
@@ -65,7 +65,7 @@ export const RenderCompagnies = () => {
 
   const chargerStatistiques = async () => {
     const response = await compagnieService.getStatistiques();
-    if (response.statut && response.data) {
+    if (response.statut && 'data' in response && response.data) {
       setStatistiques(response.data);
     }
   };
@@ -113,14 +113,13 @@ export const RenderCompagnies = () => {
     );
   };
 
-  const getCompagnieIcon = (index: number) => {
-    const icons: Array<{ name: any; color: string; bg: string }> = [
-      { name: 'business', color: '#3b82f6', bg: 'bg-blue-100' },
-      { name: 'bus', color: '#8b5cf6', bg: 'bg-purple-100' },
-      { name: 'car', color: '#f97316', bg: 'bg-orange-100' },
-      { name: 'airplane', color: '#10b981', bg: 'bg-green-100' },
-    ];
-    return icons[index % icons.length];
+  // Icône de bâtiment en bleu pour toutes les compagnies
+  const getCompagnieIcon = () => {
+    return {
+      name: 'business',
+      color: '#2563eb', // Bleu
+      bg: 'bg-blue-100',
+    };
   };
 
   return (
@@ -264,8 +263,8 @@ export const RenderCompagnies = () => {
             </Text>
           </View>
         ) : (
-          compagnies.map((compagnie, index) => {
-            const iconConfig = getCompagnieIcon(index);
+          compagnies.map((compagnie) => {
+            const iconConfig = getCompagnieIcon();
             return (
               <TouchableOpacity
                 key={compagnie.id}
@@ -276,7 +275,7 @@ export const RenderCompagnies = () => {
                   <View
                     className={`${iconConfig.bg} rounded-xl w-12 h-12 items-center justify-center mr-3`}
                   >
-                    <Ionicons name={iconConfig.name} size={24} color={iconConfig.color} />
+                    <Ionicons name={iconConfig.name as any} size={24} color={iconConfig.color} />
                   </View>
                   <View className="flex-1">
                     <Text className="text-gray-900 font-semibold text-base">{compagnie.nom}</Text>

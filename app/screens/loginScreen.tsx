@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
 
-const API_URL = 'http://192.168.0.101:8000';
+const API_URL = 'http://10.175.222.84:8000';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -120,6 +120,21 @@ export default function LoginScreen() {
       try {
         const token = response.data?.token;
         const utilisateur = response.data?.utilisateur;
+        
+        // Vérifie si l'utilisateur avec le rôle 2 (ADMIN_COMPAGNIE) a un compagnie_id
+        if (utilisateur?.role === 2 && !utilisateur?.compagnie_id) {
+          showDialog({
+            title: 'Erreur de configuration',
+            message: 'Votre compte administrateur de compagnie n\'est pas associé à une compagnie. Veuillez contacter le support.',
+            type: 'danger',
+            confirmText: 'OK',
+            onConfirm: () => {},
+            onCancel: () => {}
+          });
+          setLoading(false);
+          return;
+        }
+        
         if (token) {
           await SecureStore.setItemAsync('fandrioToken', token);
         }
@@ -137,22 +152,43 @@ export default function LoginScreen() {
 
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        const errorMessage = error.response?.data?.message || 'Erreur de connexion';
+        const status = error.response?.status;
+        const errorMessage = error.response?.data?.message || error.message || 'Erreur de connexion';
         
-        // Afficher l'erreur dans le champ approprié
-        if (errorMessage.toLowerCase().includes('identifiant')) {
-          setErrors(prev => ({ ...prev, identifiant: errorMessage }));
-        } else if (errorMessage.toLowerCase().includes('mot de passe')) {
-          setErrors(prev => ({ ...prev, motDePasse: errorMessage }));
-        } else {
+        console.error('Login error details:', {
+          status,
+          message: errorMessage,
+          data: error.response?.data,
+          utilisateur: error.response?.data?.utilisateur
+        });
+        
+        // Vérifier si c'est une erreur 401 avec un message spécifique
+        if (status === 401) {
+          const specificMessage = error.response?.data?.message || 'Identifiants incorrects ou compte non autorisé';
           showDialog({
-            title: 'Erreur',
-            message: errorMessage,
+            title: 'Erreur d\'authentification',
+            message: specificMessage,
             type: 'danger',
             confirmText: 'OK',
             onConfirm: () => {},
             onCancel: () => {}
           });
+        } else {
+          // Afficher l'erreur dans le champ approprié
+          if (errorMessage.toLowerCase().includes('identifiant')) {
+            setErrors(prev => ({ ...prev, identifiant: errorMessage }));
+          } else if (errorMessage.toLowerCase().includes('mot de passe')) {
+            setErrors(prev => ({ ...prev, motDePasse: errorMessage }));
+          } else {
+            showDialog({
+              title: 'Erreur',
+              message: errorMessage,
+              type: 'danger',
+              confirmText: 'OK',
+              onConfirm: () => {},
+              onCancel: () => {}
+            });
+          }
         }
       } else {
         showDialog({

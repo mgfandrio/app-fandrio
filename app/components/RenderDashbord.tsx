@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import compagnieService from '../services/compagnies/compagnieService';
 import utilisateurService from '../services/utilisateurs/utilisateurService';
+import provinceService from '../services/provinces/provinceService';
 
 export const RenderDashboard = () => {
     const [user, setUser] = useState<any | null>(null);
@@ -21,7 +22,8 @@ export const RenderDashboard = () => {
         totalCompanies: 0,
         activeCompanies: 0,
         inactiveUsers: 0,
-        newUsersThisMonth: 0
+        newUsersThisMonth: 0,
+        totalProvinces: 0
     });
 
     useEffect(() => {
@@ -42,7 +44,8 @@ export const RenderDashboard = () => {
         // Charger les statistiques
         await Promise.all([
             chargerStatistiquesUtilisateurs(),
-            chargerStatistiquesCompagnies()
+            chargerStatistiquesCompagnies(),
+            chargerStatistiquesProvinces()
         ]);
 
         setLoading(false);
@@ -68,6 +71,16 @@ export const RenderDashboard = () => {
                 ...prev,
                 totalCompanies: response.data.total,
                 activeCompanies: response.data.actives
+            }));
+        }
+    };
+
+    const chargerStatistiquesProvinces = async () => {
+        const response = await provinceService.getStatistiques();
+        if (response.statut && response.data) {
+            setStats(prev => ({
+                ...prev,
+                totalProvinces: response.data.total
             }));
         }
     };
@@ -167,18 +180,14 @@ export const RenderDashboard = () => {
           </View>
         </View>
 
-        {/* Taux d'activité */}
+        {/* Provinces */}
         <View className="w-1/2 pl-2 mb-4">
           <View className="bg-white rounded-2xl p-4 shadow-sm">
-            <View className="bg-orange-100 rounded-xl p-3 w-12 h-12 items-center justify-center mb-3">
-              <Ionicons name="trending-up" size={24} color="#f97316" />
+            <View className="bg-indigo-100 rounded-xl p-3 w-12 h-12 items-center justify-center mb-3">
+              <Ionicons name="map" size={24} color="#6366f1" />
             </View>
-            <Text className="text-gray-500 text-xs mb-1">Taux actifs</Text>
-            <Text className="text-gray-900 text-2xl font-bold">
-              {stats.totalUsers > 0 
-                ? Math.round((stats.activeUsers / stats.totalUsers) * 100) 
-                : 0}%
-            </Text>
+            <Text className="text-gray-500 text-xs mb-1">Provinces</Text>
+            <Text className="text-gray-900 text-2xl font-bold">{stats.totalProvinces}</Text>
           </View>
         </View>
       </View>
@@ -219,6 +228,20 @@ export const RenderDashboard = () => {
               </View>
             </View>
             <Text className="text-gray-900 font-bold text-lg">{stats.totalCompanies}</Text>
+          </View>
+
+          {/* Ligne provinces */}
+          <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
+            <View className="flex-row items-center flex-1">
+              <View className="bg-indigo-100 rounded-lg p-2 mr-3">
+                <Ionicons name="map" size={20} color="#6366f1" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-gray-900 font-semibold">Provinces</Text>
+                <Text className="text-gray-500 text-xs">Total enregistrées</Text>
+              </View>
+            </View>
+            <Text className="text-gray-900 font-bold text-lg">{stats.totalProvinces}</Text>
           </View>
 
           {/* Ligne nouveaux utilisateurs */}

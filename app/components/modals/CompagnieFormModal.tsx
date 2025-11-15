@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  TextInput,
-  ActivityIndicator,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import compagnieService from '../../services/compagnies/compagnieService';
+import provinceService from '../../services/provinces/provinceService';
 import { CompagnieFormData, CompagnieUpdateData } from '../../types/compagnie';
+import { Province } from '../../types/province';
 import { useConfirmDialog } from '../common/ConfirmDialog';
 
 interface Props {
@@ -28,6 +30,9 @@ export const CompagnieFormModal: React.FC<Props> = ({
 }) => {
   const { showDialog, DialogComponent } = useConfirmDialog();
   const [loading, setLoading] = useState(false);
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [selectedProvinces, setSelectedProvinces] = useState<number[]>([]);
   const [formData, setFormData] = useState<Partial<CompagnieFormData>>({
     comp_nom: '',
     comp_nif: '',
@@ -46,10 +51,13 @@ export const CompagnieFormModal: React.FC<Props> = ({
   const isEditMode = !!compagnieId;
 
   useEffect(() => {
-    if (visible && compagnieId) {
-      chargerCompagnie();
-    } else if (visible && !compagnieId) {
-      resetForm();
+    if (visible) {
+      chargerProvinces();
+      if (compagnieId) {
+        chargerCompagnie();
+      } else {
+        resetForm();
+      }
     }
   }, [visible, compagnieId]);
 
@@ -68,6 +76,73 @@ export const CompagnieFormModal: React.FC<Props> = ({
       admin_telephone: '',
       admin_mot_de_passe: '',
     });
+    setSelectedProvinces([]);
+  };
+
+  const chargerProvinces = async () => {
+    setLoadingProvinces(true);
+    const response = await provinceService.listerProvinces();
+    setLoadingProvinces(false);
+
+    if (response.statut && 'data' in response && response.data) {
+      // Le service retourne ProvincesListeResponse avec une propriété provinces
+      const provincesData = (response.data as any).provinces || 
+                           (Array.isArray(response.data) ? response.data : []);
+      setProvinces(provincesData);
+    }
+  };
+
+  // Fonction pour obtenir la configuration d'orientation (identique à RenderProvinces)
+  const getOrientationConfig = (orientation: string) => {
+    // Couleurs spécifiques pour Est (bleu foncé) et Ouest (bleu clair)
+    const orientationColors: { [key: string]: { bg: string; text: string; hex: string } } = {
+      'Est': { bg: 'bg-blue-200', text: 'text-blue-700', hex: '#1e40af' }, // Bleu foncé
+      'Ouest': { bg: 'bg-blue-100', text: 'text-blue-600', hex: '#2563eb' }, // Bleu plus clair
+    };
+    
+    // Si c'est Est ou Ouest, utiliser les couleurs spécifiques
+    if (orientationColors[orientation]) {
+      const iconMap: { [key: string]: string } = {
+        'Nord': 'arrow-up',
+        'Sud': 'arrow-down',
+        'Est': 'arrow-forward',
+        'Ouest': 'arrow-back',
+        'Centre': 'location',
+      };
+      
+      return {
+        ...orientationColors[orientation],
+        icon: iconMap[orientation] || 'location',
+      };
+    }
+    
+    // Pour les autres orientations, utiliser le système de hash
+    const hash = orientation.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    
+    const colorPalette = [
+      { bg: 'bg-indigo-100', text: 'text-indigo-600', hex: '#4f46e5' },
+      { bg: 'bg-purple-100', text: 'text-purple-600', hex: '#7c3aed' },
+      { bg: 'bg-pink-100', text: 'text-pink-600', hex: '#db2777' },
+      { bg: 'bg-rose-100', text: 'text-rose-600', hex: '#e11d48' },
+      { bg: 'bg-cyan-100', text: 'text-cyan-600', hex: '#06b6d4' },
+      { bg: 'bg-teal-100', text: 'text-teal-600', hex: '#14b8a6' },
+      { bg: 'bg-emerald-100', text: 'text-emerald-600', hex: '#10b981' },
+    ];
+    
+    const config = colorPalette[hash % colorPalette.length];
+    
+    const iconMap: { [key: string]: string } = {
+      'Nord': 'arrow-up',
+      'Sud': 'arrow-down',
+      'Est': 'arrow-forward',
+      'Ouest': 'arrow-back',
+      'Centre': 'location',
+    };
+    
+    return {
+      ...config,
+      icon: iconMap[orientation] || 'location',
+    };
   };
 
   const chargerCompagnie = async () => {
@@ -77,7 +152,7 @@ export const CompagnieFormModal: React.FC<Props> = ({
     const response = await compagnieService.getCompagnie(compagnieId);
     setLoading(false);
 
-    if (response.statut && response.data) {
+    if (response.statut && 'data' in response && response.data) {
       const compagnie = response.data;
       setFormData({
         comp_nom: compagnie.nom,
@@ -88,10 +163,16 @@ export const CompagnieFormModal: React.FC<Props> = ({
         comp_email: compagnie.email,
         comp_adresse: compagnie.adresse,
       });
+      // Charger les provinces déjà sélectionnées
+      if (compagnie.provinces_desservies && compagnie.provinces_desservies.length > 0) {
+        setSelectedProvinces(compagnie.provinces_desservies.map(p => p.id));
+      } else {
+        setSelectedProvinces([]);
+      }
     } else {
       showDialog({
         title: 'Erreur',
-        message: response.message || 'Impossible de charger la compagnie',
+        message: ('message' in response ? response.message : 'Impossible de charger la compagnie') || 'Impossible de charger la compagnie',
         type: 'danger',
         confirmText: 'OK',
         onConfirm: () => onClose(),
@@ -151,6 +232,7 @@ export const CompagnieFormModal: React.FC<Props> = ({
         comp_phone: formData.comp_phone!,
         comp_email: formData.comp_email!,
         comp_adresse: formData.comp_adresse!,
+        provinces_desservies: selectedProvinces.length > 0 ? selectedProvinces : undefined,
       };
 
       const response = await compagnieService.mettreAJourCompagnie(compagnieId, updateData);
@@ -182,7 +264,11 @@ export const CompagnieFormModal: React.FC<Props> = ({
         });
       }
     } else {
-      const response = await compagnieService.creerCompagnie(formData as CompagnieFormData);
+      const compagnieData: CompagnieFormData = {
+        ...formData as CompagnieFormData,
+        provinces_desservies: selectedProvinces.length > 0 ? selectedProvinces : undefined,
+      };
+      const response = await compagnieService.creerCompagnie(compagnieData);
 
       if (response.statut) {
         // Rafraîchir la liste avant d'afficher le message
@@ -324,6 +410,75 @@ export const CompagnieFormModal: React.FC<Props> = ({
                 numberOfLines={3}
                 editable={!loading}
               />
+
+              {/* Sélection des provinces desservies */}
+              <Text className="text-gray-700 mb-2 mt-2">Provinces desservies</Text>
+              {loadingProvinces ? (
+                <View className="bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 mb-3 items-center">
+                  <ActivityIndicator size="small" color="#3b82f6" />
+                  <Text className="text-gray-500 text-sm mt-2">Chargement des provinces...</Text>
+                </View>
+              ) : provinces.length === 0 ? (
+                <View className="bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 mb-3">
+                  <Text className="text-gray-500 text-sm">Aucune province disponible</Text>
+                </View>
+              ) : (
+                <View className="bg-gray-50 border border-gray-300 rounded-xl p-3 mb-3">
+                  <View className="flex-row flex-wrap">
+                    {provinces.map((province) => {
+                      const isSelected = selectedProvinces.includes(province.id);
+                      const orientationConfig = getOrientationConfig(province.orientation);
+                      return (
+                        <TouchableOpacity
+                          key={province.id}
+                          className={`rounded-full px-3 py-2 mr-2 mb-2 flex-row items-center ${
+                            isSelected ? 'bg-blue-500' : 'bg-white border border-gray-300'
+                          }`}
+                          onPress={() => {
+                            if (isSelected) {
+                              setSelectedProvinces(selectedProvinces.filter(id => id !== province.id));
+                            } else {
+                              setSelectedProvinces([...selectedProvinces, province.id]);
+                            }
+                          }}
+                          disabled={loading}
+                        >
+                          <Ionicons 
+                            name={isSelected ? "checkmark-circle" : "ellipse-outline"} 
+                            size={16} 
+                            color={isSelected ? "#fff" : "#6b7280"} 
+                            style={{ marginRight: 6 }}
+                          />
+                          <Text
+                            className={`text-sm font-medium mr-2 ${
+                              isSelected ? 'text-white' : 'text-gray-700'
+                            }`}
+                          >
+                            {province.nom}
+                          </Text>
+                          {!isSelected && (
+                            <View className={`${orientationConfig.bg} rounded-full px-2 py-0.5 flex-row items-center`}>
+                              <Ionicons 
+                                name={orientationConfig.icon as any} 
+                                size={12} 
+                                color={orientationConfig.hex} 
+                              />
+                              <Text className={`${orientationConfig.text} text-xs font-semibold ml-1`}>
+                                {province.orientation}
+                              </Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  {selectedProvinces.length > 0 && (
+                    <Text className="text-gray-500 text-xs mt-2">
+                      {selectedProvinces.length} province(s) sélectionnée(s)
+                    </Text>
+                  )}
+                </View>
+              )}
             </View>
 
             {/* Informations administrateur (création uniquement) */}

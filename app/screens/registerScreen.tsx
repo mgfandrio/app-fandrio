@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
 
-const API_URL = 'http://192.168.0.101:8000';
+const API_URL = 'http://10.175.222.84:8000';
 
 export default function RegisterScreen() {
   const router = useRouter();

@@ -4,7 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 
-const API_URL = 'http://192.168.0.101:8000';
+const API_URL = 'http://10.175.222.84:8000';
 
 export default function DashboardAdmin() {
   const router = useRouter();

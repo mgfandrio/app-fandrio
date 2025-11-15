@@ -2,7 +2,7 @@ import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'ax
 import * as SecureStore from 'expo-secure-store';
 import { ApiError, ApiResponse } from '../../types/api';
 
-const API_URL = 'http://192.168.0.101:8000';
+const API_URL = 'http://10.175.222.84:8000';
 const X_API_KEY = 'fandrio_abc123def456ghi789jkl012mno345pqr678stu901vwx234yz';
 
 // Créer l'instance axios
