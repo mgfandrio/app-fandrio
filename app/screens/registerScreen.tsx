@@ -15,8 +15,7 @@ import {
   View
 } from 'react-native';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
-
-const API_URL = 'http://10.175.222.84:8000';
+import config from '../config/env';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -166,7 +165,7 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       const response = await axios.post(
-        `${API_URL}/api/inscription`,
+        `${config.API_URL}/api/inscription`,
         {
           nom: nom.trim(),
           prenom: prenom.trim(),

@@ -100,6 +100,15 @@ export const RenderUsers = () => {
     setShowDetailModal(true);
   };
 
+  // Icône de personne en bleu pour tous les utilisateurs
+  const getUtilisateurIcon = () => {
+    return {
+      name: 'person',
+      color: '#2563eb', // Bleu
+      bg: 'bg-blue-100',
+    };
+  };
+
   const getInitiales = (prenom: string, nom: string) => {
     return `${prenom[0] || ''}${nom[0] || ''}`.toUpperCase();
   };
@@ -127,8 +136,8 @@ export const RenderUsers = () => {
         {/* En-tête */}
         <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
           <View className="flex-row items-center">
-            <View className="bg-purple-100 rounded-full p-3 mr-3">
-              <Ionicons name="people" size={28} color="#8b5cf6" />
+            <View className={`${getUtilisateurIcon().bg} rounded-full p-3 mr-3`}>
+              <Ionicons name={getUtilisateurIcon().name as any} size={28} color={getUtilisateurIcon().color} />
             </View>
             <View className="flex-1">
               <Text className="text-2xl font-bold text-gray-900">Utilisateurs</Text>
@@ -242,7 +251,7 @@ export const RenderUsers = () => {
           </View>
         ) : utilisateurs.length === 0 ? (
           <View className="bg-white rounded-2xl p-8 items-center">
-            <Ionicons name="people-outline" size={64} color="#d1d5db" />
+            <Ionicons name="person-outline" size={64} color="#d1d5db" />
             <Text className="text-gray-900 font-semibold text-lg mt-4">Aucun utilisateur trouvé</Text>
             <Text className="text-gray-500 text-sm mt-2 text-center">
               Aucun utilisateur ne correspond à vos critères de recherche

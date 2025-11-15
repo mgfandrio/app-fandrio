@@ -3,8 +3,7 @@ import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
-
-const API_URL = 'http://10.175.222.84:8000';
+import config from '../config/env';
 
 export default function DashboardUser() {
   const router = useRouter();
@@ -28,7 +27,7 @@ export default function DashboardUser() {
       const token = await SecureStore.getItemAsync('fandrioToken');
       if (token) {
         await axios.post(
-          `${API_URL}/api/deconnexion`,
+          `${config.API_URL}/api/deconnexion`,
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );

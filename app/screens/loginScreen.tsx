@@ -16,8 +16,7 @@ import {
   View
 } from 'react-native';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
-
-const API_URL = 'http://10.175.222.84:8000';
+import config from '../config/env';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -103,14 +102,14 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const response = await axios.post(
-        `${API_URL}/api/connexion`,
+        `${config.API_URL}/api/connexion`,
         {
           identifiant: identifiant,
           motDePasse: motDePasse,
         },
         {
           headers: {
-            'X-API-KEY': 'fandrio_abc123def456ghi789jkl012mno345pqr678stu901vwx234yz',
+            'X-API-KEY': config.X_API_KEY,
           },
         }
       );

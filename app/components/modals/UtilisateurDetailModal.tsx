@@ -236,8 +236,8 @@ export const UtilisateurDetailModal: React.FC<Props> = ({
                       key={voyageur.id}
                       className="flex-row items-center p-3 bg-gray-50 rounded-xl mb-2"
                     >
-                      <View className="bg-purple-100 rounded-full w-10 h-10 items-center justify-center mr-3">
-                        <Ionicons name="person" size={20} color="#8b5cf6" />
+                      <View className="bg-blue-100 rounded-full w-10 h-10 items-center justify-center mr-3">
+                        <Ionicons name="person" size={20} color="#2563eb" />
                       </View>
                       <View className="flex-1">
                         <Text className="text-gray-900 font-semibold">

@@ -1,18 +1,16 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { ApiError, ApiResponse } from '../../types/api';
-
-const API_URL = 'http://10.175.222.84:8000';
-const X_API_KEY = 'fandrio_abc123def456ghi789jkl012mno345pqr678stu901vwx234yz';
+import config from '../../config/env';
 
 // Créer l'instance axios
 const apiClient: AxiosInstance = axios.create({
-  baseURL: API_URL,
+  baseURL: config.API_URL,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-    'X-API-KEY': X_API_KEY,
+    'X-API-KEY': config.X_API_KEY,
   },
 });
 

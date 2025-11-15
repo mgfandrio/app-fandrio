@@ -2,6 +2,19 @@
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
+## Configuration des variables d'environnement
+
+**IMPORTANT** : Avant de démarrer l'application, vous devez créer un fichier `.env` à la racine du projet avec les variables suivantes :
+
+```env
+EXPO_PUBLIC_API_URL=http://10.175.222.84:8000
+EXPO_PUBLIC_X_API_KEY=fandrio_abc123def456ghi789jkl012mno345pqr678stu901vwx234yz
+```
+
+> **Note** : Dans Expo, les variables d'environnement doivent être préfixées par `EXPO_PUBLIC_` pour être accessibles côté client.
+
+Voir `app/config/README.md` pour plus de détails.
+
 ## Get started
 
 1. Install dependencies
@@ -10,11 +23,15 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Start the app
+2. Créer le fichier `.env` (voir section ci-dessus)
+
+3. Start the app
 
    ```bash
    npx expo start
    ```
+
+   > **Note** : Après avoir modifié le fichier `.env`, vous devez redémarrer le serveur Expo.
 
 In the output, you'll find options to open the app in a
 

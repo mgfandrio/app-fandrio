@@ -130,7 +130,7 @@ export const RenderDashboard = () => {
               {stats.activeUsers}
             </Text>
             <View className="bg-white rounded-full w-10 h-10 items-center justify-center">
-              <Ionicons name="people" size={24} color="#3b82f6" />
+              <Ionicons name="person" size={24} color="#2563eb" />
             </View>
           </View>
           <Text className="text-blue-200 text-xs mt-2">
@@ -144,12 +144,12 @@ export const RenderDashboard = () => {
         {/* Total Utilisateurs */}
         <View className="w-1/2 pr-2 mb-4">
           <View className="bg-white rounded-2xl p-4 shadow-sm">
-            <View className="bg-green-100 rounded-xl p-3 w-12 h-12 items-center justify-center mb-3">
-              <Ionicons name="people" size={24} color="#10b981" />
+            <View className="bg-blue-100 rounded-xl p-3 w-12 h-12 items-center justify-center mb-3">
+              <Ionicons name="person" size={24} color="#2563eb" />
             </View>
             <Text className="text-gray-500 text-xs mb-1">Utilisateurs</Text>
             <Text className="text-gray-900 text-2xl font-bold">{stats.totalUsers}</Text>
-            <Text className="text-green-600 text-xs mt-1">
+            <Text className="text-blue-600 text-xs mt-1">
               {stats.activeUsers} actifs
             </Text>
           </View>
@@ -173,7 +173,7 @@ export const RenderDashboard = () => {
         <View className="w-1/2 pr-2 mb-4">
           <View className="bg-white rounded-2xl p-4 shadow-sm">
             <View className="bg-blue-100 rounded-xl p-3 w-12 h-12 items-center justify-center mb-3">
-              <Ionicons name="person-add" size={24} color="#3b82f6" />
+              <Ionicons name="person-add" size={24} color="#2563eb" />
             </View>
             <Text className="text-gray-500 text-xs mb-1">Nouveaux ce mois</Text>
             <Text className="text-gray-900 text-2xl font-bold">{stats.newUsersThisMonth}</Text>
@@ -205,8 +205,8 @@ export const RenderDashboard = () => {
           {/* Ligne utilisateurs */}
           <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
             <View className="flex-row items-center flex-1">
-              <View className="bg-green-100 rounded-lg p-2 mr-3">
-                <Ionicons name="people" size={20} color="#10b981" />
+              <View className="bg-blue-100 rounded-lg p-2 mr-3">
+                <Ionicons name="person" size={20} color="#2563eb" />
               </View>
               <View className="flex-1">
                 <Text className="text-gray-900 font-semibold">Utilisateurs</Text>
@@ -248,7 +248,7 @@ export const RenderDashboard = () => {
           <View className="flex-row items-center justify-between py-3">
             <View className="flex-row items-center flex-1">
               <View className="bg-blue-100 rounded-lg p-2 mr-3">
-                <Ionicons name="person-add" size={20} color="#3b82f6" />
+                <Ionicons name="person-add" size={20} color="#2563eb" />
               </View>
               <View className="flex-1">
                 <Text className="text-gray-900 font-semibold">Nouveaux ce mois</Text>
