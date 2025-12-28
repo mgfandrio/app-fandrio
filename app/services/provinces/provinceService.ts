@@ -1,12 +1,12 @@
 import { ApiError, ApiResponse } from '../../types/api';
 import {
-    FiltresProvinces,
-    Province,
-    ProvinceDetaillee,
-    ProvinceFormData,
-    ProvincesListeResponse,
-    ProvinceUpdateData,
-    StatistiquesProvinces,
+  FiltresProvinces,
+  Province,
+  ProvinceDetaillee,
+  ProvinceFormData,
+  ProvincesListeResponse,
+  ProvinceUpdateData,
+  StatistiquesProvinces,
 } from '../../types/province';
 import apiClient, { handleApiError, handleApiResponse } from '../api/axiosConfig';
 

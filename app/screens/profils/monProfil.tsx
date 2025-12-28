@@ -11,8 +11,8 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useConfirmDialog } from '../components/common/ConfirmDialog';
-import authService, { UtilisateurMoi } from '../services/auth/authService';
+import { useConfirmDialog } from '../../components/common/ConfirmDialog';
+import authService, { UtilisateurMoi } from '../../services/auth/authService';
 
 export default function MonProfil() {
   const router = useRouter();

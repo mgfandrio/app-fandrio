@@ -1,4 +1,4 @@
-import apiClient, { handleApiError, handleApiResponse } from '../api/axiosConfig';
+import { ApiError, ApiResponse } from '../../types/api';
 import {
   Compagnie,
   CompagnieDetaillee,
@@ -8,7 +8,7 @@ import {
   FiltresCompagnies,
   StatistiquesCompagnies,
 } from '../../types/compagnie';
-import { ApiError, ApiResponse } from '../../types/api';
+import apiClient, { handleApiError, handleApiResponse } from '../api/axiosConfig';
 
 /**
  * Service pour la gestion des compagnies

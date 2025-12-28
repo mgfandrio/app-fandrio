@@ -1,3 +1,4 @@
+import config from '@/app/config/env';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { useRouter } from 'expo-router';
@@ -15,8 +16,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { useConfirmDialog } from '../components/common/ConfirmDialog';
-import config from '../config/env';
+import { useConfirmDialog } from '../../components/common/ConfirmDialog';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -33,13 +33,13 @@ export default function LoginScreen() {
   const redirectByRole = (role: number | string) => {
     const r = Number(role);
     if (r === 1) {
-      router.replace('./dashboardUser');
+      router.replace('../dashboard/utilisateur/dashboardUser');
     } else if (r === 2) {
-      router.replace('./dashboardAdmin');
+      router.replace('../dashboard/dashboardAdmin');
     } else if (r === 3) {
-      router.replace('./dashboardSys');
+      router.replace('../dashboard/systeme/dashboardSys');
     } else {
-      router.replace('./dashboardUser');
+      router.replace('../dashboard/compagnies/dashboardCompagnie');
     }
   };
 
@@ -269,7 +269,7 @@ export default function LoginScreen() {
                 {/* Google */}
                 <TouchableOpacity className="w-12 h-12 bg-gray-100 rounded-xl items-center justify-center">
                   <Image
-                    source={require("../../assets/images/google.png")}
+                    source={require("../../../assets/images/google.png")}
                     className="w-6 h-6"
                     resizeMode="contain"
                   />
@@ -278,7 +278,7 @@ export default function LoginScreen() {
                 {/* Facebook */}
                 <TouchableOpacity className="w-12 h-12 bg-gray-100 rounded-xl items-center justify-center mx-6">
                   <Image
-                    source={require("../../assets/images/facebook.png")}
+                    source={require("../../../assets/images/facebook.png")}
                     className="w-6 h-6"
                     resizeMode="contain"
                   />
@@ -287,7 +287,7 @@ export default function LoginScreen() {
                 {/* Apple */}
                 <TouchableOpacity className="w-12 h-12 bg-gray-100 rounded-xl items-center justify-center">
                   <Image
-                    source={require("../../assets/images/apple.png")}
+                    source={require("../../../assets/images/apple.png")}
                     className="w-6 h-6"
                     resizeMode="contain"
                   />
@@ -422,7 +422,7 @@ export default function LoginScreen() {
                 <Text className="text-gray-600 text-xl">
                   Vous n'avez pas encore de compte ?{' '}
                 </Text>
-                <TouchableOpacity onPress={() => router.push('./registerScreen')}>
+                <TouchableOpacity onPress={() => router.push('/screens/authentification/registerScreen')}>
                   <Text className="text-blue-700 font-semibold text-xl">
                     Créer un compte
                   </Text>

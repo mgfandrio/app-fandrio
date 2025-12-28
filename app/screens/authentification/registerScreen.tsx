@@ -1,3 +1,4 @@
+import config from '@/app/config/env';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { useRouter } from 'expo-router';
@@ -14,8 +15,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { useConfirmDialog } from '../components/common/ConfirmDialog';
-import config from '../config/env';
+import { useConfirmDialog } from '../../components/common/ConfirmDialog';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -188,8 +188,8 @@ export default function RegisterScreen() {
         message: 'Inscription réussie ! Vous allez être redirigé vers la page de connexion.',
         type: 'success',
         confirmText: 'OK',
-        onConfirm: () => router.push('./loginScreen'),
-        onCancel: () => router.push('./loginScreen')
+        onConfirm: () => router.push('/screens/authentification/loginScreen'),
+        onCancel: () => router.push('/screens/authentification/loginScreen')
       });
 
     } catch (error) {
@@ -670,7 +670,7 @@ export default function RegisterScreen() {
                 {/* Google */}
                 <TouchableOpacity className="w-12 h-12 bg-gray-100 rounded-xl items-center justify-center">
                   <Image
-                    source={require("../../assets/images/google.png")}
+                    source={require("../../../assets/images/google.png")}
                     className="w-6 h-6"
                     resizeMode="contain"
                   />
@@ -679,7 +679,7 @@ export default function RegisterScreen() {
                 {/* Facebook */}
                 <TouchableOpacity className="w-12 h-12 bg-gray-100 rounded-xl items-center justify-center mx-6">
                   <Image
-                    source={require("../../assets/images/facebook.png")}
+                    source={require("../../../assets/images/facebook.png")}
                     className="w-6 h-6"
                     resizeMode="contain"
                   />
@@ -688,7 +688,7 @@ export default function RegisterScreen() {
                 {/* Apple */}
                 <TouchableOpacity className="w-12 h-12 bg-gray-100 rounded-xl items-center justify-center">
                   <Image
-                    source={require("../../assets/images/apple.png")}
+                    source={require("../../../assets/images/apple.png")}
                     className="w-6 h-6"
                     resizeMode="contain"
                   />
@@ -702,7 +702,7 @@ export default function RegisterScreen() {
                 <Text className="text-gray-600 text-xl">
                   Vous avez déjà un compte ?{' '}
                 </Text>
-                <TouchableOpacity onPress={() => router.push('./loginScreen')}>
+                <TouchableOpacity onPress={() => router.push('/screens/authentification/loginScreen')}>
                   <Text className="text-blue-700 font-semibold text-xl">
                     Se connecter
                   </Text>

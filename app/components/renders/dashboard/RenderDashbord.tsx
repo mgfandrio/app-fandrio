@@ -2,15 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    RefreshControl,
-    ScrollView,
-    Text,
-    View
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View
 } from 'react-native';
-import compagnieService from '../services/compagnies/compagnieService';
-import utilisateurService from '../services/utilisateurs/utilisateurService';
-import provinceService from '../services/provinces/provinceService';
+import compagnieService from '../../../services/compagnies/compagnieService';
+import provinceService from '../../../services/provinces/provinceService';
+import utilisateurService from '../../../services/utilisateurs/utilisateurService';
 
 export const RenderDashboard = () => {
     const [user, setUser] = useState<any | null>(null);

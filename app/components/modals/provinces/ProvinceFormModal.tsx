@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  TextInput,
-  ActivityIndicator,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import provinceService from '../../services/provinces/provinceService';
-import { ProvinceFormData, ProvinceUpdateData } from '../../types/province';
-import { useConfirmDialog } from '../common/ConfirmDialog';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import provinceService from '../../../services/provinces/provinceService';
+import { ProvinceFormData, ProvinceUpdateData } from '../../../types/province';
+import { useConfirmDialog } from '../../common/ConfirmDialog';
 
 interface Props {
   visible: boolean;

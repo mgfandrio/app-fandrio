@@ -1,4 +1,4 @@
-import apiClient, { handleApiError, handleApiResponse } from '../api/axiosConfig';
+import { ApiError, ApiResponse } from '../../types/api';
 import {
   FiltresUtilisateurs,
   StatistiquesUtilisateurs,
@@ -6,7 +6,7 @@ import {
   UtilisateurDetaille,
   UtilisateursListeResponse,
 } from '../../types/utilisateur';
-import { ApiError, ApiResponse } from '../../types/api';
+import apiClient, { handleApiError, handleApiResponse } from '../api/axiosConfig';
 
 /**
  * Service pour la gestion des utilisateurs

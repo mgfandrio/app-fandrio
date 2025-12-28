@@ -9,15 +9,15 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import provinceService from '../services/provinces/provinceService';
+import provinceService from '../../../services/provinces/provinceService';
 import {
   FiltresProvinces,
   Province,
   StatistiquesProvinces,
-} from '../types/province';
-import { useConfirmDialog } from './common/ConfirmDialog';
-import { ProvinceDetailModal } from './modals/ProvinceDetailModal';
-import { ProvinceFormModal } from './modals/ProvinceFormModal';
+} from '../../../types/province';
+import { useConfirmDialog } from '../../common/ConfirmDialog';
+import { ProvinceDetailModal } from '../../modals/provinces/ProvinceDetailModal';
+import { ProvinceFormModal } from '../../modals/provinces/ProvinceFormModal';
 
 export const RenderProvinces = () => {
   const { showDialog, DialogComponent } = useConfirmDialog();

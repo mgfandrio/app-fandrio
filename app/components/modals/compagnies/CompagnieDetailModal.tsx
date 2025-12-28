@@ -1,16 +1,16 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Modal,
-  View,
+  ScrollView,
   Text,
   TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
+  View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { CompagnieDetaillee } from '../../types/compagnie';
-import compagnieService from '../../services/compagnies/compagnieService';
-import { useConfirmDialog } from '../common/ConfirmDialog';
+import compagnieService from '../../../services/compagnies/compagnieService';
+import { CompagnieDetaillee } from '../../../types/compagnie';
+import { useConfirmDialog } from '../../common/ConfirmDialog';
 
 interface Props {
   visible: boolean;

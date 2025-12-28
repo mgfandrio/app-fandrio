@@ -9,11 +9,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import compagnieService from '../../services/compagnies/compagnieService';
-import provinceService from '../../services/provinces/provinceService';
-import { CompagnieFormData, CompagnieUpdateData } from '../../types/compagnie';
-import { Province } from '../../types/province';
-import { useConfirmDialog } from '../common/ConfirmDialog';
+import compagnieService from '../../../services/compagnies/compagnieService';
+import provinceService from '../../../services/provinces/provinceService';
+import { CompagnieFormData, CompagnieUpdateData } from '../../../types/compagnie';
+import { Province } from '../../../types/province';
+import { useConfirmDialog } from '../../common/ConfirmDialog';
 
 interface Props {
   visible: boolean;

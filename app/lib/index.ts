@@ -4,13 +4,20 @@
  */
 
 // Services
-export * from '../services';
+export { default as apiClient } from '../services/api/axiosConfig';
+export { default as authService } from '../services/auth/authService';
+export { default as chauffeurService } from '../services/chauffeurs/chauffeurService';
+export { default as compagnieService } from '../services/compagnies/compagnieService';
+export { provinceService } from '../services/provinces/provinceService';
+export { trajetService } from '../services/trajets/trajetService';
+export { default as utilisateurService } from '../services/utilisateurs/utilisateurService';
+export { default as voitureService } from '../services/voitures/voitureService';
 
 // Types
-export * from '../types';
+export * from '../types/index';
 
 // Hooks
-export * from '../hooks';
+export * from '../hooks/index';
 
 // Utils
 export * from '../utils/helpers';

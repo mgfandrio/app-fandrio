@@ -1,7 +1,7 @@
+import config from '@/app/config/env';
+import { ApiError, ApiResponse } from '@/app/types/api';
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { ApiError, ApiResponse } from '../../types/api';
-import config from '../../config/env';
 
 // Créer l'instance axios
 const apiClient: AxiosInstance = axios.create({

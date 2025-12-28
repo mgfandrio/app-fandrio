@@ -1,11 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 import utilisateurService from '../services/utilisateurs/utilisateurService';
 import {
+  FiltresUtilisateurs,
+  StatistiquesUtilisateurs,
   Utilisateur,
   UtilisateurDetaille,
-  StatistiquesUtilisateurs,
-  FiltresUtilisateurs,
 } from '../types/utilisateur';
 
 /**

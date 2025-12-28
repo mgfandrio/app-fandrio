@@ -10,11 +10,11 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useConfirmDialog } from '../components/common/ConfirmDialog';
-import { RenderCompagnies } from '../components/RenderCompagnies';
-import { RenderDashboard } from '../components/RenderDashbord';
-import { RenderUsers } from '../components/RenderUsers';
-import { RenderProvinces } from '../components/RenderProvinces';
+import { useConfirmDialog } from '../../../components/common/ConfirmDialog';
+import { RenderCompagnies } from '../../../components/renders/compagnies/RenderCompagnies';
+import { RenderDashboard } from '../../../components/renders/dashboard/RenderDashbord';
+import { RenderProvinces } from '../../../components/renders/provinces/RenderProvinces';
+import { RenderUsers } from '../../../components/renders/utilisateurs/RenderUsers';
 
 export default function DashboardSys() {
   const router = useRouter();
@@ -82,7 +82,7 @@ export default function DashboardSys() {
       <View className="bg-white rounded-2xl mb-4">
         <TouchableOpacity 
           className="flex-row items-center p-4 border-b border-gray-100"
-          onPress={() => router.push('./monProfil')}
+          onPress={() => router.push('/screens/profils/monProfil')}
           activeOpacity={0.7}
         >
           <View className="bg-blue-100 rounded-xl w-10 h-10 items-center justify-center mr-3">
@@ -194,7 +194,7 @@ export default function DashboardSys() {
 
           {/* Compagnies */}
           <TouchableOpacity
-            className={`items-center justify-center py-2 px-4 rounded-xl ${
+            className={`items-center justify-center py-2 px-3 rounded-xl ${
               activeTab === 'companies' ? 'bg-blue-500' : ''
             }`}
             onPress={() => setActiveTab('companies')}
@@ -215,7 +215,7 @@ export default function DashboardSys() {
 
           {/* Provinces */}
           <TouchableOpacity
-            className={`items-center justify-center py-2 px-4 rounded-xl ${
+            className={`items-center justify-center py-2 px-3 rounded-xl ${
               activeTab === 'provinces' ? 'bg-blue-500' : ''
             }`}
             onPress={() => setActiveTab('provinces')}

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -8,15 +9,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import utilisateurService from '../../../services/utilisateurs/utilisateurService';
 import {
   FiltresUtilisateurs,
   StatistiquesUtilisateurs,
   Utilisateur,
-} from '../types/utilisateur';
-import utilisateurService from '../services/utilisateurs/utilisateurService';
-import { useConfirmDialog } from './common/ConfirmDialog';
-import { UtilisateurDetailModal } from './modals/UtilisateurDetailModal';
+} from '../../../types/utilisateur';
+import { useConfirmDialog } from '../../common/ConfirmDialog';
+import { UtilisateurDetailModal } from '../../modals/utilisateurs/UtilisateurDetailModal';
 
 export const RenderUsers = () => {
   const { showDialog, DialogComponent } = useConfirmDialog();

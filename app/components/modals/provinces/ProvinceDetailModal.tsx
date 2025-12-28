@@ -8,9 +8,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import provinceService from '../../services/provinces/provinceService';
-import { ProvinceDetaillee } from '../../types/province';
-import { useConfirmDialog } from '../common/ConfirmDialog';
+import provinceService from '../../../services/provinces/provinceService';
+import { ProvinceDetaillee } from '../../../types/province';
+import { useConfirmDialog } from '../../common/ConfirmDialog';
 
 interface Props {
   visible: boolean;

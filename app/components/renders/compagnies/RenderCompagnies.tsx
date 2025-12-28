@@ -9,15 +9,15 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import compagnieService from '../services/compagnies/compagnieService';
+import compagnieService from '../../../services/compagnies/compagnieService';
 import {
   Compagnie,
   FiltresCompagnies,
   StatistiquesCompagnies,
-} from '../types/compagnie';
-import { useConfirmDialog } from './common/ConfirmDialog';
-import { CompagnieDetailModal } from './modals/CompagnieDetailModal';
-import { CompagnieFormModal } from './modals/CompagnieFormModal';
+} from '../../../types/compagnie';
+import { useConfirmDialog } from '../../common/ConfirmDialog';
+import { CompagnieDetailModal } from '../../modals/compagnies/CompagnieDetailModal';
+import { CompagnieFormModal } from '../../modals/compagnies/CompagnieFormModal';
 
 export const RenderCompagnies = () => {
   const { showDialog, DialogComponent } = useConfirmDialog();
