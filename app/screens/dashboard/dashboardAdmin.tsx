@@ -18,7 +18,7 @@ export default function DashboardAdmin() {
           const userData = JSON.parse(userJson);
           setUser(userData);
         } else {
-          router.replace('./loginScreen');
+          router.replace('./authentificaion/loginScreen');
         }
       } catch (e) {
         console.warn('SecureStore read error', e);

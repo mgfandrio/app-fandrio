@@ -27,7 +27,7 @@ const getEnvVar = (key: string, defaultValue?: string): string => {
 };
 
 export const config = {
-  API_URL: getEnvVar('EXPO_PUBLIC_API_URL', 'http://192.168.1.104:8000/api'),
+  API_URL: getEnvVar('EXPO_PUBLIC_API_URL', 'http://192.168.1.197:8000/api'),
   X_API_KEY: getEnvVar('EXPO_PUBLIC_X_API_KEY', 'fandrio_abc123def456ghi789jkl012mno345pqr678stu901vwx234yz'),
 } as const;
 

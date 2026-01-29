@@ -15,6 +15,7 @@ import { useConfirmDialog } from '../../../components/common/ConfirmDialog';
 import { RenderChauffers } from '../../../components/renders/chauffeurs/RenderChauffers';
 import { RenderTrajets } from '../../../components/renders/trajets/RenderTrajets';
 import { RenderVoitures } from '../../../components/renders/voitures/RenderVoitures';
+import { RenderVoyages } from '../../../components/RenderVoyages';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.75;
 
@@ -50,7 +51,7 @@ export default function DashboardCompagnie() {
         try {
           await SecureStore.deleteItemAsync('fandrioToken');
           await SecureStore.deleteItemAsync('fandrioUser');
-          router.replace('./loginScreen');
+          router.replace('./authentification/loginScreen');
         } catch (e) {
           console.warn('Logout error', e);
         } finally {
@@ -156,6 +157,21 @@ export default function DashboardCompagnie() {
                 color="#fff" 
               />
               <Text className="text-white text-base font-medium ml-4">Trajets</Text>
+            </TouchableOpacity>
+
+            {/* Voyages */}
+            <TouchableOpacity
+              className={`flex-row items-center px-4 py-3 mx-2 rounded-lg ${
+                activeTab === 'voyages' ? 'bg-blue-700' : ''
+              }`}
+              onPress={() => selectMenuItem('voyages')}
+            >
+              <Ionicons 
+                name={activeTab === 'voyages' ? 'navigate' : 'navigate-outline'} 
+                size={24} 
+                color="#fff" 
+              />
+              <Text className="text-white text-base font-medium ml-4">Voyages</Text>
             </TouchableOpacity>
 
             {/* Paramètres */}
@@ -359,6 +375,7 @@ export default function DashboardCompagnie() {
           {activeTab === 'chauffeurs' && <RenderChauffers />}
           {activeTab === 'voitures' && <RenderVoitures />}
           {activeTab === 'trajets' && <RenderTrajets />}
+          {activeTab === 'voyages' && <RenderVoyages />}
           {activeTab === 'settings' && renderSettings()}
         </View>
 

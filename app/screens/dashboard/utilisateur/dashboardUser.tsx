@@ -38,7 +38,7 @@ export default function DashboardUser() {
       await SecureStore.deleteItemAsync('fandrioToken');
       await SecureStore.deleteItemAsync('fandrioUser');
       setLoading(false);
-      router.replace('./loginScreen');
+      router.replace('./authentification/loginScreen');
     }
   };
 
