@@ -22,7 +22,7 @@ export const RenderVoyages: React.FC = () => {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [selectedVoyage, setSelectedVoyage] = useState<Voyage | null>(null);
-  const [activeTab, setActiveTab] = useState<'actifs' | 'annules'>('actifs');
+  const [activeTab, setActiveTab] = useState<'tous' | 'actifs' | 'inactifs' | 'annules'>('actifs');
 
   useEffect(() => {
     chargerVoyages();
@@ -67,21 +67,29 @@ export const RenderVoyages: React.FC = () => {
 
   const filteredVoyages = (Array.isArray(voyages) ? voyages : [])
     .filter((voyage: any) => {
-      // Filtrer par statut
-      const isActif = voyage.voyage_statut !== 4;
-      const isAnnule = voyage.voyage_statut === 4;
+      // Filtrer par statut et activité
+      const isActif = (voyage.statut !== 4 && voyage.voyage_statut !== 4) && (voyage.is_active !== false);
+      const isInactif = (voyage.statut !== 4 && voyage.voyage_statut !== 4) && (voyage.is_active === false);
+      const isAnnule = voyage.statut === 4 || voyage.voyage_statut === 4;
       
-      if (activeTab === 'actifs') {
-        return isActif;
-      } else {
-        return isAnnule;
+      switch (activeTab) {
+        case 'tous':
+          return true;
+        case 'actifs':
+          return isActif;
+        case 'inactifs':
+          return isInactif;
+        case 'annules':
+          return isAnnule;
+        default:
+          return true;
       }
     })
     .filter((voyage: any) => {
       // Filtrer par recherche
-      const trajetNom = voyage.trajet?.nom_trajet || voyage.trajet?.trajet_nom || '';
-      const dateDepart = voyage.voyage_date || '';
-      const heureDepart = voyage.voyage_heure_depart || '';
+      const trajetNom = voyage.trajet?.nom || voyage.trajet?.nom_trajet || voyage.trajet?.trajet_nom || '';
+      const dateDepart = voyage.date || voyage.voyage_date || '';
+      const heureDepart = voyage.heure_depart || voyage.voyage_heure_depart || '';
       const searchLower = searchText.toLowerCase();
       
       return (
@@ -124,15 +132,34 @@ export const RenderVoyages: React.FC = () => {
 
         {/* Tabs */}
         <View className="flex-row gap-2">
+          {/* Tous */}
+          <TouchableOpacity
+            onPress={() => setActiveTab('tous')}
+            className={`flex-1 py-3 rounded-lg items-center justify-center ${
+              activeTab === 'tous'
+                ? 'bg-gray-700'
+                : 'bg-gray-100'
+            }`}
+          >
+            <Text className={`font-semibold text-xs ${
+              activeTab === 'tous'
+                ? 'text-white'
+                : 'text-gray-600'
+            }`}>
+              Tous
+            </Text>
+          </TouchableOpacity>
+
+          {/* Actifs */}
           <TouchableOpacity
             onPress={() => setActiveTab('actifs')}
             className={`flex-1 py-3 rounded-lg items-center justify-center ${
               activeTab === 'actifs'
-                ? 'bg-blue-600'
+                ? 'bg-green-600'
                 : 'bg-gray-100'
             }`}
           >
-            <Text className={`font-semibold ${
+            <Text className={`font-semibold text-xs ${
               activeTab === 'actifs'
                 ? 'text-white'
                 : 'text-gray-600'
@@ -141,6 +168,25 @@ export const RenderVoyages: React.FC = () => {
             </Text>
           </TouchableOpacity>
 
+          {/* Inactifs */}
+          <TouchableOpacity
+            onPress={() => setActiveTab('inactifs')}
+            className={`flex-1 py-3 rounded-lg items-center justify-center ${
+              activeTab === 'inactifs'
+                ? 'bg-yellow-600'
+                : 'bg-gray-100'
+            }`}
+          >
+            <Text className={`font-semibold text-xs ${
+              activeTab === 'inactifs'
+                ? 'text-white'
+                : 'text-gray-600'
+            }`}>
+              Inactifs
+            </Text>
+          </TouchableOpacity>
+
+          {/* Annulés */}
           <TouchableOpacity
             onPress={() => setActiveTab('annules')}
             className={`flex-1 py-3 rounded-lg items-center justify-center ${
@@ -149,7 +195,7 @@ export const RenderVoyages: React.FC = () => {
                 : 'bg-gray-100'
             }`}
           >
-            <Text className={`font-semibold ${
+            <Text className={`font-semibold text-xs ${
               activeTab === 'annules'
                 ? 'text-white'
                 : 'text-gray-600'
@@ -180,7 +226,7 @@ export const RenderVoyages: React.FC = () => {
         <ScrollView className="flex-1 px-4 py-4">
           {filteredVoyages.map((voyage: any) => (
             <TouchableOpacity
-              key={voyage.id_voyage || voyage.voyage_id}
+              key={voyage.id || voyage.id_voyage || voyage.voyage_id || Math.random().toString()}
               className="bg-white rounded-2xl p-4 mb-3 border border-gray-200"
               onPress={() => handleOpenDetail(voyage)}
               activeOpacity={0.7}
@@ -188,13 +234,10 @@ export const RenderVoyages: React.FC = () => {
               <View className="flex-row items-start justify-between mb-3">
                 <View className="flex-1">
                   <Text className="text-gray-900 font-bold text-base">
-                    {voyage.trajet?.nom_trajet || voyage.trajet?.trajet_nom || 'Trajet sans nom'}
+                    {voyage.trajet?.nom || voyage.trajet?.nom_trajet || voyage.trajet?.trajet_nom || 'Trajet sans nom'}
                   </Text>
                   <Text className="text-gray-600 text-sm mt-1">
-                    {voyage.trajet?.province_depart?.nom_province || voyage.trajet?.province_depart?.pro_nom || 'Départ'} → {voyage.trajet?.province_arrivee?.nom_province || voyage.trajet?.province_arrivee?.pro_nom || 'Arrivée'}
-                  </Text>
-                  <Text className="text-gray-500 text-sm mt-1">
-                    Distance: {voyage.trajet?.distance_km || voyage.trajet?.trajet_distance || '-'} km
+                    {voyage.trajet?.province_depart || 'Départ'} → {voyage.trajet?.province_arrivee || 'Arrivée'}
                   </Text>
                 </View>
                 <View
@@ -220,11 +263,11 @@ export const RenderVoyages: React.FC = () => {
                 <View className="flex-row items-center gap-4">
                   <View className="flex-row items-center gap-1">
                     <Ionicons name="calendar" size={16} color="#6b7280" />
-                    <Text className="text-gray-600 text-sm">{voyage.voyage_date}</Text>
+                    <Text className="text-gray-600 text-sm">{voyage.date || voyage.voyage_date}</Text>
                   </View>
                   <View className="flex-row items-center gap-1">
                     <Ionicons name="time" size={16} color="#6b7280" />
-                    <Text className="text-gray-600 text-sm">{voyage.voyage_heure_depart}</Text>
+                    <Text className="text-gray-600 text-sm">{voyage.heure_depart || voyage.voyage_heure_depart}</Text>
                   </View>
                   <View className="flex-row items-center gap-1">
                     <Ionicons name="people" size={16} color="#6b7280" />
@@ -246,11 +289,11 @@ export const RenderVoyages: React.FC = () => {
       {/* Modals */}
       <VoyageDetailModal
         visible={detailModalVisible}
-        voyageId={selectedVoyage?.id_voyage || selectedVoyage?.voyage_id || null}
+        voyageId={selectedVoyage?.id || selectedVoyage?.id_voyage || selectedVoyage?.voyage_id || null}
         onClose={() => setDetailModalVisible(false)}
         onEdit={(id) => {
           setDetailModalVisible(false);
-          const voyageToEdit = voyages.find((v) => (v.id_voyage || v.voyage_id) === id);
+          const voyageToEdit = voyages.find((v) => (v.id || v.id_voyage || v.voyage_id) === id);
           handleOpenForm(voyageToEdit);
         }}
         onRefresh={chargerVoyages}
@@ -258,7 +301,7 @@ export const RenderVoyages: React.FC = () => {
 
       <VoyageFormModal
         visible={formModalVisible}
-        voyageId={selectedVoyage?.id_voyage || selectedVoyage?.voyage_id || null}
+        voyageId={selectedVoyage?.id || selectedVoyage?.id_voyage || selectedVoyage?.voyage_id || null}
         onClose={() => setFormModalVisible(false)}
         onSuccess={chargerVoyages}
       />

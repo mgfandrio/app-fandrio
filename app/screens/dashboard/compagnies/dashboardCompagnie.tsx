@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useConfirmDialog } from '../../../components/common/ConfirmDialog';
+import { DashboardStats } from '../../../components/dashboard/DashboardStats';
 import { RenderChauffers } from '../../../components/renders/chauffeurs/RenderChauffers';
 import { RenderTrajets } from '../../../components/renders/trajets/RenderTrajets';
 import { RenderVoitures } from '../../../components/renders/voitures/RenderVoitures';
@@ -267,6 +268,9 @@ export default function DashboardCompagnie() {
           <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
         </TouchableOpacity>
       </View>
+
+      {/* Statistiques du tableau de bord */}
+      <DashboardStats refreshTrigger={0} />
 
       {/* Infos compagnie */}
       <View className="bg-white rounded-2xl p-4 mb-6 shadow-sm">

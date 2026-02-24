@@ -144,6 +144,31 @@ export const voyageService = {
     }
   },
 
+  // Réactiver un voyage annulé
+  reactiverVoyage: async (id: number) => {
+    try {
+      console.log('Envoi réactivation voyage ID', id);
+      const response = await apiClient.patch(`/api/adminCompagnie/voyage/${id}/reactiver`);
+      console.log('Réponse réactivation voyage:', response.data);
+      return {
+        statut: true,
+        message: response.data?.message || 'Voyage réactivé avec succès',
+        data: response.data?.data || response.data,
+      };
+    } catch (error: any) {
+      console.error('Erreur réactivation voyage:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+      return {
+        statut: false,
+        message: error.response?.data?.message || 'Erreur lors de la réactivation du voyage',
+        data: null,
+      };
+    }
+  },
+
   // Récupérer les statistiques
   obtenirStatistiques: async () => {
     try {

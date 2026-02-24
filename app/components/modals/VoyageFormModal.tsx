@@ -135,22 +135,22 @@ export const VoyageFormModal: React.FC<Props> = ({
       if (response.data) {
         const voyage = response.data as any;
         
-        const trajetId = voyage.traj_id || voyage.trajet?.id_trajet || voyage.trajet?.traj_id;
-        const voitureId = voyage.voit_id || voyage.voiture?.voit_id || voyage.voiture?.id_voiture;
+        const trajetId = voyage.traj_id || voyage.trajet?.id || voyage.trajet?.id_trajet || voyage.trajet?.traj_id;
+        const voitureId = voyage.voit_id || voyage.voiture?.id || voyage.voiture?.voit_id || voyage.voiture?.id_voiture;
         
         console.log('Données extraites pour édition:', {
           trajetId,
           voitureId,
-          voyage_date: voyage.voyage_date,
-          voyage_heure_depart: voyage.voyage_heure_depart,
+          voyage_date: voyage.date || voyage.voyage_date,
+          voyage_heure_depart: voyage.heure_depart || voyage.voyage_heure_depart,
         });
         
         setFormData({
-          voyage_date: voyage.voyage_date || '',
-          voyage_heure_depart: voyage.voyage_heure_depart || '',
+          voyage_date: (voyage.date || voyage.voyage_date || '') as string,
+          voyage_heure_depart: (voyage.heure_depart || voyage.voyage_heure_depart || '') as string,
           traj_id: trajetId?.toString() || '',
           voit_id: voitureId?.toString() || '',
-          voyage_type: voyage.voyage_type?.toString() || '1',
+          voyage_type: voyage.type?.toString() || voyage.voyage_type?.toString() || '1',
           places_disponibles: voyage.places_disponibles?.toString() || '',
         });
       } else {

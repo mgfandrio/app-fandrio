@@ -78,8 +78,8 @@ export const VoyageDetailModal: React.FC<Props> = ({
   const handleAnnulerVoyage = () => {
     if (!voyage) return;
 
-    const trajetNom = voyage.trajet?.nom_trajet || voyage.trajet?.trajet_nom || 'Trajet sans nom';
-    const message = `Êtes-vous sûr d'annuler le voyage: ${trajetNom} du ${voyage.voyage_date} à ${voyage.voyage_heure_depart} ?`;
+    const trajetNom = voyage.trajet?.nom || voyage.trajet?.nom_trajet || voyage.trajet?.trajet_nom || 'Trajet sans nom';
+    const message = `Êtes-vous sûr d'annuler le voyage: ${trajetNom} du ${voyage.date || voyage.voyage_date} à ${voyage.heure_depart || voyage.voyage_heure_depart} ?`;
 
     showDialog({
       title: 'Confirmation',
@@ -90,13 +90,74 @@ export const VoyageDetailModal: React.FC<Props> = ({
       onConfirm: async () => {
         setActionLoading(true);
         try {
-          const voyageId = voyage.id_voyage || voyage.voyage_id;
+          const voyageId = voyage.id || voyage.id_voyage || voyage.voyage_id;
           const response = await voyageService.annulerVoyage(voyageId);
 
           if (response.statut === true) {
             showDialog({
               title: 'Succès',
               message: 'Voyage annulé avec succès',
+              type: 'success',
+              confirmText: 'OK',
+              onConfirm: () => {
+                setActionLoading(false);
+                onRefresh?.();
+                onClose();
+              },
+              onCancel: () => {
+                setActionLoading(false);
+                onRefresh?.();
+                onClose();
+              },
+            });
+          } else {
+            showDialog({
+              title: 'Erreur',
+              message: response.message || 'Une erreur est survenue',
+              type: 'danger',
+              confirmText: 'OK',
+              onConfirm: () => setActionLoading(false),
+              onCancel: () => setActionLoading(false),
+            });
+          }
+        } catch (error: any) {
+          setActionLoading(false);
+          showDialog({
+            title: 'Erreur',
+            message: error?.message || 'Une erreur est survenue',
+            type: 'danger',
+            confirmText: 'OK',
+            onConfirm: () => {},
+            onCancel: () => {},
+          });
+        }
+      },
+      onCancel: () => {},
+    });
+  };
+
+  const handleReactiverVoyage = () => {
+    if (!voyage) return;
+
+    const trajetNom = voyage.trajet?.nom || voyage.trajet?.nom_trajet || voyage.trajet?.trajet_nom || 'Trajet sans nom';
+    const message = `Êtes-vous sûr de vouloir réactiver le voyage: ${trajetNom}? Vous devrez le modifier pour le re-programmer à une date ultérieure.`;
+
+    showDialog({
+      title: 'Confirmation',
+      message,
+      type: 'info',
+      confirmText: 'Réactiver',
+      cancelText: 'Annuler',
+      onConfirm: async () => {
+        setActionLoading(true);
+        try {
+          const voyageId = voyage.id || voyage.id_voyage || voyage.voyage_id;
+          const response = await voyageService.reactiverVoyage(voyageId);
+
+          if (response.statut === true) {
+            showDialog({
+              title: 'Succès',
+              message: 'Voyage réactivé avec succès. Vous pouvez maintenant le modifier pour le re-programmer.',
               type: 'success',
               confirmText: 'OK',
               onConfirm: () => {
@@ -192,10 +253,10 @@ export const VoyageDetailModal: React.FC<Props> = ({
                 <View className="flex-row items-start justify-between mb-4">
                   <View className="flex-1">
                     <Text className="text-gray-900 font-bold text-lg">
-                      {voyage.trajet?.nom_trajet || voyage.trajet?.trajet_nom || 'Trajet sans nom'}
+                      {voyage.trajet?.nom || voyage.trajet?.nom_trajet || voyage.trajet?.trajet_nom || 'Trajet sans nom'}
                     </Text>
                     <Text className="text-gray-600 text-sm mt-1">
-                      {voyage.trajet?.province_depart?.nom_province || voyage.trajet?.province_depart?.pro_nom || 'Départ'} → {voyage.trajet?.province_arrivee?.nom_province || voyage.trajet?.province_arrivee?.pro_nom || 'Arrivée'}
+                      {voyage.trajet?.province_depart || 'Départ'} → {voyage.trajet?.province_arrivee || 'Arrivée'}
                     </Text>
                     <View className="mt-2">
                       {getStatutBadge(voyage.statut || voyage.voyage_statut || 0)}
@@ -206,11 +267,11 @@ export const VoyageDetailModal: React.FC<Props> = ({
                 <View className="space-y-3">
                   <View className="flex-row items-center">
                     <Ionicons name="calendar" size={20} color="#6b7280" />
-                    <Text className="text-gray-700 ml-3">Date: {voyage.voyage_date}</Text>
+                    <Text className="text-gray-700 ml-3">Date: {voyage.date || voyage.voyage_date}</Text>
                   </View>
-                  <View className="flex-row items-center">
-                    <Ionicons name="time" size={20} color="#6b7280" />
-                    <Text className="text-gray-700 ml-3">Heure: {voyage.voyage_heure_depart}</Text>
+                  <View className="flex-row items-center mt-3">
+                    <Ionicons name="time" size={20} color="#3b82f6" />
+                    <Text className="text-gray-700 ml-3">Heure: {voyage.heure_depart || voyage.voyage_heure_depart}</Text>
                   </View>
                   <View className="flex-row items-center">
                     <Ionicons name="people" size={20} color="#6b7280" />
@@ -225,10 +286,6 @@ export const VoyageDetailModal: React.FC<Props> = ({
                 <View className="space-y-2">
                   <View className="flex-row items-center">
                     <Ionicons name="location" size={20} color="#6b7280" />
-                    <Text className="text-gray-700 ml-3">Distance: {voyage.trajet?.distance_km || voyage.trajet?.trajet_distance || '-'} km</Text>
-                  </View>
-                  <View className="flex-row items-center">
-                    <Ionicons name="pricetag" size={20} color="#6b7280" />
                     <Text className="text-gray-700 ml-3">Tarif: {voyage.trajet?.tarif ? `${parseFloat(voyage.trajet.tarif).toLocaleString('fr-FR')} Ar` : '0 Ar'}</Text>
                   </View>
                 </View>
@@ -241,15 +298,15 @@ export const VoyageDetailModal: React.FC<Props> = ({
                   <View className="space-y-2">
                     <View className="flex-row items-center">
                       <Ionicons name="car" size={20} color="#6b7280" />
-                      <Text className="text-gray-700 ml-3">{voyage.voiture.voit_matricule || voyage.voiture.immatriculation || voyage.voiture.voit_immatriculation}</Text>
+                      <Text className="text-gray-700 ml-3">N° Matricule: {voyage.voiture.matricule || voyage.voiture.voit_matricule || '-'}</Text>
                     </View>
                     <View className="flex-row items-center">
                       <Ionicons name="information-circle" size={20} color="#6b7280" />
-                      <Text className="text-gray-700 ml-3">{voyage.voiture.voit_marque || voyage.voiture.marque || '-'} {voyage.voiture.voit_modele || voyage.voiture.model || '-'}</Text>
+                      <Text className="text-gray-700 ml-3">{voyage.voiture.marque || voyage.voiture.voit_marque || '-'} {voyage.voiture.modele || voyage.voiture.voit_modele || '-'}</Text>
                     </View>
                     <View className="flex-row items-center">
                       <Ionicons name="people" size={20} color="#6b7280" />
-                      <Text className="text-gray-700 ml-3">Capacité: {voyage.voiture.voit_places || voyage.voiture.capacite || '-'} places</Text>
+                      <Text className="text-gray-700 ml-3">Capacité: {voyage.voiture.capacite || voyage.voiture.voit_places || '-'} places</Text>
                     </View>
                   </View>
                 </View>
@@ -264,7 +321,7 @@ export const VoyageDetailModal: React.FC<Props> = ({
                     className="items-center"
                     onPress={() => {
                       onClose();
-                      onEdit?.(voyage.id_voyage || voyage.voyage_id);
+                      onEdit?.(voyage.id || voyage.id_voyage || voyage.voyage_id);
                     }}
                     disabled={actionLoading}
                   >
@@ -274,20 +331,36 @@ export const VoyageDetailModal: React.FC<Props> = ({
                     <Text className="text-gray-700 text-xs font-medium">Modifier</Text>
                   </TouchableOpacity>
 
-                  {/* Annuler */}
+                  {/* Annuler / Réactiver */}
                   <TouchableOpacity
                     className="items-center"
-                    onPress={handleAnnulerVoyage}
+                    onPress={() => {
+                      if (voyage.statut === 4 || voyage.voyage_statut === 4) {
+                        handleReactiverVoyage();
+                      } else {
+                        handleAnnulerVoyage();
+                      }
+                    }}
                     disabled={actionLoading}
                   >
-                    <View className="bg-red-100 rounded-full w-16 h-16 items-center justify-center mb-2">
+                    <View className={`${
+                      voyage.statut === 4 || voyage.voyage_statut === 4
+                        ? 'bg-yellow-100'
+                        : 'bg-red-100'
+                    } rounded-full w-16 h-16 items-center justify-center mb-2`}>
                       {actionLoading ? (
-                        <ActivityIndicator color="#ef4444" />
+                        <ActivityIndicator color={voyage.statut === 4 || voyage.voyage_statut === 4 ? '#eab308' : '#ef4444'} />
                       ) : (
-                        <Ionicons name="close-circle" size={28} color="#ef4444" />
+                        <Ionicons 
+                          name={voyage.statut === 4 || voyage.voyage_statut === 4 ? 'refresh' : 'close-circle'} 
+                          size={28} 
+                          color={voyage.statut === 4 || voyage.voyage_statut === 4 ? '#eab308' : '#ef4444'} 
+                        />
                       )}
                     </View>
-                    <Text className="text-gray-700 text-xs font-medium">Annuler</Text>
+                    <Text className="text-gray-700 text-xs font-medium">
+                      {voyage.statut === 4 || voyage.voyage_statut === 4 ? 'Réactiver' : 'Annuler'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>

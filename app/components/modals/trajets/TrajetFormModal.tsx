@@ -49,6 +49,9 @@ export const TrajetFormModal: React.FC<Props> = ({
     traj_duree: '',
   });
 
+  const [durationHours, setDurationHours] = useState(0);
+  const [durationMinutes, setDurationMinutes] = useState(0);
+
   const isEditMode = !!trajetId;
 
   useEffect(() => {
@@ -61,6 +64,34 @@ export const TrajetFormModal: React.FC<Props> = ({
       }
     }
   }, [visible, trajetId]);
+
+  const parseDuration = (durationString: string) => {
+    if (!durationString) {
+      setDurationHours(0);
+      setDurationMinutes(0);
+      return;
+    }
+
+    // Format HH:mm
+    if (durationString.includes(':')) {
+      const [hours, minutes] = durationString.split(':');
+      setDurationHours(parseInt(hours) || 0);
+      setDurationMinutes(parseInt(minutes) || 0);
+    }
+    // Format "Xh30" or "Xh"
+    else if (durationString.toLowerCase().includes('h')) {
+      const parts = durationString.toLowerCase().split('h');
+      setDurationHours(parseInt(parts[0]) || 0);
+      const mins = parseInt(parts[1]) || 0;
+      setDurationMinutes(mins);
+    }
+    // Format minutes only
+    else {
+      const mins = parseInt(durationString) || 0;
+      setDurationHours(Math.floor(mins / 60));
+      setDurationMinutes(mins % 60);
+    }
+  };
 
   const chargerProvinces = async () => {
     try {
@@ -116,6 +147,7 @@ export const TrajetFormModal: React.FC<Props> = ({
           traj_km: km.toString(),
           traj_duree: duree,
         });
+        parseDuration(duree);
       } else {
         showDialog({
           title: 'Erreur',
@@ -148,8 +180,8 @@ export const TrajetFormModal: React.FC<Props> = ({
       traj_km: '',
       traj_duree: '',
     });
-    setSearchDepart('');
-    setSearchArrivee('');
+    setDurationHours(0);
+    setDurationMinutes(0);
   };
 
   const getDepartName = () => {
@@ -222,13 +254,16 @@ export const TrajetFormModal: React.FC<Props> = ({
 
     setSubmitting(true);
     try {
+      // Formater la durée en HH:mm
+      const formattedDuration = `${durationHours.toString().padStart(2, '0')}:${durationMinutes.toString().padStart(2, '0')}`;
+
       const data = {
         traj_nom: formData.traj_nom,
         pro_depart: parseInt(formData.pro_depart, 10),
         pro_arrivee: parseInt(formData.pro_arrivee, 10),
         traj_tarif: parseFloat(formData.traj_tarif),
         traj_km: parseInt(formData.traj_km, 10),
-        traj_duree: formData.traj_duree || null,
+        traj_duree: formattedDuration,
       };
 
       if (isEditMode) {
@@ -566,18 +601,82 @@ export const TrajetFormModal: React.FC<Props> = ({
 
               {/* Durée */}
               <View className="mb-5">
-                <Text className="text-gray-700 font-semibold mb-2">Durée</Text>
-                <View className="flex-row items-center bg-gray-50 border border-gray-300 rounded-xl px-4 py-3.5">
-                  <Ionicons name="time-outline" size={22} color="#6b7280" />
-                  <TextInput
-                    className="flex-1 ml-3 text-gray-900"
-                    placeholder="Ex: 2h30 ou 150 minutes"
-                    value={formData.traj_duree}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, traj_duree: text })
-                    }
-                    editable={!submitting}
-                  />
+                <Text className="text-gray-700 font-semibold mb-2">
+                  Durée (format HH:mm)
+                </Text>
+                <View className="bg-gray-50 border border-gray-300 rounded-xl p-4">
+                  {/* Affichage de la durée sélectionnée */}
+                  <View className="bg-blue-100 rounded-lg p-4 mb-4 flex-row items-center justify-center">
+                    <Ionicons name="time" size={28} color="#3b82f6" />
+                    <Text className="text-2xl font-bold text-blue-600 ml-3">
+                      {durationHours.toString().padStart(2, '0')}:{durationMinutes.toString().padStart(2, '0')}
+                    </Text>
+                  </View>
+
+                  {/* Sélecteur Heures */}
+                  <View className="mb-4">
+                    <Text className="text-gray-600 text-sm mb-3 text-center font-medium">Heures</Text>
+                    <View className="flex-row items-center justify-center gap-2">
+                      <TouchableOpacity
+                        className="bg-red-500 rounded-lg p-3"
+                        onPress={() => setDurationHours(Math.max(0, durationHours - 1))}
+                        disabled={submitting}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="remove" size={24} color="#fff" />
+                      </TouchableOpacity>
+
+                      <View className="bg-white border border-gray-300 rounded-lg px-8 py-4 min-w-[100px] items-center">
+                        <Text className="text-2xl font-bold text-gray-900">
+                          {durationHours.toString().padStart(2, '0')}
+                        </Text>
+                      </View>
+
+                      <TouchableOpacity
+                        className="bg-green-500 rounded-lg p-3"
+                        onPress={() => setDurationHours(Math.min(23, durationHours + 1))}
+                        disabled={submitting}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="add" size={24} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Sélecteur Minutes */}
+                  <View>
+                    <Text className="text-gray-600 text-sm mb-3 text-center font-medium">Minutes</Text>
+                    <View className="flex-row items-center justify-center gap-2">
+                      <TouchableOpacity
+                        className="bg-red-500 rounded-lg p-3"
+                        onPress={() => setDurationMinutes(Math.max(0, durationMinutes - 5))}
+                        disabled={submitting}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="remove" size={24} color="#fff" />
+                      </TouchableOpacity>
+
+                      <View className="bg-white border border-gray-300 rounded-lg px-8 py-4 min-w-[100px] items-center">
+                        <Text className="text-2xl font-bold text-gray-900">
+                          {durationMinutes.toString().padStart(2, '0')}
+                        </Text>
+                      </View>
+
+                      <TouchableOpacity
+                        className="bg-green-500 rounded-lg p-3"
+                        onPress={() => setDurationMinutes(Math.min(59, durationMinutes + 5))}
+                        disabled={submitting}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="add" size={24} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <Text className="text-gray-500 text-xs text-center mt-3">
+                    (- : décrémente de 1h | + : incrémente de 1h)
+                    {'\n'}(- : décrémente de 5min | + : incrémente de 5min)
+                  </Text>
                 </View>
               </View>
 

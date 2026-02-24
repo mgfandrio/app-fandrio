@@ -86,6 +86,24 @@ class CompagnieService {
   }
 
   /**
+   * Récupère les statistiques du tableau de bord
+   */
+  async getTableauBord(): Promise<
+    ApiResponse<{
+      voitures: { disponibles: number; indisponibles: number; total: number };
+      voyages: { actifs: number; inactifs: number; annules: number; total: number };
+      chauffeurs: { actifs: number; inactifs: number; total: number };
+    }> | ApiError
+  > {
+    try {
+      const response = await apiClient.get('/api/adminCompagnie/tableau-bord');
+      return handleApiResponse(response);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  }
+
+  /**
    * Change le statut d'une compagnie
    */
   async changerStatut(id: number, statut: number): Promise<ApiResponse<Compagnie> | ApiError> {
