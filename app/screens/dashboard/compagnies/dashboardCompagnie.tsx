@@ -51,7 +51,7 @@ export default function DashboardCompagnie() {
         try {
           await SecureStore.deleteItemAsync('fandrioToken');
           await SecureStore.deleteItemAsync('fandrioUser');
-          router.replace('./authentification/loginScreen');
+          router.replace('/screens/authentification/loginScreen');
         } catch (e) {
           console.warn('Logout error', e);
         } finally {

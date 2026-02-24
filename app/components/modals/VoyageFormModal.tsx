@@ -233,6 +233,43 @@ export const VoyageFormModal: React.FC<Props> = ({
     });
   };
 
+  // Valider et formater la date en YYYY-MM-DD
+  const handleDateChange = (text: string) => {
+    // Permettre la saisie libre mais valider le format
+    let formatted = text.replace(/\D/g, ''); // Garder seulement les chiffres
+    
+    if (formatted.length >= 4) {
+      formatted = formatted.slice(0, 4) + '-' + formatted.slice(4);
+    }
+    if (formatted.length >= 7) {
+      formatted = formatted.slice(0, 7) + '-' + formatted.slice(7, 9);
+    }
+    
+    setFormData({ ...formData, voyage_date: formatted.slice(0, 10) });
+  };
+
+  // Valider et formater l'heure en HH:mm
+  const handleTimeChange = (text: string) => {
+    let formatted = text.replace(/\D/g, ''); // Garder seulement les chiffres
+    
+    if (formatted.length >= 2) {
+      const hours = formatted.slice(0, 2);
+      if (parseInt(hours) > 23) {
+        formatted = '23' + formatted.slice(2);
+      }
+      formatted = formatted.slice(0, 2) + ':' + formatted.slice(2, 4);
+    }
+    
+    if (formatted.length >= 5) {
+      const minutes = formatted.slice(3, 5);
+      if (parseInt(minutes) > 59) {
+        formatted = formatted.slice(0, 3) + '59';
+      }
+    }
+    
+    setFormData({ ...formData, voyage_heure_depart: formatted.slice(0, 5) });
+  };
+
   const handleSubmit = async () => {
     // Validation
     if (
@@ -245,6 +282,49 @@ export const VoyageFormModal: React.FC<Props> = ({
       showDialog({
         title: 'Erreur',
         message: 'Veuillez remplir tous les champs obligatoires',
+        type: 'danger',
+        confirmText: 'OK',
+        onConfirm: () => {},
+        onCancel: () => {},
+      });
+      return;
+    }
+
+    // Valider le format de la date
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(formData.voyage_date)) {
+      showDialog({
+        title: 'Erreur',
+        message: 'La date doit être au format YYYY-MM-DD (ex: 2026-02-28)',
+        type: 'danger',
+        confirmText: 'OK',
+        onConfirm: () => {},
+        onCancel: () => {},
+      });
+      return;
+    }
+
+    // Valider le format de l'heure
+    if (!/^\d{2}:\d{2}$/.test(formData.voyage_heure_depart)) {
+      showDialog({
+        title: 'Erreur',
+        message: 'L\'heure doit être au format HH:mm (ex: 14:30)',
+        type: 'danger',
+        confirmText: 'OK',
+        onConfirm: () => {},
+        onCancel: () => {},
+      });
+      return;
+    }
+
+    // Vérifier que la date est dans le futur
+    const dateVoyage = new Date(formData.voyage_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (dateVoyage <= today) {
+      showDialog({
+        title: 'Erreur',
+        message: 'La date de départ doit être dans le futur',
         type: 'danger',
         confirmText: 'OK',
         onConfirm: () => {},
@@ -489,25 +569,43 @@ export const VoyageFormModal: React.FC<Props> = ({
               {/* Date Input */}
               <View className="mb-4">
                 <Text className="text-gray-900 font-semibold mb-2">Date de départ *</Text>
-                <TextInput
-                  className="bg-white border border-gray-300 rounded-xl px-4 py-3 text-gray-900"
-                  placeholder="YYYY-MM-DD"
-                  value={formData.voyage_date}
-                  onChangeText={(text) => setFormData({ ...formData, voyage_date: text })}
-                  placeholderTextColor="#9ca3af"
-                />
+                <View className="bg-white border border-gray-300 rounded-xl px-4 py-3 flex-row items-center">
+                  <Ionicons name="calendar" size={20} color="#3b82f6" />
+                  <TextInput
+                    className="flex-1 ml-2 text-gray-900"
+                    placeholder="YYYY-MM-DD"
+                    value={formData.voyage_date}
+                    onChangeText={handleDateChange}
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="number-pad"
+                    maxLength={10}
+                  />
+                </View>
+                <Text className="text-xs text-gray-500 mt-1">Ex: 2026-02-28</Text>
+                {formData.voyage_date && !/^\d{4}-\d{2}-\d{2}$/.test(formData.voyage_date) && (
+                  <Text className="text-xs text-red-500 mt-1">Format invalide (YYYY-MM-DD)</Text>
+                )}
               </View>
 
               {/* Heure Input */}
               <View className="mb-4">
                 <Text className="text-gray-900 font-semibold mb-2">Heure de départ *</Text>
-                <TextInput
-                  className="bg-white border border-gray-300 rounded-xl px-4 py-3 text-gray-900"
-                  placeholder="HH:mm"
-                  value={formData.voyage_heure_depart}
-                  onChangeText={(text) => setFormData({ ...formData, voyage_heure_depart: text })}
-                  placeholderTextColor="#9ca3af"
-                />
+                <View className="bg-white border border-gray-300 rounded-xl px-4 py-3 flex-row items-center">
+                  <Ionicons name="time" size={20} color="#3b82f6" />
+                  <TextInput
+                    className="flex-1 ml-2 text-gray-900"
+                    placeholder="HH:mm"
+                    value={formData.voyage_heure_depart}
+                    onChangeText={handleTimeChange}
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="number-pad"
+                    maxLength={5}
+                  />
+                </View>
+                <Text className="text-xs text-gray-500 mt-1">Ex: 14:30</Text>
+                {formData.voyage_heure_depart && !/^\d{2}:\d{2}$/.test(formData.voyage_heure_depart) && (
+                  <Text className="text-xs text-red-500 mt-1">Format invalide (HH:mm)</Text>
+                )}
               </View>
 
               {/* Type de voyage (Matin/Soir) */}

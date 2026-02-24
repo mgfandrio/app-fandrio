@@ -64,7 +64,7 @@ export const TrajetFormModal: React.FC<Props> = ({
 
   const chargerProvinces = async () => {
     try {
-      const response = await apiClient.get('/api/adminCompagnie/provinces/recuperListeProvinceCompagnie');
+      const response = await apiClient.get('/api/adminCompagnie/provinces/recuperListeProvince');
       
       let provincesList: Province[] = [];
       

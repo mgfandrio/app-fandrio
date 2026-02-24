@@ -72,7 +72,7 @@ export default function MonProfil() {
           await SecureStore.deleteItemAsync('fandrioUser');
           
           // Rediriger vers la page de connexion
-          router.replace('./loginScreen');
+          router.replace('/screens/authentification/loginScreen');
         } catch (e) {
           console.warn('Erreur lors de la déconnexion', e);
           showDialog({
