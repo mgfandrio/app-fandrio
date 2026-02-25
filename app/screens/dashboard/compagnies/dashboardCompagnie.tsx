@@ -27,6 +27,8 @@ export default function DashboardCompagnie() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [messageCount, setMessageCount] = useState(0);
   const drawerAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
 
   useEffect(() => {
@@ -173,6 +175,21 @@ export default function DashboardCompagnie() {
                 color="#fff" 
               />
               <Text className="text-white text-base font-medium ml-4">Voyages</Text>
+            </TouchableOpacity>
+
+            {/* Réservations */}
+            <TouchableOpacity
+              className={`flex-row items-center px-4 py-3 mx-2 rounded-lg ${
+                activeTab === 'reservations' ? 'bg-blue-700' : ''
+              }`}
+              onPress={() => selectMenuItem('reservations')}
+            >
+              <Ionicons 
+                name={activeTab === 'reservations' ? 'ticket' : 'ticket-outline'} 
+                size={24} 
+                color="#fff" 
+              />
+              <Text className="text-white text-base font-medium ml-4">Réservations</Text>
             </TouchableOpacity>
 
             {/* Paramètres */}
@@ -351,6 +368,19 @@ export default function DashboardCompagnie() {
     </ScrollView>
   );
 
+  const renderReservations = () => (
+    <ScrollView className="flex-1 px-4 pt-6">
+      <Text className="text-2xl font-bold text-gray-900 mb-6">Réservations</Text>
+      
+      <View className="bg-white rounded-2xl p-6 shadow-sm items-center justify-center" style={{ minHeight: 300 }}>
+        <Ionicons name="ticket-outline" size={48} color="#9ca3af" />
+        <Text className="text-gray-500 text-center mt-4 text-base">
+          Gestion des réservations à venir
+        </Text>
+      </View>
+    </ScrollView>
+  );
+
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
       <DialogComponent />
@@ -368,7 +398,37 @@ export default function DashboardCompagnie() {
           />
         </TouchableOpacity>
         <Text className="text-xl font-bold text-gray-900">Compagnie</Text>
-        <View className="w-10" />
+        <View className="flex-row items-center gap-4">
+          {/* Icône Notification */}
+          <TouchableOpacity className="relative p-2">
+            <Ionicons name="notifications-outline" size={24} color="#3b82f6" />
+            {notificationCount > 0 && (
+              <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-5 h-5 items-center justify-center">
+                <Text className="text-white text-xs font-bold">{notificationCount}</Text>
+              </View>
+            )}
+            {notificationCount === 0 && (
+              <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-5 h-5 items-center justify-center">
+                <Text className="text-white text-xs font-bold">0</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Icône Message */}
+          <TouchableOpacity className="relative p-2">
+            <Ionicons name="mail-outline" size={24} color="#3b82f6" />
+            {messageCount > 0 && (
+              <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-5 h-5 items-center justify-center">
+                <Text className="text-white text-xs font-bold">{messageCount}</Text>
+              </View>
+            )}
+            {messageCount === 0 && (
+              <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-5 h-5 items-center justify-center">
+                <Text className="text-white text-xs font-bold">0</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Main content */}
@@ -380,6 +440,7 @@ export default function DashboardCompagnie() {
           {activeTab === 'voitures' && <RenderVoitures />}
           {activeTab === 'trajets' && <RenderTrajets />}
           {activeTab === 'voyages' && <RenderVoyages />}
+          {activeTab === 'reservations' && renderReservations()}
           {activeTab === 'settings' && renderSettings()}
         </View>
 
