@@ -29,7 +29,7 @@ export default function MonProfil() {
   const chargerProfil = async () => {
     setLoading(true);
     const response = await authService.getMoi();
-    
+
     if (response.statut && response.data) {
       setUtilisateur(response.data);
       // Mettre à jour le SecureStore avec les dernières données
@@ -40,11 +40,11 @@ export default function MonProfil() {
         message: response.message || 'Impossible de charger le profil',
         type: 'danger',
         confirmText: 'OK',
-        onConfirm: () => {},
-        onCancel: () => {}
+        onConfirm: () => { },
+        onCancel: () => { }
       });
     }
-    
+
     setLoading(false);
   };
 
@@ -66,11 +66,11 @@ export default function MonProfil() {
         try {
           // Appeler l'API de déconnexion
           await authService.deconnexion();
-          
+
           // Supprimer les données locales
           await SecureStore.deleteItemAsync('fandrioToken');
           await SecureStore.deleteItemAsync('fandrioUser');
-          
+
           // Rediriger vers la page de connexion
           router.replace('/screens/authentification/loginScreen');
         } catch (e) {
@@ -80,14 +80,14 @@ export default function MonProfil() {
             message: 'Une erreur est survenue lors de la déconnexion',
             type: 'danger',
             confirmText: 'OK',
-            onConfirm: () => {},
-            onCancel: () => {}
+            onConfirm: () => { },
+            onCancel: () => { }
           });
         } finally {
           setLoadingLogout(false);
         }
       },
-      onCancel: () => {}
+      onCancel: () => { }
     });
   };
 
@@ -146,7 +146,7 @@ export default function MonProfil() {
     <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
       <DialogComponent />
       {/* En-tête */}
-      <View className="bg-blue-600 pb-6">
+      <View className="bg-[#1e3a8a] pb-6">
         <View className="flex-row items-center justify-between px-5 pt-4 pb-4">
           <TouchableOpacity
             onPress={() => router.back()}
@@ -168,14 +168,14 @@ export default function MonProfil() {
         {/* Avatar et nom */}
         <View className="items-center mt-4">
           <View className="bg-white rounded-full w-24 h-24 items-center justify-center shadow-lg">
-            <Text className="text-blue-600 text-4xl font-bold">
+            <Text className="text-[#1e3a8a] text-4xl font-bold">
               {utilisateur.prenom[0]}{utilisateur.nom[0]}
             </Text>
           </View>
           <Text className="text-white text-2xl font-bold mt-4">
             {utilisateur.prenom} {utilisateur.nom}
           </Text>
-          <View 
+          <View
             className="px-4 py-1.5 rounded-full mt-2"
             style={{ backgroundColor: statutInfo.bg }}
           >
@@ -194,8 +194,8 @@ export default function MonProfil() {
         {/* Informations personnelles */}
         <View className="bg-white rounded-3xl mx-4 mt-4 p-6 shadow-sm">
           <View className="flex-row items-center mb-4">
-            <View className="bg-blue-100 rounded-full p-2 mr-3">
-              <Ionicons name="person" size={24} color="#3b82f6" />
+            <View className="bg-blue-50 rounded-full p-2 mr-3">
+              <Ionicons name="person" size={24} color="#1e3a8a" />
             </View>
             <Text className="text-gray-900 text-lg font-bold flex-1">Informations personnelles</Text>
           </View>
@@ -276,7 +276,7 @@ export default function MonProfil() {
             <Text className="text-gray-900 text-lg font-bold flex-1">Actions</Text>
           </View>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             className="flex-row items-center py-3 border-b border-gray-100"
             activeOpacity={0.7}
           >
@@ -287,7 +287,7 @@ export default function MonProfil() {
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             className="flex-row items-center py-3 border-b border-gray-100"
             activeOpacity={0.7}
           >
@@ -298,7 +298,7 @@ export default function MonProfil() {
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             className="flex-row items-center py-3"
             activeOpacity={0.7}
             onPress={handleLogout}
