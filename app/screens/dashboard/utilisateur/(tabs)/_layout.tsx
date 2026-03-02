@@ -43,6 +43,12 @@ export default function TabsLayout() {
       {/* Recherche - Bouton au milieu */}
       <Tabs.Screen
         name="search"
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('accueil', { openSearch: Date.now().toString() });
+          },
+        })}
         options={{
           title: 'Recherche',
           tabBarIcon: ({ color }) => (

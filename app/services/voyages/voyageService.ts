@@ -188,4 +188,65 @@ export const voyageService = {
       };
     }
   },
+
+  // Récupérer les voyages à venir (Public)
+  obtenirVoyagesAVenir: async () => {
+    try {
+      const response = await apiClient.get('/api/recherche/a-venir');
+
+      let voyages: any[] = [];
+      // Handle { statut: true, data: { voyages: [...] } }
+      if (response.data?.data?.voyages && Array.isArray(response.data.data.voyages)) {
+        voyages = response.data.data.voyages;
+      }
+      // Handle { statut: true, data: [...] }
+      else if (response.data?.data && Array.isArray(response.data.data)) {
+        voyages = response.data.data;
+      }
+      // Handle { voyages: [...] }
+      else if (response.data?.voyages && Array.isArray(response.data.voyages)) {
+        voyages = response.data.voyages;
+      }
+
+      return {
+        statut: true,
+        message: 'Voyages à venir récupérés avec succès',
+        data: voyages,
+      };
+    } catch (error: any) {
+      console.error('Erreur obtenirVoyagesAVenir:', error.message || error);
+      return {
+        statut: false,
+        message: error.message || 'Erreur lors de la récupération des voyages à venir',
+        data: [],
+      };
+    }
+  },
+
+  // Rechercher des voyages avec filtres avancés
+  rechercherVoyages: async (criteres: any) => {
+    try {
+      const response = await apiClient.post('/api/recherche/recherche', criteres);
+
+      let voyages: any[] = [];
+      if (response.data?.data?.voyages && Array.isArray(response.data.data.voyages)) {
+        voyages = response.data.data.voyages;
+      } else if (response.data?.data && Array.isArray(response.data.data)) {
+        voyages = response.data.data;
+      }
+
+      return {
+        statut: true,
+        message: response.data?.message || 'Recherche effectuée avec succès',
+        data: voyages,
+      };
+    } catch (error: any) {
+      console.error('Erreur rechercherVoyages:', error.message || error);
+      return {
+        statut: false,
+        message: error.message || 'Erreur lors de la recherche',
+        data: [],
+      };
+    }
+  },
 };

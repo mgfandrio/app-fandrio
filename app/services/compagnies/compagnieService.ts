@@ -17,7 +17,23 @@ class CompagnieService {
   private readonly BASE_PATH = '/api/admin/compagnies';
 
   /**
-   * Récupère la liste des compagnies avec filtres et pagination
+   * Récupère la liste des compagnies (pour tous les types utilisateurs)
+   */
+  async listerCompagniesGenerique(
+    filtres?: FiltresCompagnies
+  ): Promise<ApiResponse<CompagniesListeResponse> | ApiError> {
+    try {
+      const response = await apiClient.get('/api/compagnies', {
+        params: filtres,
+      });
+      return handleApiResponse<CompagniesListeResponse>(response);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  }
+
+  /**
+   * Récupère la liste des compagnies avec filtres et pagination (Admin)
    */
   async listerCompagnies(
     filtres?: FiltresCompagnies
