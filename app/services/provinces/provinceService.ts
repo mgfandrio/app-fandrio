@@ -39,6 +39,18 @@ class ProvinceService {
       return handleApiError(error);
     }
   }
+
+  /**
+   * Récupère les statistiques des provinces
+   */
+  async getStatistiques(): Promise<ApiResponse<StatistiquesProvinces> | ApiError> {
+    try {
+      const response = await apiClient.get(`${this.BASE_PATH}/statistiques`);
+      return handleApiResponse<StatistiquesProvinces>(response);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  }
 }
 
 // Exporter une instance unique du service

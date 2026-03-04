@@ -8,6 +8,8 @@ import { compagnieService } from '@/app/services/compagnies/compagnieService';
 import { voyageService } from '@/app/services/voyages/voyageService';
 import { provinceService } from '@/app/services/provinces/provinceService';
 import RechercheFilterModal from '@/app/components/modals/recherche/RechercheFilterModal';
+import { DashboardHeader } from '@/app/components/dashboard/DashboardHeader';
+import { SideMenu } from '@/app/components/dashboard/SideMenu';
 
 const { width } = Dimensions.get('window');
 
@@ -47,9 +49,7 @@ export default function AccueilScreen() {
     }
   }, [params.openSearch]);
 
-  // Animation for popup menu
-  const menuScale = useRef(new Animated.Value(0.8)).current;
-  const menuOpacity = useRef(new Animated.Value(0)).current;
+
 
   const fetchData = async () => {
     try {
@@ -132,117 +132,17 @@ export default function AccueilScreen() {
     // Actually handleSearch should probably also be simplified.
   };
 
-  const toggleMenu = (visible: boolean) => {
-    if (visible) {
-      setMenuVisible(true);
-      Animated.parallel([
-        Animated.spring(menuScale, {
-          toValue: 1,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-        Animated.timing(menuOpacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(menuScale, {
-          toValue: 0.8,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(menuOpacity, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-      ]).start(() => setMenuVisible(false));
-    }
-  };
+
 
   return (
     <View className="flex-1 bg-gray-50">
       {/* Fixed Section: Header & Search Bar */}
-      <View>
-        {/* Refined Header with Elegant Navy Background */}
-        <View
-          style={{
-            backgroundColor: '#1e3a8a',
-            borderBottomLeftRadius: 40,
-            borderBottomRightRadius: 40,
-            paddingTop: insets.top + 10,
-            paddingBottom: 56
-          }}
-          className="px-6 shadow-lg"
-        >
-          <View className="flex-row justify-between items-center">
-            <View className="flex-row items-center">
-              {/*Avatar */}
-              <View className="w-16 h-16 bg-white rounded-full items-center justify-center shadow-md">
-                <Text style={{ color: '#1e3a8a' }} className="font-bold text-2xl">
-                  {user?.prenom?.[0]?.toUpperCase() || ''}{user?.nom?.[0]?.toUpperCase() || ''}
-                </Text>
-              </View>
-
-              {/* User Name Display */}
-              <View className="ml-4">
-                <Text className="text-white font-bold text-xl leading-tight">
-                  {user?.nom?.toUpperCase() || ''}
-                </Text>
-                <Text className="text-blue-100 text-sm font-medium opacity-80">
-                  {user?.prenom || ''}
-                </Text>
-              </View>
-            </View>
-
-            {/* Icons */}
-            <View className="flex-row items-center">
-              <TouchableOpacity className="relative p-2 bg-white/10 rounded-full mr-4">
-                <Ionicons name="notifications-outline" size={24} color="#ffffff" />
-                <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-5 h-5 items-center justify-center border-2 border-[#1e3a8a]">
-                  <Text className="text-white text-[10px] font-bold">0</Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity className="relative p-2 bg-white/10 rounded-full mr-4">
-                <Ionicons name="mail-outline" size={24} color="#ffffff" />
-                <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-5 h-5 items-center justify-center border-2 border-[#1e3a8a]">
-                  <Text className="text-white text-[10px] font-bold">0</Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => toggleMenu(true)}
-                className="p-2 bg-white/10 rounded-full"
-              >
-                <Ionicons name="menu-outline" size={28} color="#ffffff" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        {/* Fixed Styled Search Bar (Outside ScrollView) */}
-        <View className="px-6 -mt-7 z-10">
-          <View className="flex-row items-center bg-white rounded-2xl px-4 py-3 shadow-md border border-gray-100">
-            <Ionicons name="search" size={20} color="#9ca3af" />
-            <TextInput
-              placeholder="Destination, ville ..."
-              placeholderTextColor="#9ca3af"
-              className="flex-1 ml-3 text-gray-800 text-base"
-            />
-            <TouchableOpacity
-              onPress={() => setShowSearchModal(true)}
-              className="ml-2 p-1.5 bg-blue-50 rounded-xl"
-            >
-              <Ionicons name="options-outline" size={22} color="#1e3a8a" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
+      <DashboardHeader
+        user={user}
+        insets={insets}
+        onMenuPress={() => setMenuVisible(true)}
+        onFilterPress={() => setShowSearchModal(true)}
+      />
 
       {/* Scrollable Content Section */}
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1 pt-6">
@@ -403,52 +303,12 @@ export default function AccueilScreen() {
         setLoading={(loading) => setLoadingVoyages(loading)}
       />
 
-      {/* Popup Menu Overlay */}
-      {menuVisible && (
-        <View
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Pressable
-            onPress={() => toggleMenu(false)}
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
-          />
-          <Animated.View
-            style={{
-              transform: [{ scale: menuScale }],
-              opacity: menuOpacity,
-              backgroundColor: '#ffffff',
-              width: width * 0.8,
-              borderRadius: 30,
-              padding: 24,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 10 },
-              shadowOpacity: 0.2,
-              shadowRadius: 20,
-              elevation: 20
-            }}
-          >
-            <View className="flex-row justify-end mb-4">
-              <TouchableOpacity onPress={() => toggleMenu(false)} className="p-1">
-                <Ionicons name="close-circle-outline" size={32} color="#1e3a8a" />
-              </TouchableOpacity>
-            </View>
-
-            <View>
-              {MENU_ITEMS.map((item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  className="flex-row items-center p-4 mb-3 rounded-2xl bg-blue-50/50 border border-blue-50"
-                >
-                  <View style={{ backgroundColor: '#1e3a8a' }} className="p-2.5 rounded-xl mr-4 shadow-sm">
-                    <Ionicons name={item.icon as any} size={22} color="#ffffff" />
-                  </View>
-                  <Text style={{ color: '#1e3a8a' }} className="text-lg font-bold">{item.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </Animated.View>
-        </View>
-      )}
+      {/* Side Menu Overlay */}
+      <SideMenu
+        visible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        items={MENU_ITEMS}
+      />
     </View>
   );
 }
