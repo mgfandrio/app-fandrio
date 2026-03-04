@@ -56,22 +56,34 @@ export default function AccueilScreen() {
       setLoadingCompagnies(true);
       setLoadingVoyages(true);
 
-      const [compResp, voyResp, provResp] = await Promise.all([
+      const [compResp, voyResp, provResp] = await Promise.allSettled([
         compagnieService.listerCompagniesGenerique(),
         voyageService.obtenirVoyagesAVenir(),
         provinceService.listerProvinces()
       ]);
 
-      if (compResp && 'statut' in compResp && compResp.statut !== false) {
-        setCompagnies((compResp as any).data.compagnies || []);
+      // Handle companies
+      if (compResp.status === 'fulfilled') {
+        const resp = compResp.value;
+        if (resp && 'statut' in resp && resp.statut !== false) {
+          setCompagnies((resp as any).data?.compagnies || []);
+        }
       }
 
-      if (voyResp && 'statut' in voyResp && voyResp.statut !== false) {
-        setVoyages(voyResp.data || []);
+      // Handle voyages
+      if (voyResp.status === 'fulfilled') {
+        const resp = voyResp.value;
+        if (resp && 'statut' in resp && resp.statut !== false) {
+          setVoyages(resp.data || []);
+        }
       }
 
-      if (provResp && 'statut' in provResp && provResp.statut !== false) {
-        setProvinces((provResp as any).data.provinces || []);
+      // Handle provinces
+      if (provResp.status === 'fulfilled') {
+        const resp = provResp.value;
+        if (resp && 'statut' in resp && resp.statut !== false) {
+          setProvinces((resp as any).data?.provinces || []);
+        }
       }
     } catch (e) {
       console.error('Fetch data error:', e);
@@ -375,7 +387,7 @@ export default function AccueilScreen() {
             ))
           ) : (
             <View className="bg-white rounded-3xl p-10 items-center border border-blue-50 shadow-sm">
-              <Text className="text-gray-400 italic">Aucun voyage pour le moment</Text>
+              <Text className="text-gray-400 italic">Aucun voyage disponible</Text>
             </View>
           )}
         </View>
