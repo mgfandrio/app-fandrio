@@ -13,7 +13,7 @@ import compagnieService from '../../../services/compagnies/compagnieService';
 import provinceService from '../../../services/provinces/provinceService';
 import { CompagnieFormData, CompagnieUpdateData } from '../../../types/compagnie';
 import { Province } from '../../../types/province';
-import { useConfirmDialog } from '../../common/ConfirmDialog';
+import { SearchableDropdown, useConfirmDialog } from '../../common';
 
 interface Props {
   visible: boolean;
@@ -46,6 +46,7 @@ export const CompagnieFormModal: React.FC<Props> = ({
     admin_email: '',
     admin_telephone: '',
     admin_mot_de_passe: '',
+    comp_localisation: undefined,
   });
 
   const isEditMode = !!compagnieId;
@@ -75,6 +76,7 @@ export const CompagnieFormModal: React.FC<Props> = ({
       admin_email: '',
       admin_telephone: '',
       admin_mot_de_passe: '',
+      comp_localisation: undefined,
     });
     setSelectedProvinces([]);
   };
@@ -86,8 +88,8 @@ export const CompagnieFormModal: React.FC<Props> = ({
 
     if (response.statut && 'data' in response && response.data) {
       // Le service retourne ProvincesListeResponse avec une propriété provinces
-      const provincesData = (response.data as any).provinces || 
-                           (Array.isArray(response.data) ? response.data : []);
+      const provincesData = (response.data as any).provinces ||
+        (Array.isArray(response.data) ? response.data : []);
       setProvinces(provincesData);
     }
   };
@@ -99,7 +101,7 @@ export const CompagnieFormModal: React.FC<Props> = ({
       'Est': { bg: 'bg-blue-200', text: 'text-blue-700', hex: '#1e40af' }, // Bleu foncé
       'Ouest': { bg: 'bg-blue-100', text: 'text-blue-600', hex: '#2563eb' }, // Bleu plus clair
     };
-    
+
     // Si c'est Est ou Ouest, utiliser les couleurs spécifiques
     if (orientationColors[orientation]) {
       const iconMap: { [key: string]: string } = {
@@ -109,16 +111,16 @@ export const CompagnieFormModal: React.FC<Props> = ({
         'Ouest': 'arrow-back',
         'Centre': 'location',
       };
-      
+
       return {
         ...orientationColors[orientation],
         icon: iconMap[orientation] || 'location',
       };
     }
-    
+
     // Pour les autres orientations, utiliser le système de hash
     const hash = orientation.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    
+
     const colorPalette = [
       { bg: 'bg-indigo-100', text: 'text-indigo-600', hex: '#4f46e5' },
       { bg: 'bg-purple-100', text: 'text-purple-600', hex: '#7c3aed' },
@@ -128,9 +130,9 @@ export const CompagnieFormModal: React.FC<Props> = ({
       { bg: 'bg-teal-100', text: 'text-teal-600', hex: '#14b8a6' },
       { bg: 'bg-emerald-100', text: 'text-emerald-600', hex: '#10b981' },
     ];
-    
+
     const config = colorPalette[hash % colorPalette.length];
-    
+
     const iconMap: { [key: string]: string } = {
       'Nord': 'arrow-up',
       'Sud': 'arrow-down',
@@ -138,7 +140,7 @@ export const CompagnieFormModal: React.FC<Props> = ({
       'Ouest': 'arrow-back',
       'Centre': 'location',
     };
-    
+
     return {
       ...config,
       icon: iconMap[orientation] || 'location',
@@ -162,6 +164,8 @@ export const CompagnieFormModal: React.FC<Props> = ({
         comp_phone: compagnie.telephone,
         comp_email: compagnie.email,
         comp_adresse: compagnie.adresse,
+        comp_description: compagnie.description,
+        comp_localisation: compagnie.localisation?.id,
       });
       // Charger les provinces déjà sélectionnées
       if (compagnie.provinces_desservies && compagnie.provinces_desservies.length > 0) {
@@ -195,8 +199,8 @@ export const CompagnieFormModal: React.FC<Props> = ({
         message: 'Veuillez remplir tous les champs obligatoires',
         type: 'warning',
         confirmText: 'OK',
-        onConfirm: () => {},
-        onCancel: () => {}
+        onConfirm: () => { },
+        onCancel: () => { }
       });
       return;
     }
@@ -214,8 +218,8 @@ export const CompagnieFormModal: React.FC<Props> = ({
           message: 'Veuillez remplir toutes les informations de l\'administrateur',
           type: 'warning',
           confirmText: 'OK',
-          onConfirm: () => {},
-          onCancel: () => {}
+          onConfirm: () => { },
+          onCancel: () => { }
         });
         return;
       }
@@ -228,10 +232,11 @@ export const CompagnieFormModal: React.FC<Props> = ({
         comp_nom: formData.comp_nom!,
         comp_nif: formData.comp_nif!,
         comp_stat: formData.comp_stat!,
-        comp_description: formData.comp_description!,
         comp_phone: formData.comp_phone!,
         comp_email: formData.comp_email!,
         comp_adresse: formData.comp_adresse!,
+        comp_description: formData.comp_description!,
+        comp_localisation: formData.comp_localisation!,
         provinces_desservies: selectedProvinces.length > 0 ? selectedProvinces : undefined,
       };
 
@@ -241,7 +246,7 @@ export const CompagnieFormModal: React.FC<Props> = ({
         // Rafraîchir la liste avant d'afficher le message
         onSuccess?.();
         setLoading(false);
-        
+
         showDialog({
           title: 'Succès',
           message: 'Compagnie modifiée avec succès',
@@ -250,7 +255,7 @@ export const CompagnieFormModal: React.FC<Props> = ({
           onConfirm: () => {
             onClose();
           },
-          onCancel: () => {}
+          onCancel: () => { }
         });
       } else {
         setLoading(false);
@@ -259,8 +264,8 @@ export const CompagnieFormModal: React.FC<Props> = ({
           message: response.message || 'Une erreur est survenue',
           type: 'danger',
           confirmText: 'OK',
-          onConfirm: () => {},
-          onCancel: () => {}
+          onConfirm: () => { },
+          onCancel: () => { }
         });
       }
     } else {
@@ -274,7 +279,7 @@ export const CompagnieFormModal: React.FC<Props> = ({
         // Rafraîchir la liste avant d'afficher le message
         onSuccess?.();
         setLoading(false);
-        
+
         showDialog({
           title: 'Succès',
           message: 'Compagnie créée avec succès',
@@ -283,7 +288,7 @@ export const CompagnieFormModal: React.FC<Props> = ({
           onConfirm: () => {
             onClose();
           },
-          onCancel: () => {}
+          onCancel: () => { }
         });
       } else {
         setLoading(false);
@@ -292,8 +297,8 @@ export const CompagnieFormModal: React.FC<Props> = ({
           message: response.message || 'Une erreur est survenue',
           type: 'danger',
           confirmText: 'OK',
-          onConfirm: () => {},
-          onCancel: () => {}
+          onConfirm: () => { },
+          onCancel: () => { }
         });
       }
     }
@@ -309,10 +314,10 @@ export const CompagnieFormModal: React.FC<Props> = ({
             <View className="flex-row items-center justify-between px-5 pt-6 pb-5">
               <View className="flex-row items-center flex-1">
                 <View className="bg-white/20 rounded-full p-3 mr-3">
-                  <Ionicons 
-                    name={isEditMode ? "create" : "add-circle"} 
-                    size={26} 
-                    color="#fff" 
+                  <Ionicons
+                    name={isEditMode ? "create" : "add-circle"}
+                    size={26}
+                    color="#fff"
                   />
                 </View>
                 <View className="flex-1">
@@ -324,8 +329,8 @@ export const CompagnieFormModal: React.FC<Props> = ({
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity 
-                onPress={onClose} 
+              <TouchableOpacity
+                onPress={onClose}
                 className="bg-white/20 rounded-full p-2.5 ml-2"
                 activeOpacity={0.7}
               >
@@ -348,6 +353,15 @@ export const CompagnieFormModal: React.FC<Props> = ({
                 onChangeText={(text) => setFormData({ ...formData, comp_nom: text })}
                 placeholder="Nom de la compagnie"
                 editable={!loading}
+              />
+
+              <SearchableDropdown
+                label="Localisation *"
+                placeholder="Sélectionner la localisation"
+                data={provinces}
+                selectedId={formData.comp_localisation}
+                onSelect={(id) => setFormData({ ...formData, comp_localisation: id })}
+                showAllOption={false}
               />
 
               <Text className="text-gray-700 mb-1">NIF *</Text>
@@ -431,9 +445,8 @@ export const CompagnieFormModal: React.FC<Props> = ({
                       return (
                         <TouchableOpacity
                           key={province.id}
-                          className={`rounded-full px-3 py-2 mr-2 mb-2 flex-row items-center ${
-                            isSelected ? 'bg-blue-500' : 'bg-white border border-gray-300'
-                          }`}
+                          className={`rounded-full px-3 py-2 mr-2 mb-2 flex-row items-center ${isSelected ? 'bg-blue-500' : 'bg-white border border-gray-300'
+                            }`}
                           onPress={() => {
                             if (isSelected) {
                               setSelectedProvinces(selectedProvinces.filter(id => id !== province.id));
@@ -443,25 +456,24 @@ export const CompagnieFormModal: React.FC<Props> = ({
                           }}
                           disabled={loading}
                         >
-                          <Ionicons 
-                            name={isSelected ? "checkmark-circle" : "ellipse-outline"} 
-                            size={16} 
-                            color={isSelected ? "#fff" : "#6b7280"} 
+                          <Ionicons
+                            name={isSelected ? "checkmark-circle" : "ellipse-outline"}
+                            size={16}
+                            color={isSelected ? "#fff" : "#6b7280"}
                             style={{ marginRight: 6 }}
                           />
                           <Text
-                            className={`text-sm font-medium mr-2 ${
-                              isSelected ? 'text-white' : 'text-gray-700'
-                            }`}
+                            className={`text-sm font-medium mr-2 ${isSelected ? 'text-white' : 'text-gray-700'
+                              }`}
                           >
                             {province.nom}
                           </Text>
                           {!isSelected && (
                             <View className={`${orientationConfig.bg} rounded-full px-2 py-0.5 flex-row items-center`}>
-                              <Ionicons 
-                                name={orientationConfig.icon as any} 
-                                size={12} 
-                                color={orientationConfig.hex} 
+                              <Ionicons
+                                name={orientationConfig.icon as any}
+                                size={12}
+                                color={orientationConfig.hex}
                               />
                               <Text className={`${orientationConfig.text} text-xs font-semibold ml-1`}>
                                 {province.orientation}
@@ -561,16 +573,15 @@ export const CompagnieFormModal: React.FC<Props> = ({
                   onPress={handleSubmit}
                   disabled={loading}
                 >
-                  <View className={`rounded-full w-16 h-16 items-center justify-center mb-2 ${
-                    isEditMode ? 'bg-blue-100' : 'bg-green-100'
-                  }`}>
+                  <View className={`rounded-full w-16 h-16 items-center justify-center mb-2 ${isEditMode ? 'bg-blue-100' : 'bg-green-100'
+                    }`}>
                     {loading ? (
                       <ActivityIndicator color={isEditMode ? "#3b82f6" : "#10b981"} />
                     ) : (
-                      <Ionicons 
-                        name={isEditMode ? "checkmark-circle" : "add-circle"} 
-                        size={28} 
-                        color={isEditMode ? "#3b82f6" : "#10b981"} 
+                      <Ionicons
+                        name={isEditMode ? "checkmark-circle" : "add-circle"}
+                        size={28}
+                        color={isEditMode ? "#3b82f6" : "#10b981"}
                       />
                     )}
                   </View>

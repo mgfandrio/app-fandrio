@@ -61,7 +61,7 @@ export default function DashboardCompagnie() {
           setLoading(false);
         }
       },
-      onCancel: () => {}
+      onCancel: () => { }
     });
   };
 
@@ -104,105 +104,98 @@ export default function DashboardCompagnie() {
           <View className="py-4">
             {/* Dashboard */}
             <TouchableOpacity
-              className={`flex-row items-center px-4 py-3 mx-2 rounded-lg ${
-                activeTab === 'dashboard' ? 'bg-blue-700' : ''
-              }`}
+              className={`flex-row items-center px-4 py-3 mx-2 rounded-lg ${activeTab === 'dashboard' ? 'bg-blue-700' : ''
+                }`}
               onPress={() => selectMenuItem('dashboard')}
             >
-              <Ionicons 
-                name={activeTab === 'dashboard' ? 'home' : 'home-outline'} 
-                size={24} 
-                color="#fff" 
+              <Ionicons
+                name={activeTab === 'dashboard' ? 'home' : 'home-outline'}
+                size={24}
+                color="#fff"
               />
               <Text className="text-white text-base font-medium ml-4">Dashboard</Text>
             </TouchableOpacity>
 
             {/* Chauffeurs */}
             <TouchableOpacity
-              className={`flex-row items-center px-4 py-3 mx-2 rounded-lg ${
-                activeTab === 'chauffeurs' ? 'bg-blue-700' : ''
-              }`}
+              className={`flex-row items-center px-4 py-3 mx-2 rounded-lg ${activeTab === 'chauffeurs' ? 'bg-blue-700' : ''
+                }`}
               onPress={() => selectMenuItem('chauffeurs')}
             >
-              <Ionicons 
-                name={activeTab === 'chauffeurs' ? 'person' : 'person-outline'} 
-                size={24} 
-                color="#fff" 
+              <Ionicons
+                name={activeTab === 'chauffeurs' ? 'person' : 'person-outline'}
+                size={24}
+                color="#fff"
               />
               <Text className="text-white text-base font-medium ml-4">Chauffeurs</Text>
             </TouchableOpacity>
 
             {/* Voitures */}
             <TouchableOpacity
-              className={`flex-row items-center px-4 py-3 mx-2 rounded-lg ${
-                activeTab === 'voitures' ? 'bg-blue-700' : ''
-              }`}
+              className={`flex-row items-center px-4 py-3 mx-2 rounded-lg ${activeTab === 'voitures' ? 'bg-blue-700' : ''
+                }`}
               onPress={() => selectMenuItem('voitures')}
             >
-              <Ionicons 
-                name={activeTab === 'voitures' ? 'car' : 'car-outline'} 
-                size={24} 
-                color="#fff" 
+              <Ionicons
+                name={activeTab === 'voitures' ? 'car' : 'car-outline'}
+                size={24}
+                color="#fff"
               />
               <Text className="text-white text-base font-medium ml-4">Voitures</Text>
             </TouchableOpacity>
 
             {/* Trajets */}
             <TouchableOpacity
-              className={`flex-row items-center px-4 py-3 mx-2 rounded-lg ${
-                activeTab === 'trajets' ? 'bg-blue-700' : ''
-              }`}
+              className={`flex-row items-center px-4 py-3 mx-2 rounded-lg ${activeTab === 'trajets' ? 'bg-blue-700' : ''
+                }`}
               onPress={() => selectMenuItem('trajets')}
             >
-              <Ionicons 
-                name={activeTab === 'trajets' ? 'map' : 'map-outline'} 
-                size={24} 
-                color="#fff" 
+              <Ionicons
+                name={activeTab === 'trajets' ? 'map' : 'map-outline'}
+                size={24}
+                color="#fff"
               />
               <Text className="text-white text-base font-medium ml-4">Trajets</Text>
             </TouchableOpacity>
 
             {/* Voyages */}
             <TouchableOpacity
-              className={`flex-row items-center px-4 py-3 mx-2 rounded-lg ${
-                activeTab === 'voyages' ? 'bg-blue-700' : ''
-              }`}
+              className={`flex-row items-center px-4 py-3 mx-2 rounded-lg ${activeTab === 'voyages' ? 'bg-blue-700' : ''
+                }`}
               onPress={() => selectMenuItem('voyages')}
             >
-              <Ionicons 
-                name={activeTab === 'voyages' ? 'navigate' : 'navigate-outline'} 
-                size={24} 
-                color="#fff" 
+              <Ionicons
+                name={activeTab === 'voyages' ? 'navigate' : 'navigate-outline'}
+                size={24}
+                color="#fff"
               />
               <Text className="text-white text-base font-medium ml-4">Voyages</Text>
             </TouchableOpacity>
 
             {/* Réservations */}
             <TouchableOpacity
-              className={`flex-row items-center px-4 py-3 mx-2 rounded-lg ${
-                activeTab === 'reservations' ? 'bg-blue-700' : ''
-              }`}
+              className={`flex-row items-center px-4 py-3 mx-2 rounded-lg ${activeTab === 'reservations' ? 'bg-blue-700' : ''
+                }`}
               onPress={() => selectMenuItem('reservations')}
             >
-              <Ionicons 
-                name={activeTab === 'reservations' ? 'ticket' : 'ticket-outline'} 
-                size={24} 
-                color="#fff" 
+              <Ionicons
+                name={activeTab === 'reservations' ? 'ticket' : 'ticket-outline'}
+                size={24}
+                color="#fff"
               />
               <Text className="text-white text-base font-medium ml-4">Réservations</Text>
             </TouchableOpacity>
 
             {/* Paramètres */}
             <TouchableOpacity
-              className={`flex-row items-center px-4 py-3 mx-2 rounded-lg ${
-                activeTab === 'settings' ? 'bg-blue-700' : ''
-              }`}
+              className={`flex-row items-center px-4 py-3 mx-2 rounded-lg ${activeTab === 'settings' ? 'bg-blue-700' : ''
+                }`}
               onPress={() => selectMenuItem('settings')}
             >
-              <Ionicons 
-                name={activeTab === 'settings' ? 'settings' : 'settings-outline'} 
-                size={24} 
-                color="#fff" 
+              <Ionicons
+                name={activeTab === 'settings' ? 'settings' : 'settings-outline'}
+                size={24}
+                color="#fff"
               />
               <Text className="text-white text-base font-medium ml-4">Paramètres</Text>
             </TouchableOpacity>
@@ -213,9 +206,8 @@ export default function DashboardCompagnie() {
           {/* Déconnexion */}
           <View className="px-2 py-4 border-t border-blue-700">
             <TouchableOpacity
-              className={`flex-row items-center px-4 py-3 rounded-lg ${
-                loading ? 'bg-blue-700 opacity-50' : 'bg-red-600'
-              }`}
+              className={`flex-row items-center px-4 py-3 rounded-lg ${loading ? 'bg-blue-700 opacity-50' : 'bg-red-600'
+                }`}
               onPress={() => {
                 toggleDrawer();
                 handleLogout();
@@ -254,7 +246,7 @@ export default function DashboardCompagnie() {
       {/* Statistiques rapides */}
       <View className="mb-6">
         <Text className="text-lg font-bold text-gray-900 mb-4">Accès rapide</Text>
-        
+
         <TouchableOpacity
           className="bg-white rounded-2xl p-4 mb-3 flex-row items-center shadow-sm"
           onPress={() => setActiveTab('chauffeurs')}
@@ -292,7 +284,7 @@ export default function DashboardCompagnie() {
       {/* Infos compagnie */}
       <View className="bg-white rounded-2xl p-4 mb-6 shadow-sm">
         <Text className="text-lg font-bold text-gray-900 mb-4">Informations</Text>
-        
+
         <View className="border-b border-gray-100 pb-3 mb-3">
           <Text className="text-gray-500 text-sm mb-1">Rôle</Text>
           <Text className="text-gray-900 font-semibold">Admin Compagnie</Text>
@@ -371,7 +363,7 @@ export default function DashboardCompagnie() {
   const renderReservations = () => (
     <ScrollView className="flex-1 px-4 pt-6">
       <Text className="text-2xl font-bold text-gray-900 mb-6">Réservations</Text>
-      
+
       <View className="bg-white rounded-2xl p-6 shadow-sm items-center justify-center" style={{ minHeight: 300 }}>
         <Ionicons name="ticket-outline" size={48} color="#9ca3af" />
         <Text className="text-gray-500 text-center mt-4 text-base">
@@ -384,20 +376,26 @@ export default function DashboardCompagnie() {
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
       <DialogComponent />
-      
+
       {/* Header avec menu button */}
       <View className="bg-white border-b border-gray-200 px-4 py-3 flex-row items-center justify-between">
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={toggleDrawer}
           className="p-2"
         >
-          <Ionicons 
-            name={drawerOpen ? "close" : "menu"} 
-            size={28} 
-            color="#3b82f6" 
+          <Ionicons
+            name={drawerOpen ? "close" : "menu"}
+            size={28}
+            color="#3b82f6"
           />
         </TouchableOpacity>
-        <Text className="text-xl font-bold text-gray-900">Compagnie</Text>
+        <Text className="text-xl font-bold text-gray-900">
+          {user?.compagnie ? (
+            `${user.compagnie.nom}${user.compagnie.localisation ? ` - ${user.compagnie.localisation}` : ''}`
+          ) : (
+            'Compagnie'
+          )}
+        </Text>
         <View className="flex-row items-center gap-4">
           {/* Icône Notification */}
           <TouchableOpacity className="relative p-2">
@@ -445,7 +443,7 @@ export default function DashboardCompagnie() {
         </View>
 
         {/* Drawer - overlay absolu */}
-        <Animated.View 
+        <Animated.View
           style={{
             transform: [{ translateX: drawerAnim }],
             width: DRAWER_WIDTH,
@@ -461,7 +459,7 @@ export default function DashboardCompagnie() {
 
         {/* Overlay - cliquable pour fermer le drawer */}
         {drawerOpen && (
-          <TouchableOpacity 
+          <TouchableOpacity
             className="absolute inset-0 bg-black/30"
             onPress={toggleDrawer}
             activeOpacity={1}

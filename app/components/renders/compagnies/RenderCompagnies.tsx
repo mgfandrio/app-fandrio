@@ -57,8 +57,8 @@ export const RenderCompagnies = () => {
         message: ('message' in response ? response.message : 'Impossible de charger les compagnies') || 'Impossible de charger les compagnies',
         type: 'danger',
         confirmText: 'OK',
-        onConfirm: () => {},
-        onCancel: () => {}
+        onConfirm: () => { },
+        onCancel: () => { }
       });
     }
   };
@@ -191,57 +191,49 @@ export const RenderCompagnies = () => {
         {/* Filtres par statut */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
           <TouchableOpacity
-            className={`rounded-full px-4 py-2 mr-2 ${
-              filtres.statut === undefined ? 'bg-blue-500' : 'bg-white'
-            }`}
+            className={`rounded-full px-4 py-2 mr-2 ${filtres.statut === undefined ? 'bg-blue-500' : 'bg-white'
+              }`}
             onPress={() => handleFiltreStatut(undefined)}
           >
             <Text
-              className={`font-semibold ${
-                filtres.statut === undefined ? 'text-white' : 'text-gray-700'
-              }`}
+              className={`font-semibold ${filtres.statut === undefined ? 'text-white' : 'text-gray-700'
+                }`}
             >
               Toutes
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className={`rounded-full px-4 py-2 mr-2 ${
-              filtres.statut === 1 ? 'bg-green-500' : 'bg-white'
-            }`}
+            className={`rounded-full px-4 py-2 mr-2 ${filtres.statut === 1 ? 'bg-green-500' : 'bg-white'
+              }`}
             onPress={() => handleFiltreStatut(1)}
           >
             <Text
-              className={`font-semibold ${
-                filtres.statut === 1 ? 'text-white' : 'text-gray-700'
-              }`}
+              className={`font-semibold ${filtres.statut === 1 ? 'text-white' : 'text-gray-700'
+                }`}
             >
               Actives
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className={`rounded-full px-4 py-2 mr-2 ${
-              filtres.statut === 2 ? 'bg-orange-500' : 'bg-white'
-            }`}
+            className={`rounded-full px-4 py-2 mr-2 ${filtres.statut === 2 ? 'bg-orange-500' : 'bg-white'
+              }`}
             onPress={() => handleFiltreStatut(2)}
           >
             <Text
-              className={`font-semibold ${
-                filtres.statut === 2 ? 'text-white' : 'text-gray-700'
-              }`}
+              className={`font-semibold ${filtres.statut === 2 ? 'text-white' : 'text-gray-700'
+                }`}
             >
               Inactives
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className={`rounded-full px-4 py-2 ${
-              filtres.statut === 3 ? 'bg-red-500' : 'bg-white'
-            }`}
+            className={`rounded-full px-4 py-2 ${filtres.statut === 3 ? 'bg-red-500' : 'bg-white'
+              }`}
             onPress={() => handleFiltreStatut(3)}
           >
             <Text
-              className={`font-semibold ${
-                filtres.statut === 3 ? 'text-white' : 'text-gray-700'
-              }`}
+              className={`font-semibold ${filtres.statut === 3 ? 'text-white' : 'text-gray-700'
+                }`}
             >
               Supprimées
             </Text>
@@ -278,7 +270,12 @@ export const RenderCompagnies = () => {
                     <Ionicons name={iconConfig.name as any} size={24} color={iconConfig.color} />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-gray-900 font-semibold text-base">{compagnie.nom}</Text>
+                    <Text className="text-gray-900 font-semibold text-base">
+                      {compagnie.nom}
+                      {compagnie.localisation && (
+                        <Text className="text-gray-400 font-normal"> - {compagnie.localisation.nom}</Text>
+                      )}
+                    </Text>
                     <Text className="text-gray-500 text-sm">{compagnie.email}</Text>
                   </View>
                   {getStatutBadge(compagnie.statut)}

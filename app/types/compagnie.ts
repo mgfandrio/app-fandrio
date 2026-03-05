@@ -11,6 +11,10 @@ export interface Compagnie {
   adresse: string;
   statut: number; // 1: actif, 2: inactif, 3: supprimé
   logo?: string;
+  localisation?: {
+    id: number;
+    nom: string;
+  };
   date_creation: string;
 }
 
@@ -74,6 +78,7 @@ export interface CompagnieFormData {
   comp_phone: string;
   comp_email: string;
   comp_adresse: string;
+  comp_localisation: number;
   provinces_desservies?: number[];
   modes_paiement?: number[];
   admin_nom: string;
@@ -91,6 +96,7 @@ export interface CompagnieUpdateData {
   comp_phone: string;
   comp_email: string;
   comp_adresse: string;
+  comp_localisation: number;
   provinces_desservies?: number[];
   modes_paiement?: number[];
 }

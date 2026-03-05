@@ -45,12 +45,12 @@ export const CompagnieDetailModal: React.FC<Props> = ({
     const response = await compagnieService.getCompagnie(compagnieId);
     setLoading(false);
 
-    if (response.statut && response.data) {
+    if (response.statut && 'data' in response && response.data) {
       setCompagnie(response.data);
     } else {
       showDialog({
         title: 'Erreur',
-        message: response.message || 'Impossible de charger les détails',
+        message: ('message' in response ? response.message : 'Impossible de charger les détails') || 'Impossible de charger les détails',
         type: 'danger',
         confirmText: 'OK',
         onConfirm: () => onClose(),
@@ -76,20 +76,20 @@ export const CompagnieDetailModal: React.FC<Props> = ({
       onConfirm: async () => {
         setActionLoading(true);
         const response = await compagnieService.changerStatut(compagnieId, nouveauStatut);
-        
+
         if (response.statut) {
           // Recharger immédiatement les données avant d'afficher le message
           await chargerCompagnie();
           onRefresh?.();
           setActionLoading(false);
-          
+
           showDialog({
             title: 'Succès',
             message: response.message || 'Statut modifié avec succès',
             type: 'success',
             confirmText: 'OK',
-            onConfirm: () => {},
-            onCancel: () => {}
+            onConfirm: () => { },
+            onCancel: () => { }
           });
         } else {
           setActionLoading(false);
@@ -98,12 +98,12 @@ export const CompagnieDetailModal: React.FC<Props> = ({
             message: response.message || 'Une erreur est survenue',
             type: 'danger',
             confirmText: 'OK',
-            onConfirm: () => {},
-            onCancel: () => {}
+            onConfirm: () => { },
+            onCancel: () => { }
           });
         }
       },
-      onCancel: () => {}
+      onCancel: () => { }
     });
   };
 
@@ -119,12 +119,12 @@ export const CompagnieDetailModal: React.FC<Props> = ({
       onConfirm: async () => {
         setActionLoading(true);
         const response = await compagnieService.supprimerCompagnie(compagnieId);
-        
+
         if (response.statut) {
           // Recharger la liste avant de fermer
           onRefresh?.();
           setActionLoading(false);
-          
+
           showDialog({
             title: 'Succès',
             message: 'Compagnie supprimée avec succès',
@@ -133,7 +133,7 @@ export const CompagnieDetailModal: React.FC<Props> = ({
             onConfirm: () => {
               onClose();
             },
-            onCancel: () => {}
+            onCancel: () => { }
           });
         } else {
           setActionLoading(false);
@@ -142,12 +142,12 @@ export const CompagnieDetailModal: React.FC<Props> = ({
             message: response.message || 'Une erreur est survenue',
             type: 'danger',
             confirmText: 'OK',
-            onConfirm: () => {},
-            onCancel: () => {}
+            onConfirm: () => { },
+            onCancel: () => { }
           });
         }
       },
-      onCancel: () => {}
+      onCancel: () => { }
     });
   };
 
@@ -182,8 +182,8 @@ export const CompagnieDetailModal: React.FC<Props> = ({
                   <Text className="text-white/90 text-sm mt-1">Informations complètes</Text>
                 </View>
               </View>
-              <TouchableOpacity 
-                onPress={onClose} 
+              <TouchableOpacity
+                onPress={onClose}
                 className="bg-white/20 rounded-full p-2.5 ml-2"
                 activeOpacity={0.7}
               >
@@ -215,6 +215,12 @@ export const CompagnieDetailModal: React.FC<Props> = ({
                     <Ionicons name="document-text" size={20} color="#6b7280" />
                     <Text className="text-gray-700 ml-3">NIF: {compagnie.nif}</Text>
                   </View>
+                  {compagnie.localisation && (
+                    <View className="flex-row items-center">
+                      <Ionicons name="map" size={20} color="#6b7280" />
+                      <Text className="text-gray-700 ml-3">Localisation: {compagnie.localisation.nom}</Text>
+                    </View>
+                  )}
                   <View className="flex-row items-center">
                     <Ionicons name="document" size={20} color="#6b7280" />
                     <Text className="text-gray-700 ml-3">STAT: {compagnie.stat}</Text>
