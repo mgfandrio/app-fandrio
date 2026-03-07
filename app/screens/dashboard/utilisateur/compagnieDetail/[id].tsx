@@ -190,10 +190,10 @@ export default function CompagnieDetailScreen() {
                             <Text style={{ color: '#1e3a8a' }} className="text-lg font-bold">Zones desservies</Text>
                         </View>
                         <View className="flex-row flex-wrap">
-                            {compagnie.provinces && compagnie.provinces.length > 0 ? (
-                                compagnie.provinces.map((prov, idx) => (
+                            {compagnie.provinces_desservies && compagnie.provinces_desservies.length > 0 ? (
+                                compagnie.provinces_desservies.map((prov, idx) => (
                                     <View key={idx} className="bg-blue-50 px-4 py-2 rounded-xl mr-2 mb-2 border border-blue-100">
-                                        <Text className="text-[#1e3a8a] font-medium">{prov}</Text>
+                                        <Text className="text-[#1e3a8a] font-medium">{prov.nom}</Text>
                                     </View>
                                 ))
                             ) : (
@@ -240,28 +240,47 @@ export default function CompagnieDetailScreen() {
                             <ActivityIndicator color="#1e3a8a" />
                         ) : voyages.length > 0 ? (
                             voyages.map((voyage) => (
-                                <TouchableOpacity
+                                <View
                                     key={voyage.voyage_id}
-                                    className="bg-white rounded-3xl mb-4 shadow-sm border border-gray-100 p-4 flex-row items-center"
+                                    className="bg-white rounded-3xl mb-6 shadow-sm border border-gray-100 p-5"
                                 >
-                                    <View className="w-12 h-12 bg-blue-50 rounded-2xl items-center justify-center mr-4">
-                                        <Ionicons name={voyage.type === 'jour' ? 'sunny' : 'moon'} size={24} color="#1e3a8a" />
-                                    </View>
-                                    <View className="flex-1">
-                                        <Text className="text-gray-900 font-bold text-base" numberOfLines={1}>{voyage.trajet?.nom}</Text>
-                                        <Text className="text-gray-500 text-xs">
-                                            {voyage.date} • {voyage.heure_depart}
-                                        </Text>
-                                    </View>
-                                    <View className="items-end">
-                                        <Text className="text-[#1e3a8a] font-bold text-base">
-                                            {voyage.trajet?.tarif?.toLocaleString()} Ar
-                                        </Text>
-                                        <View className="bg-blue-100 px-2 py-0.5 rounded-md mt-1">
-                                            <Text className="text-[#1e3a8a] text-[10px] font-bold">{voyage.places_disponibles} pl.</Text>
+                                    <View className="flex-row items-center justify-between mb-4">
+                                        <View className="flex-row items-center flex-1">
+                                            <View className="w-12 h-12 bg-blue-50 rounded-2xl items-center justify-center mr-4">
+                                                <Ionicons name={voyage.type === 'jour' ? 'sunny' : 'moon'} size={24} color="#1e3a8a" />
+                                            </View>
+                                            <View className="flex-1">
+                                                <Text className="text-gray-900 font-bold text-base" numberOfLines={1}>{voyage.trajet?.nom}</Text>
+                                                <View className="mt-1">
+                                                    <View className="flex-row items-center mb-0.5">
+                                                        <Ionicons name="calendar-outline" size={12} color="#6b7280" className="mr-1" />
+                                                        <Text className="text-gray-500 text-xs ml-1">{voyage.date}</Text>
+                                                    </View>
+                                                    <View className="flex-row items-center">
+                                                        <Ionicons name="time-outline" size={12} color="#6b7280" className="mr-1" />
+                                                        <Text className="text-gray-500 text-xs ml-1">{voyage.heure_depart}</Text>
+                                                    </View>
+                                                </View>
+                                            </View>
+                                        </View>
+                                        <View className="items-end">
+                                            <Text className="text-[#1e3a8a] font-bold text-lg">
+                                                {voyage.trajet?.tarif?.toLocaleString()} Ar
+                                            </Text>
+                                            <View className="bg-blue-50 px-2 py-1 rounded-lg mt-1 border border-blue-100">
+                                                <Text className="text-[#1e3a8a] text-[10px] font-bold">{voyage.places_disponibles} places disponible</Text>
+                                            </View>
                                         </View>
                                     </View>
-                                </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={{ backgroundColor: '#1e3a8a' }}
+                                        className="w-full py-3 rounded-xl items-center shadow-sm"
+                                        onPress={() => router.push({ pathname: '/screens/dashboard/utilisateur/reservation', params: { voyage_id: voyage.voyage_id } })}
+                                    >
+                                        <Text className="text-white font-bold">Réserver dès maintenant</Text>
+                                    </TouchableOpacity>
+                                </View>
                             ))
                         ) : (
                             <View className="py-8 items-center bg-gray-50 rounded-3xl border border-dashed border-gray-200">
@@ -273,20 +292,6 @@ export default function CompagnieDetailScreen() {
 
                 <View className="h-10" />
             </ScrollView>
-
-            {/* Booking CTA for this company */}
-            <View
-                style={{ paddingBottom: Math.max(insets.bottom, 20) }}
-                className="px-6 pt-4 border-t border-gray-100 bg-white shadow-2xl"
-            >
-                <TouchableOpacity
-                    style={{ backgroundColor: '#1e3a8a' }}
-                    className="w-full py-4 rounded-2xl items-center shadow-lg"
-                    onPress={() => router.push({ pathname: '/screens/dashboard/utilisateur/(tabs)/accueil', params: { openSearch: 'true', initialCompagnie: compagnie.id } })}
-                >
-                    <Text className="text-white font-bold text-lg">Rechercher un voyage</Text>
-                </TouchableOpacity>
-            </View>
         </View>
     );
 }
