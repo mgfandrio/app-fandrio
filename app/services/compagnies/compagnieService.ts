@@ -61,6 +61,18 @@ class CompagnieService {
   }
 
   /**
+   * Récupère les détails d'une compagnie (Public)
+   */
+  async getCompagniePublic(id: number): Promise<ApiResponse<CompagnieDetaillee> | ApiError> {
+    try {
+      const response = await apiClient.get(`/api/compagnies/${id}`);
+      return handleApiResponse<CompagnieDetaillee>(response);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  }
+
+  /**
    * Récupère les détails d'une compagnie
    */
   async getCompagnie(id: number): Promise<ApiResponse<CompagnieDetaillee> | ApiError> {

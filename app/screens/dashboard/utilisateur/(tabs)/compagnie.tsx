@@ -7,6 +7,7 @@ import { SideMenu } from '@/app/components/dashboard/SideMenu';
 import { compagnieService } from '@/app/services/compagnies/compagnieService';
 import { Ionicons } from '@expo/vector-icons';
 import RechercheFilterModal from '@/app/components/modals/recherche/RechercheFilterModal';
+import { useRouter } from 'expo-router';
 
 const MENU_ITEMS = [
   { label: 'Voyages', icon: 'map-outline' },
@@ -22,6 +23,7 @@ export default function CompagnieScreen() {
   const [loading, setLoading] = useState(true);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   useEffect(() => {
     (async () => {
@@ -80,6 +82,10 @@ export default function CompagnieScreen() {
                 key={compagnie.id}
                 style={{ width: '48%' }}
                 className="bg-white rounded-3xl p-4 mb-4 shadow-sm border border-gray-100 items-center"
+                onPress={() => router.push({
+                  pathname: '/screens/dashboard/utilisateur/compagnieDetail/[id]',
+                  params: { id: compagnie.id }
+                })}
               >
                 <View className="w-20 h-20 bg-gray-50 rounded-2xl items-center justify-center mb-3">
                   {compagnie.logo ? (
@@ -92,17 +98,14 @@ export default function CompagnieScreen() {
                     <Ionicons name="business" size={40} color="#cbd5e1" />
                   )}
                 </View>
-                <Text className="text-[#1e3a8a] font-bold text-center mb-1" numberOfLines={1}>
+                <Text className="text-[#1e3a8a] font-bold text-center mb-1 text-base" numberOfLines={2}>
                   {compagnie.nom}
                 </Text>
-                <View className="flex-row items-center">
-                  <Ionicons name="location-outline" size={12} color="#9ca3af" />
-                  <Text className="text-gray-400 text-[10px] ml-1" numberOfLines={1}>
-                    {compagnie.provinces && compagnie.provinces.length > 0
-                      ? compagnie.provinces.join(', ')
-                      : 'Non spécifié'}
+                {compagnie.localisation && (
+                  <Text className="text-gray-500 font-medium text-sm text-center" numberOfLines={1}>
+                    {compagnie.localisation.nom}
                   </Text>
-                </View>
+                )}
               </TouchableOpacity>
             ))}
           </View>

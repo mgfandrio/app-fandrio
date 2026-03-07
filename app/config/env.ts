@@ -11,7 +11,7 @@
 
 const getEnvVar = (key: string, defaultValue?: string): string => {
   const value = process.env[key];
-  
+
   // Debug: Afficher si la variable est chargée depuis .env ou utilise la valeur par défaut
   if (__DEV__) {
     if (value) {
@@ -22,12 +22,12 @@ const getEnvVar = (key: string, defaultValue?: string): string => {
       console.warn(`Variable d'environnement ${key} non définie`);
     }
   }
-  
+
   return value || defaultValue || '';
 };
 
 export const config = {
-  API_URL: getEnvVar('EXPO_PUBLIC_API_URL', 'http://192.168.1.106:8000'),
+  API_URL: getEnvVar('EXPO_PUBLIC_API_URL', 'http://192.168.100.92:8000'),
   X_API_KEY: getEnvVar('EXPO_PUBLIC_X_API_KEY', 'fandrio_abc123def456ghi789jkl012mno345pqr678stu901vwx234yz'),
 } as const;
 
