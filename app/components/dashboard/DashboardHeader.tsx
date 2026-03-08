@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EdgeInsets } from 'react-native-safe-area-context';
 
@@ -11,6 +11,9 @@ interface DashboardHeaderProps {
     searchPlaceholder?: string;
     searchValue?: string;
     onSearchChange?: (text: string) => void;
+    onSearchPress?: () => void;
+    onResetPress?: () => void;
+    searchIcon?: string;
 }
 
 export const DashboardHeader = ({
@@ -20,7 +23,10 @@ export const DashboardHeader = ({
     onFilterPress,
     searchPlaceholder = "Destination, ville ...",
     searchValue,
-    onSearchChange
+    onSearchChange,
+    onSearchPress,
+    onResetPress,
+    searchIcon = "search"
 }: DashboardHeaderProps) => {
     return (
         <View>
@@ -83,22 +89,43 @@ export const DashboardHeader = ({
 
             {/* Fixed Styled Search Bar (Outside ScrollView) */}
             <View className="px-6 -mt-7 z-10">
-                <View className="flex-row items-center bg-white rounded-2xl px-4 py-3 shadow-md border border-gray-100">
-                    <Ionicons name="search" size={20} color="#9ca3af" />
-                    <TextInput
-                        placeholder={searchPlaceholder}
-                        placeholderTextColor="#9ca3af"
-                        className="flex-1 ml-3 text-gray-800 text-base"
-                        value={searchValue}
-                        onChangeText={onSearchChange}
-                    />
+                <Pressable
+                    onPress={onSearchPress}
+                    className="flex-row items-center bg-white rounded-2xl px-4 py-3 shadow-md border border-gray-100"
+                >
+                    <Ionicons name={searchIcon as any} size={20} color="#9ca3af" />
+                    {onSearchPress ? (
+                        <View className="flex-1 ml-3">
+                            <Text className={searchValue ? "text-gray-800 text-base" : "text-gray-400 text-base"}>
+                                {searchValue || searchPlaceholder}
+                            </Text>
+                        </View>
+                    ) : (
+                        <TextInput
+                            placeholder={searchPlaceholder}
+                            placeholderTextColor="#9ca3af"
+                            className="flex-1 ml-3 text-gray-800 text-base"
+                            value={searchValue}
+                            onChangeText={onSearchChange}
+                        />
+                    )}
+
+                    {onResetPress && searchValue && (
+                        <TouchableOpacity
+                            onPress={onResetPress}
+                            className="p-1 px-2"
+                        >
+                            <Ionicons name="refresh-outline" size={20} color="#1e3a8a" />
+                        </TouchableOpacity>
+                    )}
+
                     <TouchableOpacity
                         onPress={onFilterPress}
                         className="ml-2 p-1.5 bg-blue-50 rounded-xl"
                     >
                         <Ionicons name="options-outline" size={22} color="#1e3a8a" />
                     </TouchableOpacity>
-                </View>
+                </Pressable>
             </View>
         </View>
     );
