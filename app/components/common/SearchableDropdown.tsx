@@ -154,6 +154,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                         keyboardShouldPersistTaps="handled"
                     >
                         {filteredData.length > 0 ? filteredData.map((item) => {
+                            if (!item) return null;
                             const itemId = item[valueKey];
                             const isSelected = (selectedId || '').toString() === (itemId || '').toString();
                             return (

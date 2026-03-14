@@ -228,17 +228,10 @@ export const voyageService = {
     try {
       const response = await apiClient.post('/api/recherche/recherche', criteres);
 
-      let voyages: any[] = [];
-      if (response.data?.data?.voyages && Array.isArray(response.data.data.voyages)) {
-        voyages = response.data.data.voyages;
-      } else if (response.data?.data && Array.isArray(response.data.data)) {
-        voyages = response.data.data;
-      }
-
       return {
         statut: true,
         message: response.data?.message || 'Recherche effectuée avec succès',
-        data: voyages,
+        data: response.data?.data,
       };
     } catch (error: any) {
       console.error('Erreur rechercherVoyages:', error.message || error);

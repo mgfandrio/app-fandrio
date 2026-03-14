@@ -223,7 +223,7 @@ export default function ReservationScreen() {
 
             <TouchableOpacity
               className="bg-white px-8 py-4 rounded-2xl shadow-lg"
-              onPress={() => router.push('/screens/dashboard/utilisateur/(tabs)/accueil')}
+              onPress={() => router.push('/screens/dashboard/utilisateur/reservations/reserver')}
             >
               <Text style={{ color: '#1e3a8a' }} className="font-extrabold text-lg">Faire une réservation</Text>
             </TouchableOpacity>

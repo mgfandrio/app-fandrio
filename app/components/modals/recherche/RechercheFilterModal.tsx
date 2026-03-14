@@ -42,16 +42,18 @@ export default function RechercheFilterModal({ visible, onClose, onApply, setLoa
             ]);
 
             if (provResp.status === 'fulfilled') {
-                const resp = provResp.value;
-                if (resp && 'statut' in resp && resp.statut !== false) {
-                    setProvinces((resp as any).data?.provinces || []);
+                const resp = provResp.value as any;
+                if (resp && resp.statut) {
+                    const data = resp.data?.provinces || resp.data;
+                    setProvinces(Array.isArray(data) ? data : []);
                 }
             }
 
             if (compResp.status === 'fulfilled') {
-                const resp = compResp.value;
-                if (resp && 'statut' in resp && resp.statut !== false) {
-                    setCompagnies((resp as any).data?.compagnies || []);
+                const resp = compResp.value as any;
+                if (resp && resp.statut) {
+                    const data = resp.data?.compagnies || resp.data;
+                    setCompagnies(Array.isArray(data) ? data : []);
                 }
             }
         } catch (error) {

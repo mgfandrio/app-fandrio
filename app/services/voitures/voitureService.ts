@@ -28,7 +28,7 @@ class VoitureService {
   async modifierVoiture(id: number, data: UpdateVoitureDTO): Promise<ApiResponse<Voiture>> {
     try {
       const response = await apiClient.put<ApiResponse<Voiture>>(
-        `${this.BASE_PATH}/modifier/${id}`,
+        `${this.BASE_PATH}/modification/${id}`,
         data
       );
       return response.data;
