@@ -33,7 +33,10 @@ export const reservationService = {
         voyageurs: Array<{
             nom: string;
             prenom: string;
-            phone?: string;
+            phone: string;
+            phone2: string;
+            cin?: string;
+            age?: number;
             siege_numero: string;
         }>;
     }) => {
@@ -68,6 +71,32 @@ export const reservationService = {
             return response.data;
         } catch (error: any) {
             console.error('Erreur obtenirFacture:', error.message);
+            throw error;
+        }
+    },
+
+    /**
+     * Annule explicitement une réservation (Étape 1-5)
+     */
+    annulerReservation: async (resId: number) => {
+        try {
+            const response = await apiClient.post(`/api/client/reservation/${resId}/cancel`);
+            return response.data;
+        } catch (error: any) {
+            console.error('Erreur annulerReservation:', error.message);
+            throw error;
+        }
+    },
+
+    /**
+     * Récupère toutes les réservations de l'utilisateur (paginé)
+     */
+    obtenirToutesReservations: async (page: number = 1) => {
+        try {
+            const response = await apiClient.get(`/api/client/reservation?page=${page}`);
+            return response.data;
+        } catch (error: any) {
+            console.error('Erreur obtenirToutesReservations:', error.message);
             throw error;
         }
     }

@@ -101,7 +101,7 @@ export default function ReserverScreen() {
                 if (prev <= 1) {
                     stopTimer();
                     Alert.alert('Temps écoulé', 'Le délai de réservation a expiré. Veuillez recommencer.', [
-                        { text: 'OK', onPress: () => router.replace('/screens/dashboard/utilisateur/(tabs)/reservation') }
+                        { text: 'OK', onPress: () => router.replace('/screens/dashboard/utilisateur/reservation') }
                     ]);
                     return 0;
                 }
@@ -144,7 +144,8 @@ export default function ReserverScreen() {
                     setPlans(response.data);
                     if (response.data.voiture?.chauffeur) {
                         const c = response.data.voiture.chauffeur;
-                        setChauffeur(`${c.prenom} ${c.nom}`);
+                        const fullName = [c.prenom, c.nom].filter(Boolean).join(' ');
+                        setChauffeur(fullName || 'Chauffeur');
                     }
                 }
             }
@@ -256,6 +257,33 @@ export default function ReserverScreen() {
         }
     };
 
+    const handleCancelProcess = () => {
+        Alert.alert(
+            'Confirmation',
+            'Voulez-vous vraiment annuler cette réservation ? Tous vos choix seront perdus.',
+            [
+                { text: 'Non', style: 'cancel' },
+                { 
+                    text: 'Oui, annuler', 
+                    style: 'destructive',
+                    onPress: async () => {
+                        if (reservationResult?.res_id) {
+                            setLoading(true);
+                            try {
+                                await reservationService.annulerReservation(reservationResult.res_id);
+                            } catch (error) {
+                                console.error('Error voiding reservation:', error);
+                            } finally {
+                                setLoading(false);
+                            }
+                        }
+                        router.replace('/screens/dashboard/utilisateur/reservation');
+                    }
+                }
+            ]
+        );
+    };
+
     const fetchInvoice = async () => {
         try {
             const response = await reservationService.obtenirFacture(reservationResult.res_id);
@@ -265,8 +293,7 @@ export default function ReserverScreen() {
             }
         } catch (error) {
             console.error('Error fetching invoice:', error);
-            Alert.alert('Attention', 'Réservation confirmée mais erreur lors du chargement de la facture.');
-            router.replace('/screens/dashboard/utilisateur/(tabs)/reservation');
+            router.replace('/screens/dashboard/utilisateur/reservation');
         }
     };
 
@@ -283,6 +310,9 @@ export default function ReserverScreen() {
                     nom: '',
                     prenom: '',
                     phone: '',
+                    phone2: '',
+                    cin: '',
+                    age: '',
                     siege_numero: seat
                 }));
                 setVoyageurs(initialVoyageurs);
@@ -290,8 +320,13 @@ export default function ReserverScreen() {
             }
         }
         else if (currentStep === 4) {
-            const isValid = voyageurs.every(v => v.nom.trim() !== '' && v.prenom.trim() !== '');
-            if (!isValid) Alert.alert('Attention', 'Veuillez remplir le nom et le prénom pour tous les voyageurs.');
+            const isValid = voyageurs.every(v => 
+                v.nom.trim() !== '' && 
+                v.prenom.trim() !== '' && 
+                v.phone.trim() !== '' && 
+                v.phone2.trim() !== ''
+            );
+            if (!isValid) Alert.alert('Attention', 'Veuillez remplir le nom, le prénom et les deux numéros de téléphone pour tous les voyageurs.');
             else createInitialReservation();
         }
         else if (currentStep === 5) {
@@ -514,154 +549,323 @@ export default function ReserverScreen() {
         </View>
     );
 
-    const renderStep3 = () => (
-        <View className="flex-1">
-            <View className="flex-row items-center mb-4">
-                <Ionicons name="bus-outline" size={20} color="#6b7280" />
-                <Text className="text-sm font-bold text-gray-700 ml-2">Sélectionnez vos sièges</Text>
-            </View>
+    const renderStep3 = () => {
+        // Robust capacity detection
+        const getPlaceCount = () => {
+            // 1. D'abord la longueur du plan (source la plus fiable pour le rendu)
+            if (seatPlan && seatPlan.length > 0) return seatPlan.length;
 
-            {/* Vehicle Seat Plan Container */}
-            <View className="bg-white p-4 rounded-3xl border-2 border-[#0ea5e9] shadow-sm self-center relative w-full" style={{ paddingBottom: 60 }}>
-                {/* Vehicle Header Info */}
-                <View className="flex-row items-center mb-6 border-b border-gray-100 pb-4">
-                    <View className="w-10 h-10 rounded-xl bg-fuchsia-500 items-center justify-center mr-3">
-                        <Ionicons name="bus" size={24} color="white" />
-                    </View>
-                    <View>
-                        <Text className="text-gray-900 font-bold text-base uppercase">
-                            {selectedVoyage?.voiture?.marque || 'VOLKSWAGEN'} - {selectedVoyage?.voiture?.modele || 'Crafter'}
-                        </Text>
-                        <Text className="text-gray-500 text-xs">{selectedVoyage?.voiture?.places} places</Text>
-                    </View>
+            // 2. Ensuite les champs de données (priorité à voit_places)
+            const sources = [
+                plans?.voiture,
+                selectedVoyage?.voiture,
+                plans,
+                selectedVoyage
+            ];
+            const fields = ['voit_places', 'places', 'nb_places', 'nb_place'];
+            
+            for (const source of sources) {
+                if (!source) continue;
+                for (const field of fields) {
+                    const value = source[field];
+                    if (value !== undefined && value !== null && value !== '' && !isNaN(Number(value))) {
+                        return Number(value);
+                    }
+                }
+            }
+            return NaN;
+        };
+
+        const placeCount = getPlaceCount();
+        const isSupported = [16, 18, 22].includes(placeCount);
+
+        if (!isSupported) {
+            return (
+                <View className="flex-1 items-center justify-center py-10">
+                    <Ionicons name="alert-circle-outline" size={64} color="#ef4444" />
+                    <Text className="text-gray-900 font-bold text-lg mt-4 text-center">
+                        Plan de siège non disponible
+                    </Text>
+                    <Text className="text-gray-500 text-sm mt-2 text-center px-6">
+                        Désolé, le plan de siège pour un véhicule de {placeCount || '?'} places n'est pas encore configuré. 
+                        Veuillez contacter le support.
+                    </Text>
+                </View>
+            );
+        }
+
+        const renderSeat = (seat: any, width: any = '25%') => {
+            const isSelected = selectedSeats.includes(seat.code);
+            const isAvailable = seat.statut === 'disponible';
+            const isReserved = seat.statut === 'reserve';
+            const isTemporary = seat.statut === 'selectionne';
+
+            return (
+                <View key={seat.code} className="mb-4 items-center px-1" style={{ width }}>
+                    <TouchableOpacity
+                        className={`w-full h-14 rounded-[12px] items-center justify-center border ${
+                            isSelected 
+                                ? 'bg-[#0ea5e9] border-[#0ea5e9]' 
+                                : isTemporary
+                                    ? 'bg-[#FFA500] border-[#FFA500]' 
+                                    : isReserved 
+                                        ? 'bg-[#ef4444] border-[#ef4444]' 
+                                        : 'bg-white border-gray-200 shadow-sm' 
+                        }`}
+                        onPress={() => toggleSeat(seat.code, isAvailable)}
+                        disabled={!isAvailable && !isSelected}
+                    >
+                        {isReserved ? (
+                            <Ionicons name="person" size={24} color="white" />
+                        ) : isSelected ? (
+                            <Ionicons name="person" size={24} color="white" />
+                        ) : isTemporary ? (
+                            <Ionicons name="time-outline" size={24} color="white" />
+                        ) : (
+                            <Text className="text-sm font-bold text-gray-700">{seat.code}</Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            );
+        };
+
+        const renderGrid = () => {
+            const passengers = seatPlan.slice(2);
+            
+            if (placeCount === 16) {
+                // Logic for 16 seats: specific aisle at Row 3, Column 3
+                const gridItems = [];
+                let passengerIdx = 0;
+
+                for (let row = 0; row < 4; row++) {
+                    for (let col = 0; col < 4; col++) {
+                        if ((row === 1 || row === 2) && col === 2) {
+                            gridItems.push(
+                                <View key={`aisle-${row}`} className="mb-4 items-center px-1 justify-center" style={{ width: '25%' as any }}>
+                                    <View className="w-full h-14 rounded-[12px] items-center justify-center bg-yellow-500">
+                                        <Text className="text-[8px] font-bold text-white uppercase" style={{ transform: [{ rotate: '90deg' }] }}>COULOIRE</Text>
+                                    </View>
+                                </View>
+                            );
+                        } else if (passengerIdx < passengers.length) {
+                            gridItems.push(renderSeat(passengers[passengerIdx]));
+                            passengerIdx++;
+                        }
+                    }
+                }
+                return gridItems;
+            }
+
+            // Default for 18 and 22: simple wrap
+            return passengers.map(seat => renderSeat(seat));
+        };
+
+        return (
+            <View className="flex-1">
+                <View className="flex-row items-center mb-4">
+                    <Ionicons name="bus-outline" size={20} color="#6b7280" />
+                    <Text className="text-sm font-bold text-gray-700 ml-2">Sélectionnez vos sièges</Text>
                 </View>
 
-                {/* Seats Grid Container */}
-                <View className="px-2 pb-6">
-                    {/* Front Row: Driver + Seats 1 & 2 (3 items) */}
-                    <View className="flex-row justify-between mb-4" style={{ paddingHorizontal: '5%' }}>
-                        <View className="items-center justify-center" style={{ width: '28%' }}>
-                            <View className="h-14 items-center justify-center">
-                                <Ionicons name="person-circle" size={48} color="#111827" />
-                            </View>
+                {/* Vehicle Seat Plan Container */}
+                <View className="bg-white p-4 rounded-3xl border-2 border-[#0ea5e9] shadow-sm self-center relative w-full" style={{ paddingBottom: 60 }}>
+                    {/* Vehicle Header Info */}
+                    <View className="flex-row items-center mb-6 border-b border-gray-100 pb-4">
+                        <View className="w-10 h-10 rounded-xl bg-fuchsia-500 items-center justify-center mr-3">
+                            <Ionicons name="bus" size={24} color="white" />
                         </View>
-                        
-                        {seatPlan.slice(0, 2).map((seat) => {
-                            const isSelected = selectedSeats.includes(seat.code);
-                            const isAvailable = seat.statut === 'disponible';
-                            const isReserved = seat.statut === 'reserve';
-                            const isTemporary = seat.statut === 'selectionne';
+                        <View>
+                            <Text className="text-gray-900 font-bold text-base uppercase">
+                                {selectedVoyage?.voiture?.voit_marque || selectedVoyage?.voiture?.marque || 'VOLKSWAGEN'} - {selectedVoyage?.voiture?.voit_modele || selectedVoyage?.voiture?.modele || 'Crafter'}
+                            </Text>
+                            <Text className="text-gray-500 text-xs">{placeCount || '?'} places</Text>
+                        </View>
+                    </View>
 
-                            return (
-                                <View key={seat.code} className="items-center" style={{ width: '28%' }}>
-                                    <TouchableOpacity
-                                        className={`w-full h-14 rounded-[12px] items-center justify-center border ${
-                                            isSelected 
-                                                ? 'bg-[#0ea5e9] border-[#0ea5e9]' 
-                                                : isTemporary
-                                                    ? 'bg-gray-200 border-gray-300' 
-                                                    : isReserved 
-                                                        ? 'bg-[#ef4444] border-[#ef4444]' 
-                                                        : 'bg-white border-gray-200 shadow-sm' 
-                                        }`}
-                                        onPress={() => toggleSeat(seat.code, isAvailable)}
-                                        disabled={!isAvailable && !isSelected}
-                                    >
-                                        {isReserved ? (
-                                            <Ionicons name="person" size={24} color="white" />
-                                        ) : isSelected ? (
-                                            <Ionicons name="person" size={24} color="white" />
-                                        ) : isTemporary ? (
-                                            <Ionicons name="hourglass-outline" size={20} color="#9ca3af" />
-                                        ) : (
-                                            <Text className="text-sm font-bold text-gray-700">{seat.code}</Text>
-                                        )}
-                                    </TouchableOpacity>
+                    {/* Seats Grid Container */}
+                    <View className="px-2 pb-6">
+                        {/* Front Row: Driver + Seats 1 & 2 */}
+                        <View className="flex-row justify-between mb-4" style={{ paddingHorizontal: '5%' }}>
+                            <View className="items-center justify-center" style={{ width: '28%' as any }}>
+                                <View className="h-14 items-center justify-center">
+                                    <Ionicons name="person-circle" size={48} color="#111827" />
                                 </View>
-                            );
-                        })}
+                                <Text className="text-[8px] text-gray-400 font-bold absolute -bottom-1 text-center" numberOfLines={1}>
+                                    {chauffeur || 'Chauffeur'}
+                                </Text>
+                            </View>
+                            
+                            {seatPlan.slice(0, 2).map((seat) => renderSeat(seat, '28%'))}
+                        </View>
+
+                        {/* Passenger Rows */}
+                        <View className="flex-row flex-wrap" style={{ paddingHorizontal: '1%' }}>
+                            {renderGrid()}
+                        </View>
                     </View>
 
-                    {/* Passenger Rows: 4 seats per row */}
-                    <View className="flex-row flex-wrap" style={{ paddingHorizontal: '1%' }}>
-                        {seatPlan.slice(2).map((seat) => {
-                            const isSelected = selectedSeats.includes(seat.code);
-                            const isAvailable = seat.statut === 'disponible';
-                            const isReserved = seat.statut === 'reserve';
-                            const isTemporary = seat.statut === 'selectionne';
-
-                            return (
-                                <View key={seat.code} className="mb-4 items-center px-1" style={{ width: '25%' }}>
-                                    <TouchableOpacity
-                                        className={`w-full h-14 rounded-[12px] items-center justify-center border ${
-                                            isSelected 
-                                                ? 'bg-[#0ea5e9] border-[#0ea5e9]' 
-                                                : isTemporary
-                                                    ? 'bg-gray-200 border-gray-300' 
-                                                    : isReserved 
-                                                        ? 'bg-[#ef4444] border-[#ef4444]' 
-                                                        : 'bg-white border-gray-200 shadow-sm' 
-                                        }`}
-                                        onPress={() => toggleSeat(seat.code, isAvailable)}
-                                        disabled={!isAvailable && !isSelected}
-                                    >
-                                        {isReserved ? (
-                                            <Ionicons name="person" size={24} color="white" />
-                                        ) : isSelected ? (
-                                            <Ionicons name="person" size={24} color="white" />
-                                        ) : isTemporary ? (
-                                            <Ionicons name="hourglass-outline" size={20} color="#9ca3af" />
-                                        ) : (
-                                            <Text className="text-sm font-bold text-gray-700">{seat.code}</Text>
-                                        )}
-                                    </TouchableOpacity>
-                                </View>
-                            );
-                        })}
-                    </View>
-                </View>
-
-                {/* Legend (Positioned absolutely at the bottom inside the container) */}
-                <View className="absolute bottom-0 left-0 right-0 px-4 py-3 border-t border-gray-50 flex-row flex-wrap justify-between bg-white rounded-b-3xl">
-                    <View className="flex-row items-center w-[23%]">
-                        <View className="w-3 h-3 rounded-sm bg-white border border-gray-200 mr-2" />
-                        <Text className="text-[9px] text-gray-500">Libre</Text>
-                    </View>
-                    <View className="flex-row items-center w-[23%]">
-                        <View className="w-3 h-3 rounded-sm bg-[#0ea5e9] mr-2" />
-                        <Text className="text-[9px] text-gray-500">Choisi</Text>
-                    </View>
-                    <View className="flex-row items-center w-[23%]">
-                        <View className="w-3 h-3 rounded-sm bg-gray-200 mr-2" />
-                        <Text className="text-[9px] text-gray-500">Attente</Text>
-                    </View>
-                    <View className="flex-row items-center w-[23%]">
-                        <View className="w-3 h-3 rounded-sm bg-[#ef4444] mr-2" />
-                        <Text className="text-[9px] text-gray-500">Occupé</Text>
+                    {/* Legend */}
+                    <View className="absolute bottom-0 left-0 right-0 px-4 py-4 border-t border-gray-50 flex-row flex-wrap justify-between bg-white rounded-b-3xl">
+                        <View className="flex-row items-center w-[23%]">
+                            <View className="w-5 h-5 rounded-md bg-white border border-gray-200 mr-2" />
+                            <Text className="text-[12px] font-bold text-gray-500">Libre</Text>
+                        </View>
+                        <View className="flex-row items-center w-[23%]">
+                            <View className="w-5 h-5 rounded-md bg-[#0ea5e9] mr-2" />
+                            <Text className="text-[12px] font-bold text-gray-500">Choisi</Text>
+                        </View>
+                        <View className="flex-row items-center w-[23%]">
+                            <View className="w-5 h-5 rounded-md bg-[#FFA500] mr-2" />
+                            <Text className="text-[12px] font-bold text-gray-500">Attente</Text>
+                        </View>
+                        <View className="flex-row items-center w-[23%]">
+                            <View className="w-5 h-5 rounded-md bg-[#ef4444] mr-2" />
+                            <Text className="text-[12px] font-bold text-gray-500">Occupé</Text>
+                        </View>
                     </View>
                 </View>
             </View>
-        </View>
-    );
+        );
+    };
 
     const renderStep4 = () => (
         <View className="flex-1">
-            <Text className="text-xl font-bold text-gray-900 mb-6">Informations voyageurs</Text>
+            {/* Trip Summary Card */}
+            <View className="bg-blue-900 p-5 rounded-[32px] mb-4 shadow-sm">
+                <View className="flex-row justify-between items-center mb-3">
+                    <View className="flex-row items-center">
+                        <Ionicons name="map-outline" size={18} color="#93c5fd" />
+                        <Text className="text-white font-bold ml-2">Récapitulatif du voyage</Text>
+                    </View>
+                    <View className="bg-blue-800 px-3 py-1 rounded-full">
+                        <Text className="text-blue-100 text-[10px] font-bold uppercase">{selectedSeats.length} Passager(s)</Text>
+                    </View>
+                </View>
+                
+                <View className="flex-row items-center justify-between mb-4">
+                    <View className="flex-1">
+                        <Text className="text-blue-200 text-[10px] uppercase font-bold">Départ</Text>
+                        <Text className="text-white font-bold text-sm" numberOfLines={1}>
+                            {provinces.find(p => p.id === proDepartId)?.nom || selectedVoyage?.trajet?.depart?.pro_nom || 'N/A'}
+                        </Text>
+                    </View>
+                    <Ionicons name="arrow-forward" size={16} color="#4b5563" className="mx-2" />
+                    <View className="flex-1 items-end">
+                        <Text className="text-blue-200 text-[10px] uppercase font-bold">Arrivée</Text>
+                        <Text className="text-white font-bold text-sm" numberOfLines={1}>
+                            {provinces.find(p => p.id === proArriveeId)?.nom || selectedVoyage?.trajet?.arrivee?.pro_nom || 'N/A'}
+                        </Text>
+                    </View>
+                </View>
+
+                <View className="flex-row justify-between border-t border-blue-800 pt-3">
+                    <View className="flex-row items-center">
+                        <Ionicons name="calendar-outline" size={14} color="#93c5fd" />
+                        <Text className="text-blue-100 text-xs ml-1">{selectedVoyage?.date || 'N/A'}</Text>
+                    </View>
+                    <View className="flex-row items-center">
+                        <Ionicons name="time-outline" size={14} color="#93c5fd" />
+                        <Text className="text-blue-100 text-xs ml-1">{selectedVoyage?.heure_depart || 'N/A'}</Text>
+                    </View>
+                    <View className="flex-row items-center">
+                        <Ionicons name="apps-outline" size={14} color="#93c5fd" />
+                        <Text className="text-blue-100 text-xs ml-1">Sièges: {selectedSeats.join(', ')}</Text>
+                    </View>
+                </View>
+            </View>
+
+            <Text className="text-xl font-bold text-gray-900 mb-4 px-1">Informations voyageurs</Text>
+            
             {voyageurs.map((v, index) => (
-                <View key={index} className="bg-white p-6 rounded-[32px] mb-6 border border-gray-100">
-                    <Text className="text-blue-900 font-bold text-lg mb-4">Siège {v.siege_numero}</Text>
-                    <TextInput
-                        className="bg-gray-50 p-4 rounded-xl mb-4 text-base"
-                        placeholder="Nom"
-                        value={v.nom}
-                        onChangeText={(val) => updateVoyageur(index, 'nom', val)}
-                    />
-                    <TextInput
-                        className="bg-gray-50 p-4 rounded-xl text-base"
-                        placeholder="Prénom"
-                        value={v.prenom}
-                        onChangeText={(val) => updateVoyageur(index, 'prenom', val)}
-                    />
+                <View key={index} className="bg-white p-5 rounded-[32px] mb-4 border border-gray-100 shadow-sm">
+                    <View className="flex-row justify-between items-center mb-4">
+                        <Text className="text-blue-900 font-bold text-lg">Voyageur {index + 1}</Text>
+                        <View className="bg-blue-50 px-3 py-1 rounded-full">
+                            <Text className="text-blue-600 font-bold text-xs uppercase">Siège {v.siege_numero}</Text>
+                        </View>
+                    </View>
+
+                    {/* Nom & Prénom */}
+                    <View className="flex-row mb-4" style={{ gap: 12 }}>
+                        <View className="flex-1">
+                            <Text className="text-gray-700 text-sm font-bold mb-2">Nom *</Text>
+                            <TextInput
+                                className="bg-gray-50 p-4 rounded-xl text-base border border-gray-100"
+                                placeholder="Nom"
+                                value={v.nom}
+                                onChangeText={(val) => updateVoyageur(index, 'nom', val)}
+                            />
+                        </View>
+                        <View className="flex-1">
+                            <Text className="text-gray-700 text-sm font-bold mb-2">Prénom *</Text>
+                            <TextInput
+                                className="bg-gray-50 p-4 rounded-xl text-base border border-gray-100"
+                                placeholder="Prénom"
+                                value={v.prenom}
+                                onChangeText={(val) => updateVoyageur(index, 'prenom', val)}
+                            />
+                        </View>
+                    </View>
+
+                    {/* CIN & Age */}
+                    <View className="flex-row mb-4" style={{ gap: 12 }}>
+                        <View className="flex-1">
+                            <Text className="text-gray-700 text-sm font-bold mb-2">N° CIN</Text>
+                            <TextInput
+                                className="bg-gray-50 p-4 rounded-xl text-base border border-gray-100"
+                                placeholder="Facultatif"
+                                value={v.cin}
+                                onChangeText={(val) => updateVoyageur(index, 'cin', val)}
+                            />
+                        </View>
+                        <View className="w-24">
+                            <Text className="text-gray-700 text-sm font-bold mb-2">Âge</Text>
+                            <TextInput
+                                className="bg-gray-50 p-4 rounded-xl text-base border border-gray-100"
+                                placeholder="Ex: 25"
+                                keyboardType="numeric"
+                                value={v.age ? String(v.age) : ''}
+                                onChangeText={(val) => updateVoyageur(index, 'age', val)}
+                            />
+                        </View>
+                    </View>
+
+                    {/* Téléphone 1 */}
+                    <View className="mb-4">
+                        <Text className="text-gray-700 text-sm font-bold mb-2">N° Téléphone *</Text>
+                        <View className="flex-row">
+                            <View className="bg-gray-100 px-3 flex-row items-center rounded-l-xl border border-r-0 border-gray-200">
+                                <Text className="text-lg mr-1">🇲🇬</Text>
+                                <Text className="text-gray-600 font-bold">+261</Text>
+                            </View>
+                            <TextInput
+                                className="flex-1 bg-gray-50 p-4 rounded-r-xl text-base border border-gray-100"
+                                placeholder="032 XX XXX XX"
+                                keyboardType="phone-pad"
+                                value={v.phone}
+                                onChangeText={(val) => updateVoyageur(index, 'phone', val)}
+                            />
+                        </View>
+                    </View>
+
+                    {/* Téléphone 2 / Urgence */}
+                    <View>
+                        <Text className="text-gray-700 text-sm font-bold mb-2">Tél 2 (Contact Urgence) *</Text>
+                        <View className="flex-row">
+                            <View className="bg-gray-100 px-3 flex-row items-center rounded-l-xl border border-r-0 border-gray-200">
+                                <Text className="text-lg mr-1">🇲🇬</Text>
+                                <Text className="text-gray-600 font-bold">+261</Text>
+                            </View>
+                            <TextInput
+                                className="flex-1 bg-gray-50 p-4 rounded-r-xl text-base border border-gray-100"
+                                placeholder="034 XX XXX XX"
+                                keyboardType="phone-pad"
+                                value={v.phone2}
+                                onChangeText={(val) => updateVoyageur(index, 'phone2', val)}
+                            />
+                        </View>
+                        <Text className="text-gray-400 text-[10px] mt-2 italic">Ce numéro sera utilisé en cas d'urgence.</Text>
+                    </View>
                 </View>
             ))}
         </View>
@@ -669,29 +873,78 @@ export default function ReserverScreen() {
 
     const renderStep5 = () => (
         <View className="flex-1">
-            <View className="bg-red-50 p-6 rounded-[32px] border border-red-100 items-center mb-8">
+            <View className="bg-red-50 p-6 rounded-[32px] border border-red-100 items-center mb-6">
                 <Ionicons name="timer-outline" size={32} color="#ef4444" />
                 <Text className="text-red-900 font-bold text-2xl mt-2">{formatTime(timeLeft)}</Text>
-                <Text className="text-red-600 text-xs text-center mt-1">Veuillez confirmer votre paiement avant l'expiration du délai.</Text>
+                <Text className="text-red-600 text-[10px] text-center mt-1 mb-4">Veuillez confirmer votre paiement avant l'expiration du délai.</Text>
+                
+                <TouchableOpacity 
+                    onPress={handleCancelProcess}
+                    className="bg-white border border-red-200 px-6 py-2 rounded-full shadow-sm"
+                >
+                    <Text className="text-red-600 font-bold text-xs uppercase">Abandonner la réservation</Text>
+                </TouchableOpacity>
             </View>
 
-            <Text className="text-xl font-bold text-gray-900 mb-6">Mode de paiement</Text>
-            {[
-                { id: 1, name: 'Orange Money', icon: 'phone-portrait-outline' },
-                { id: 2, name: 'Mvola', icon: 'wallet-outline' },
-                { id: 3, name: 'Airtel Money', icon: 'phone-landscape-outline' }
-            ].map(mode => (
-                <TouchableOpacity
-                    key={mode.id}
-                    className={`bg-white p-6 rounded-3xl mb-4 border ${paymentMode?.id === mode.id ? 'border-blue-500 bg-blue-50/30' : 'border-gray-100'}`}
-                    onPress={() => setPaymentMode(mode)}
-                >
-                    <View className="flex-row items-center">
-                        <Ionicons name={mode.icon as any} size={28} color="#1e3a8a" />
-                        <Text className="text-gray-900 font-bold text-lg ml-4">{mode.name}</Text>
+            {/* Reservation Summary Card */}
+            <View className="bg-white p-5 rounded-[32px] mb-6 border border-blue-100 shadow-sm overflow-hidden relative">
+                <View className="absolute -top-6 -right-6 w-20 h-20 bg-blue-50/50 rounded-full" />
+                
+                <View className="flex-row items-center mb-4">
+                    <View className="w-8 h-8 bg-blue-100 rounded-lg items-center justify-center mr-3">
+                        <Ionicons name="receipt-outline" size={18} color="#1e3a8a" />
                     </View>
-                </TouchableOpacity>
-            ))}
+                    <Text className="text-gray-900 font-bold text-lg">Détails de réservation</Text>
+                </View>
+
+                <View className="space-y-3">
+                    <View className="flex-row justify-between">
+                        <Text className="text-gray-500 text-xs">Itinéraire</Text>
+                        <Text className="text-gray-900 font-bold text-xs" numberOfLines={1}>
+                            {(provinces.find(p => p.id === proDepartId)?.nom || 'N/A') + ' → ' + (provinces.find(p => p.id === proArriveeId)?.nom || 'N/A')}
+                        </Text>
+                    </View>
+                    <View className="flex-row justify-between">
+                        <Text className="text-gray-500 text-xs">Date & Heure</Text>
+                        <Text className="text-gray-900 font-bold text-xs">{selectedVoyage?.date} à {selectedVoyage?.heure_depart}</Text>
+                    </View>
+                    <View className="flex-row justify-between">
+                        <Text className="text-gray-500 text-xs">Passagers ({selectedSeats.length})</Text>
+                        <Text className="text-gray-900 font-bold text-xs">Sièges: {selectedSeats.join(', ')}</Text>
+                    </View>
+                    <View className="flex-row justify-between pt-3 border-t border-gray-50 mt-2">
+                        <Text className="text-gray-900 font-bold text-base">Total à payer</Text>
+                        <Text className="text-blue-900 font-bold text-lg">
+                            {new Intl.NumberFormat('fr-FR').format(selectedSeats.length * (selectedVoyage?.trajet?.tarif || 0))} Ar
+                        </Text>
+                    </View>
+                </View>
+            </View>
+
+            <Text className="text-lg font-bold text-gray-900 mb-4 px-1">Sélectionner le mode paiement</Text>
+            <View className="flex-row flex-wrap justify-between" style={{ gap: 10 }}>
+                {[
+                    { id: 1, name: 'Orange Money', color: '#ff7900', icon: 'logo-edge' }, // approximation de icon
+                    { id: 2, name: 'Mvola', color: '#00a4e4', icon: 'wallet-outline' },
+                    { id: 3, name: 'Airtel Money', color: '#e11900', icon: 'phone-portrait-outline' }
+                ].map(mode => (
+                    <TouchableOpacity
+                        key={mode.id}
+                        className={`w-[48%] bg-white p-5 rounded-[28px] mb-2 border-2 items-center justify-center ${paymentMode?.id === mode.id ? 'border-blue-500 bg-blue-50/50' : 'border-gray-50 shadow-sm'}`}
+                        onPress={() => setPaymentMode(mode)}
+                    >
+                        <View className="w-12 h-12 rounded-2xl items-center justify-center mb-3" style={{ backgroundColor: mode.color + '15' }}>
+                            <Ionicons name={mode.icon as any} size={24} color={mode.color} />
+                        </View>
+                        <Text className="text-gray-900 font-bold text-center text-xs">{mode.name}</Text>
+                        {paymentMode?.id === mode.id && (
+                            <View className="absolute top-2 right-2">
+                                <Ionicons name="checkmark-circle" size={18} color="#3b82f6" />
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                ))}
+            </View>
         </View>
     );
 
@@ -756,14 +1009,36 @@ export default function ReserverScreen() {
                 {!loading && currentStep === 5 && renderStep5()}
                 {!loading && currentStep === 6 && renderStep6()}
             </ScrollView>
-            {currentStep < 6 && (
-                <View className="p-6 bg-white border-t border-gray-100">
+            {currentStep < 5 && (
+                <View className="p-6 bg-white border-t border-gray-100 flex-row" style={{ gap: 12 }}>
                     <TouchableOpacity
-                        className={`py-4 rounded-2xl items-center shadow-md ${((currentStep === 1 && (!proDepartId || !proArriveeId)) || (currentStep === 2 && !selectedVoyage) || (currentStep === 3 && selectedSeats.length === 0) || loading) ? 'bg-gray-300' : 'bg-blue-900'}`}
+                        className="flex-1 py-4 rounded-2xl items-center border border-red-200 bg-red-50"
+                        onPress={handleCancelProcess}
+                        disabled={loading}
+                    >
+                        <Text className="text-red-600 font-bold text-lg">Annuler</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        className={`flex-[1.5] py-4 rounded-2xl items-center shadow-md ${((currentStep === 1 && (!proDepartId || !proArriveeId)) || (currentStep === 2 && !selectedVoyage) || (currentStep === 3 && selectedSeats.length === 0) || loading) ? 'bg-gray-300' : 'bg-blue-900'}`}
                         onPress={handleNext}
                         disabled={loading}
                     >
-                        <Text className="text-white font-bold text-lg">{currentStep === 1 ? 'Rechercher' : currentStep === 5 ? 'Confirmer le paiement' : 'Continuer'}</Text>
+                        <Text className="text-white font-bold text-lg">
+                            {currentStep === 1 ? 'Rechercher' : 'Continuer'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {currentStep === 5 && (
+                <View className="p-6 bg-white border-t border-gray-100">
+                    <TouchableOpacity
+                        className={`py-4 rounded-2xl items-center shadow-md ${loading ? 'bg-gray-300' : 'bg-blue-900'}`}
+                        onPress={handleNext}
+                        disabled={loading}
+                    >
+                        <Text className="text-white font-bold text-lg">Confirmer le mode de paiement</Text>
                     </TouchableOpacity>
                 </View>
             )}

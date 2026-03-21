@@ -43,6 +43,14 @@ export interface ModePaiement {
   id: number;
   nom: string;
   type: string;
+  numero?: string;
+  titulaire?: string;
+}
+
+export interface ModePaiementDetail {
+  id: number;
+  numero: string;
+  titulaire: string;
 }
 
 export interface StatistiquesCompagnies {
@@ -80,7 +88,7 @@ export interface CompagnieFormData {
   comp_adresse: string;
   comp_localisation: number;
   provinces_desservies?: number[];
-  modes_paiement?: number[];
+  modes_paiement?: (number | ModePaiementDetail)[];
   admin_nom: string;
   admin_prenom: string;
   admin_email: string;
@@ -98,6 +106,6 @@ export interface CompagnieUpdateData {
   comp_adresse: string;
   comp_localisation: number;
   provinces_desservies?: number[];
-  modes_paiement?: number[];
+  modes_paiement?: (number | ModePaiementDetail)[];
 }
 

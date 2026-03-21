@@ -16,6 +16,7 @@ import { DashboardStats } from '../../../components/dashboard/DashboardStats';
 import { RenderChauffers } from '../../../components/renders/chauffeurs/RenderChauffers';
 import { RenderTrajets } from '../../../components/renders/trajets/RenderTrajets';
 import { RenderVoitures } from '../../../components/renders/voitures/RenderVoitures';
+import { RenderPaiements } from '../../../components/renders/paiements/RenderPaiements';
 import { RenderVoyages } from '../../../components/RenderVoyages';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.75;
@@ -184,6 +185,20 @@ export default function DashboardCompagnie() {
                 color="#fff"
               />
               <Text className="text-white text-base font-medium ml-4">Réservations</Text>
+            </TouchableOpacity>
+
+            {/* Paiements */}
+            <TouchableOpacity
+              className={`flex-row items-center px-4 py-3 mx-2 rounded-lg ${activeTab === 'paiements' ? 'bg-blue-700' : ''
+                }`}
+              onPress={() => selectMenuItem('paiements')}
+            >
+              <Ionicons
+                name={activeTab === 'paiements' ? 'card' : 'card-outline'}
+                size={24}
+                color="#fff"
+              />
+              <Text className="text-white text-base font-medium ml-4">Paiements</Text>
             </TouchableOpacity>
 
             {/* Paramètres */}
@@ -439,6 +454,7 @@ export default function DashboardCompagnie() {
           {activeTab === 'trajets' && <RenderTrajets />}
           {activeTab === 'voyages' && <RenderVoyages />}
           {activeTab === 'reservations' && renderReservations()}
+          {activeTab === 'paiements' && <RenderPaiements />}
           {activeTab === 'settings' && renderSettings()}
         </View>
 

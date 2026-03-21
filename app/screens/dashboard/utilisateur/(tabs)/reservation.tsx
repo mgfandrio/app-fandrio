@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Platform, TouchableOpacity, RefreshControl } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, ScrollView, ActivityIndicator, Platform, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { DashboardHeader } from '@/app/components/dashboard/DashboardHeader';
 import { SideMenu } from '@/app/components/dashboard/SideMenu';
 import { reservationService } from '@/app/services/reservations/reservationService';
@@ -28,7 +27,7 @@ export default function ReservationScreen() {
   const [date, setDate] = useState(new Date());
   const insets = useSafeAreaInsets();
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [userJson, dashResp] = await Promise.all([
         SecureStore.getItemAsync('fandrioUser'),
@@ -36,35 +35,49 @@ export default function ReservationScreen() {
       ]);
 
       if (userJson) {
-        setUser(JSON.parse(userJson));
+        try {
+          setUser(JSON.parse(userJson));
+        } catch (parseErr) {
+          console.warn('Error parsing user JSON:', parseErr);
+        }
       }
 
-      if (dashResp.statut) {
+      if (dashResp && dashResp.statut) {
         setDashboardData(dashResp.data);
       }
     } catch (e) {
-      console.error('Error loading data:', e);
+      console.warn('Error loading reservation data:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  const handleDateSelect = useCallback(() => {
+    setShowDatePicker(true);
   }, []);
 
-  const onChange = (event: any, selectedDate?: Date) => {
-    const currentDate = selectedDate || date;
-    setShowDatePicker(Platform.OS === 'ios');
-    setDate(currentDate);
-
+  const handleDateChange = useCallback((event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
     if (selectedDate) {
-      // Format date: DD-MM-YYYY
-      const day = String(currentDate.getDate()).padStart(2, '0');
-      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-      const year = currentDate.getFullYear();
+      setDate(selectedDate);
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const year = selectedDate.getFullYear();
       setSearchValue(`${day}-${month}-${year}`);
+    }
+  }, []);
+
+  const formatMontant = (montant: any) => {
+    try {
+      if (montant === null || montant === undefined) return '0';
+      return new Intl.NumberFormat('fr-FR').format(Number(montant));
+    } catch {
+      return String(montant || 0);
     }
   };
 
@@ -76,17 +89,20 @@ export default function ReservationScreen() {
     );
   }
 
+  const stats = dashboardData?.stats || {};
+  const historique = Array.isArray(dashboardData?.historique) ? dashboardData.historique : [];
+
   return (
     <View className="flex-1 bg-gray-50">
       <DashboardHeader
         user={user}
         insets={insets}
         onMenuPress={() => setMenuVisible(true)}
-        onFilterPress={() => { }} // Static for now
+        onFilterPress={() => { }}
         searchPlaceholder="Sélectionner une date"
         searchValue={searchValue}
         onSearchChange={setSearchValue}
-        onSearchPress={() => setShowDatePicker(true)}
+        onSearchPress={handleDateSelect}
         onResetPress={() => {
           setSearchValue('');
           setDate(new Date());
@@ -94,16 +110,24 @@ export default function ReservationScreen() {
         searchIcon="calendar-outline"
       />
 
-      {showDatePicker && (
-        <DateTimePicker
-          testID="dateTimePicker"
-          value={date}
-          mode="date"
-          is24Hour={true}
-          display="default"
-          onChange={onChange}
-        />
-      )}
+      {showDatePicker && (() => {
+        try {
+          const DateTimePicker = require('@react-native-community/datetimepicker').default;
+          return (
+            <DateTimePicker
+              testID="dateTimePicker"
+              value={date}
+              mode="date"
+              is24Hour={true}
+              display="default"
+              onChange={handleDateChange}
+            />
+          );
+        } catch (e) {
+          console.warn('DateTimePicker error:', e);
+          return null;
+        }
+      })()}
 
       <SideMenu
         visible={menuVisible}
@@ -136,7 +160,7 @@ export default function ReservationScreen() {
               <View className="w-10 h-10 bg-blue-50 rounded-full items-center justify-center mb-2">
                 <Ionicons name="receipt-outline" size={20} color="#1e3a8a" />
               </View>
-              <Text className="text-gray-900 font-bold text-lg">{dashboardData?.stats?.total_reservations || 0}</Text>
+              <Text className="text-gray-900 font-bold text-lg">{stats.total_reservations || 0}</Text>
               <Text className="text-gray-400 text-[10px] uppercase font-bold text-center">Total Réservé</Text>
             </View>
 
@@ -144,15 +168,15 @@ export default function ReservationScreen() {
               <View className="w-10 h-10 bg-orange-50 rounded-full items-center justify-center mb-2">
                 <Ionicons name="time-outline" size={20} color="#f97316" />
               </View>
-              <Text className="text-gray-900 font-bold text-lg">{dashboardData?.stats?.voyages_en_cours || 0}</Text>
-              <Text className="text-gray-400 text-[10px] uppercase font-bold text-center">En cours</Text>
+              <Text className="text-gray-900 font-bold text-lg">{stats.voyages_en_cours || 0}</Text>
+              <Text className="text-gray-400 text-[10px] uppercase font-bold text-center">Validé</Text>
             </View>
 
             <View className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 items-center justify-center flex-1 ml-2">
               <View className="w-10 h-10 bg-red-50 rounded-full items-center justify-center mb-2">
                 <Ionicons name="close-circle-outline" size={20} color="#ef4444" />
               </View>
-              <Text className="text-gray-900 font-bold text-lg">{dashboardData?.stats?.voyages_annules || 0}</Text>
+              <Text className="text-gray-900 font-bold text-lg">{stats.voyages_annules || 0}</Text>
               <Text className="text-gray-400 text-[10px] uppercase font-bold text-center">Annulés</Text>
             </View>
           </View>
@@ -161,42 +185,34 @@ export default function ReservationScreen() {
           <View className="mb-8">
             <View className="flex-row justify-between items-center mb-4">
               <Text className="text-gray-900 font-bold text-lg">Dernières réservations</Text>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/screens/dashboard/utilisateur/reservations/history')}>
                 <Text style={{ color: '#1e3a8a' }} className="font-bold text-sm">Voir tout</Text>
               </TouchableOpacity>
             </View>
 
-            {(!dashboardData?.historique || dashboardData.historique.length === 0) ? (
+            {historique.length === 0 ? (
               <View className="bg-white rounded-3xl p-8 items-center justify-center border border-dashed border-gray-200">
                 <Text className="text-gray-400 text-sm">Aucune réservation récente</Text>
               </View>
             ) : (
-              dashboardData.historique.map((res: any) => (
-                <View key={res.id} className="bg-white rounded-3xl p-5 mb-4 shadow-sm border border-gray-100">
+              historique.map((res: any, index: number) => (
+                <View key={res?.id || index} className="bg-white rounded-3xl p-5 mb-4 shadow-sm border border-gray-100">
                   <View className="flex-row justify-between items-start mb-3">
                     <View className="flex-1">
-                      <Text className="text-gray-900 font-bold text-base">{res.trajet}</Text>
-                      <Text className="text-gray-500 text-xs mt-0.5">{res.date} • {res.heure}</Text>
-                      <Text className="text-gray-400 text-[10px] mt-1 italic">N° {res.numero}</Text>
+                      <Text className="text-gray-900 font-bold text-base">{res?.trajet || 'Trajet inconnu'}</Text>
+                      <Text className="text-gray-500 text-xs mt-0.5">{res?.date || 'N/A'} • {res?.heure || 'N/A'}</Text>
+                      <Text className="text-gray-400 text-[10px] mt-1 italic">N° {res?.numero || 'N/A'}</Text>
                     </View>
-                    <View className={`px-2.5 py-1 rounded-full ${res.statut === 2 ? 'bg-green-100' :
-                      res.statut === 1 ? 'bg-yellow-100' :
-                        res.statut === 4 ? 'bg-red-100' : 'bg-gray-100'
-                      }`}>
-                      <Text className={`text-[10px] font-bold uppercase ${res.statut === 2 ? 'text-green-700' :
-                        res.statut === 1 ? 'text-yellow-700' :
-                          res.statut === 4 ? 'text-red-700' : 'text-gray-700'
-                        }`}>
-                        {res.statut === 1 ? 'En attente' :
-                          res.statut === 2 ? 'Confirmé' :
-                            res.statut === 3 ? 'Terminé' : 'Annulé'}
+                    <View className={`px-2.5 py-1 rounded-full ${res?.statut === 2 ? 'bg-green-100' : 'bg-red-100'}`}>
+                      <Text className={`text-[10px] font-bold uppercase ${res?.statut === 2 ? 'text-green-700' : 'text-red-700'}`}>
+                        {res?.statut === 2 ? 'Valider' : 'Annuler'}
                       </Text>
                     </View>
                   </View>
 
                   <View className="flex-row justify-between items-center pt-3 border-t border-gray-50">
                     <Text style={{ color: '#1e3a8a' }} className="font-bold text-base">
-                      {new Intl.NumberFormat('fr-FR').format(res.montant)} Ar
+                      {formatMontant(res?.montant)} Ar
                     </Text>
                     <TouchableOpacity
                       className="bg-blue-50 px-4 py-2 rounded-xl"

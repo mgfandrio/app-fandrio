@@ -6,6 +6,7 @@ import {
   CompagniesListeResponse,
   CompagnieUpdateData,
   FiltresCompagnies,
+  ModePaiementDetail,
   StatistiquesCompagnies,
 } from '../../types/compagnie';
 import apiClient, { handleApiError, handleApiResponse } from '../api/axiosConfig';
@@ -150,6 +151,21 @@ class CompagnieService {
     try {
       const response = await apiClient.delete(`${this.BASE_PATH}/${id}`);
       return handleApiResponse<void>(response);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  }
+  /**
+   * Met à jour uniquement les modes de paiement d'une compagnie
+   */
+  async updateModesPaiement(
+    modes_paiement: (number | ModePaiementDetail)[]
+  ): Promise<ApiResponse<CompagnieDetaillee> | ApiError> {
+    try {
+      const response = await apiClient.put('/api/adminCompagnie/update-paiements', {
+        modes_paiement,
+      });
+      return handleApiResponse<CompagnieDetaillee>(response);
     } catch (error) {
       return handleApiError(error);
     }

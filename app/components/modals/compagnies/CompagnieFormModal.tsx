@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import compagnieService from '../../../services/compagnies/compagnieService';
 import provinceService from '../../../services/provinces/provinceService';
-import { CompagnieFormData, CompagnieUpdateData } from '../../../types/compagnie';
+import { CompagnieFormData, CompagnieUpdateData, ModePaiementDetail } from '../../../types/compagnie';
 import { Province } from '../../../types/province';
 import { SearchableDropdown, useConfirmDialog } from '../../common';
 
@@ -47,7 +47,14 @@ export const CompagnieFormModal: React.FC<Props> = ({
     admin_telephone: '',
     admin_mot_de_passe: '',
     comp_localisation: undefined,
+    modes_paiement: [],
   });
+
+  const PAYMENT_METHODS = [
+    { id: 2, nom: 'MVola', prefixes: ['034', '037'] },
+    { id: 1, nom: 'Orange Money', prefixes: ['032', '037'] },
+    { id: 3, nom: 'Airtel Money', prefixes: ['033'] },
+  ];
 
   const isEditMode = !!compagnieId;
 
@@ -77,6 +84,7 @@ export const CompagnieFormModal: React.FC<Props> = ({
       admin_telephone: '',
       admin_mot_de_passe: '',
       comp_localisation: undefined,
+      modes_paiement: [],
     });
     setSelectedProvinces([]);
   };
@@ -164,14 +172,24 @@ export const CompagnieFormModal: React.FC<Props> = ({
         comp_phone: compagnie.telephone,
         comp_email: compagnie.email,
         comp_adresse: compagnie.adresse,
-        comp_description: compagnie.description,
         comp_localisation: compagnie.localisation?.id,
+        modes_paiement: [], // Will be updated below
       });
       // Charger les provinces déjà sélectionnées
       if (compagnie.provinces_desservies && compagnie.provinces_desservies.length > 0) {
         setSelectedProvinces(compagnie.provinces_desservies.map(p => p.id));
       } else {
         setSelectedProvinces([]);
+      }
+
+      // Charger les modes de paiement déjà sélectionnés
+      if (compagnie.modes_paiement_acceptes && compagnie.modes_paiement_acceptes.length > 0) {
+        const selectedModes = compagnie.modes_paiement_acceptes.map(m => ({
+          id: m.id,
+          numero: m.numero || '',
+          titulaire: m.titulaire || '',
+        }));
+        setFormData(prev => ({ ...prev, modes_paiement: selectedModes }));
       }
     } else {
       showDialog({
@@ -238,6 +256,7 @@ export const CompagnieFormModal: React.FC<Props> = ({
         comp_description: formData.comp_description!,
         comp_localisation: formData.comp_localisation!,
         provinces_desservies: selectedProvinces.length > 0 ? selectedProvinces : undefined,
+        modes_paiement: formData.modes_paiement,
       };
 
       const response = await compagnieService.mettreAJourCompagnie(compagnieId, updateData);
@@ -491,6 +510,90 @@ export const CompagnieFormModal: React.FC<Props> = ({
                   )}
                 </View>
               )}
+
+              {/* Modes de Paiement */}
+              <Text className="text-gray-900 font-bold text-base mt-2 mb-3">
+                Modes de Paiement acceptés
+              </Text>
+              <View className="bg-gray-50 border border-gray-300 rounded-xl p-3 mb-4">
+                <View className="flex-row flex-wrap mb-2">
+                  {PAYMENT_METHODS.map((method) => {
+                    const isSelected = (formData.modes_paiement as ModePaiementDetail[])?.some(m => m.id === method.id);
+                    return (
+                      <TouchableOpacity
+                        key={method.id}
+                        className={`rounded-full px-4 py-2 mr-2 mb-2 flex-row items-center ${isSelected ? 'bg-orange-500' : 'bg-white border border-gray-300'}`}
+                        onPress={() => {
+                          const currentModes = (formData.modes_paiement as ModePaiementDetail[]) || [];
+                          if (isSelected) {
+                            setFormData({ ...formData, modes_paiement: currentModes.filter(m => m.id !== method.id) });
+                          } else {
+                            setFormData({ ...formData, modes_paiement: [...currentModes, { id: method.id, numero: '', titulaire: '' }] });
+                          }
+                        }}
+                        disabled={loading}
+                      >
+                        <Ionicons
+                          name={isSelected ? "card" : "card-outline"}
+                          size={18}
+                          color={isSelected ? "#fff" : "#4b5563"}
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-gray-700'}`}>
+                          {method.nom}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Formulaire détaillé pour chaque mode sélectionné */}
+                {(formData.modes_paiement as ModePaiementDetail[])?.map((mode) => {
+                  const methodConfig = PAYMENT_METHODS.find(m => m.id === mode.id);
+                  return (
+                    <View key={mode.id} className="bg-white border border-gray-200 rounded-2xl p-4 mb-3 shadow-sm">
+                      <View className="flex-row items-center mb-3">
+                        <View className="bg-blue-100 rounded-full p-2 mr-2">
+                          <Ionicons name="phone-portrait" size={16} color="#3b82f6" />
+                        </View>
+                        <Text className="font-bold text-gray-800">{methodConfig?.nom}</Text>
+                      </View>
+
+                      <View className="mb-2">
+                        <Text className="text-xs text-gray-500 mb-1 ml-1">Numéro de téléphone ({methodConfig?.prefixes.join(', ')})</Text>
+                        <TextInput
+                          className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                          value={mode.numero}
+                          onChangeText={(text) => {
+                            const newModes = (formData.modes_paiement as ModePaiementDetail[]).map(m => 
+                              m.id === mode.id ? { ...m, numero: text } : m
+                            );
+                            setFormData({ ...formData, modes_paiement: newModes });
+                          }}
+                          placeholder="034 XX XXX XX"
+                          keyboardType="phone-pad"
+                          maxLength={10}
+                        />
+                      </View>
+
+                      <View>
+                        <Text className="text-xs text-gray-500 mb-1 ml-1">Nom du compte / Titulaire</Text>
+                        <TextInput
+                          className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                          value={mode.titulaire}
+                          onChangeText={(text) => {
+                            const newModes = (formData.modes_paiement as ModePaiementDetail[]).map(m => 
+                              m.id === mode.id ? { ...m, titulaire: text } : m
+                            );
+                            setFormData({ ...formData, modes_paiement: newModes });
+                          }}
+                          placeholder="Nom de la personne"
+                        />
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
             </View>
 
             {/* Informations administrateur (création uniquement) */}

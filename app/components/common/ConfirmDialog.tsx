@@ -200,11 +200,11 @@ export const useConfirmDialog = () => {
       visible={dialogState.visible}
       {...dialogState.config}
       onCancel={() => {
-        dialogState.config.onCancel();
+        dialogState.config.onCancel?.();
         hideDialog();
       }}
       onConfirm={async () => {
-        await dialogState.config.onConfirm();
+        await dialogState.config.onConfirm?.();
         hideDialog();
       }}
     />
