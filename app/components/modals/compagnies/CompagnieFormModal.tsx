@@ -51,7 +51,7 @@ export const CompagnieFormModal: React.FC<Props> = ({
   });
 
   const PAYMENT_METHODS = [
-    { id: 2, nom: 'MVola', prefixes: ['034', '037'] },
+    { id: 2, nom: 'MVola', prefixes: ['034', '038'] },
     { id: 1, nom: 'Orange Money', prefixes: ['032', '037'] },
     { id: 3, nom: 'Airtel Money', prefixes: ['033'] },
   ];

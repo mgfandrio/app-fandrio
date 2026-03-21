@@ -21,7 +21,7 @@ export const RenderPaiements = () => {
     const [compId, setCompId] = useState<number | null>(null);
 
     const PAYMENT_METHODS = [
-        { id: 2, nom: 'MVola', prefixes: ['034', '037'] },
+        { id: 2, nom: 'MVola', prefixes: ['034', '038'] },
         { id: 1, nom: 'Orange Money', prefixes: ['032', '037'] },
         { id: 3, nom: 'Airtel Money', prefixes: ['033'] },
     ];
@@ -33,7 +33,7 @@ export const RenderPaiements = () => {
                 const userJson = await SecureStore.getItemAsync('fandrioUser');
                 if (userJson) {
                     const user = JSON.parse(userJson);
-                    const companyId = user.comp_id;
+                    const companyId = user.compagnie_id || user.comp_id;
                     setCompId(companyId);
 
                     if (companyId) {
