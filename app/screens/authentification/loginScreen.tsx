@@ -1,6 +1,7 @@
 import config from '@/app/config/env';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from 'react';
@@ -222,20 +223,13 @@ export default function LoginScreen() {
   };
 
   return (
-    <View className="flex-1 bg-white">
+    <LinearGradient
+      colors={['#1e40af', '#3b82f6', '#93c5fd', '#dbeafe', '#ffffff']}
+      locations={[0, 0.15, 0.35, 0.55, 1]}
+      style={{ flex: 1 }}
+    >
       <DialogComponent />
       <StatusBar barStyle="light-content" />
-
-      {/* Header avec fond bleu dégradé */}
-      <View className="bg-blue-900 pt-12 pb-8 px-6 rounded-b-3xl">
-        {/* Logo Badge */}
-        <View className="items-center mb-4">
-          <View className="bg-white/20 rounded-full px-6 py-2 flex-row items-center">
-            <View className="w-6 h-6 bg-white rounded-full mr-2" />
-            <Text className="text-yellow-400 font-bold text-lg">FANDRIO</Text>
-          </View>
-        </View>
-      </View>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -246,198 +240,192 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           className="flex-1"
         >
-          <View className="flex-1 px-6 pt-8">
-            {/* Titre */}
-            <View className="mb-2">
-              <Text className="text-2xl font-bold text-gray-900 text-center">
-                Connectez-vous à votre compte
-              </Text>
+          {/* Logo zone (dans la partie bleue) */}
+          <View className="items-center pt-16 pb-6">
+            <View style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 }}>
+              <Image
+                source={require("../../../assets/images/fandrioLogo.png")}
+                className="w-52 h-52"
+                resizeMode="contain"
+              />
             </View>
+            <Text className="text-white text-3xl font-extrabold tracking-[6px] -mt-1">FANDRIO</Text>
+            <Text className="text-blue-100 text-base mt-1 font-medium">
+              Réservez votre voyage en quelques clics
+            </Text>
+          </View>
 
-            {/* Sous-titre */}
-            <Text className="text-gray-500 text-center text-xl mb-6 px-4">
-              Réservez facilement le véhicule qu'il vous faut — rapide, pratique et adapté à vos besoins.
+          {/* Carte formulaire */}
+          <View
+            className="flex-1 mx-5 mb-6 bg-white rounded-3xl px-7 pt-8 pb-6"
+            style={{ shadowColor: '#1e40af', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 12 }}
+          >
+            <Text className="text-gray-900 text-2xl font-bold mb-1">Connexion</Text>
+            <Text className="text-gray-400 text-base mb-7">
+              Accédez à votre espace personnel
             </Text>
 
-            {/* Social Login Section */}
-            <View className="mb-6">
-              <Text className="text-center text-gray-900 font-medium text-xl mb-4">
-                Se connecter avec
-              </Text>
-
-              <View className="flex-row justify-center items-center mb-6">
-                {/* Google */}
-                <TouchableOpacity className="w-12 h-12 bg-gray-100 rounded-xl items-center justify-center">
-                  <Image
-                    source={require("../../../assets/images/google.png")}
-                    className="w-6 h-6"
-                    resizeMode="contain"
-                  />
-                </TouchableOpacity>
-
-                {/* Facebook */}
-                <TouchableOpacity className="w-12 h-12 bg-gray-100 rounded-xl items-center justify-center mx-6">
-                  <Image
-                    source={require("../../../assets/images/facebook.png")}
-                    className="w-6 h-6"
-                    resizeMode="contain"
-                  />
-                </TouchableOpacity>
-
-                {/* Apple */}
-                <TouchableOpacity className="w-12 h-12 bg-gray-100 rounded-xl items-center justify-center">
-                  <Image
-                    source={require("../../../assets/images/apple.png")}
-                    className="w-6 h-6"
-                    resizeMode="contain"
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {/* Divider */}
-              <View className="flex-row items-center mb-6">
-                <View className="flex-1 h-px bg-gray-300" />
-                <Text className="mx-4 text-gray-500 text-sm">Ou</Text>
-                <View className="flex-1 h-px bg-gray-300" />
+            {/* Email/Phone Input */}
+            <Text className="text-gray-700 font-semibold text-base mb-2 ml-1">
+              Email ou téléphone
+            </Text>
+            <View className="mb-1">
+              <View className={`bg-gray-50 border ${errors.identifiant ? 'border-red-400' : 'border-gray-200'} rounded-2xl px-5 py-4 flex-row items-center`}>
+                <Ionicons 
+                  name="person-outline" 
+                  size={22} 
+                  color={errors.identifiant ? "#EF4444" : "#9CA3AF"} 
+                  style={{ marginRight: 14 }}
+                />
+                <TextInput
+                  className="flex-1 text-gray-900 text-lg"
+                  placeholder="Email ou numéro de téléphone"
+                  placeholderTextColor="#C4C4C4"
+                  value={identifiant}
+                  onChangeText={handleIdentifiantChange}
+                  autoCapitalize="none"
+                  editable={!loading}
+                />
+                {errors.identifiant && (
+                  <Ionicons name="alert-circle" size={20} color="#EF4444" />
+                )}
               </View>
             </View>
+            {errors.identifiant ? (
+              <Text className="text-red-500 text-sm ml-2 mb-5 mt-1">{errors.identifiant}</Text>
+            ) : (
+              <View className="mb-5" />
+            )}
 
-            {/* Form */}
-            <View className="mb-6">
-              {/* Email/Phone Label */}
-              <Text className="text-gray-900 font-medium text-xl mb-2">
-                Email ou numéro de téléphone
-              </Text>
-
-              {/* Email/Phone Input */}
-              <View className="mb-1">
-                <View className={`bg-white border ${errors.identifiant ? 'border-red-500' : 'border-gray-300'} rounded-xl px-4 py-3 flex-row items-center`}>
+            {/* Password Input */}
+            <Text className="text-gray-700 font-semibold text-base mb-2 ml-1">
+              Mot de passe
+            </Text>
+            <View className="mb-1">
+              <View className={`bg-gray-50 border ${errors.motDePasse ? 'border-red-400' : 'border-gray-200'} rounded-2xl px-5 py-4 flex-row items-center`}>
+                <Ionicons 
+                  name="lock-closed-outline" 
+                  size={22} 
+                  color={errors.motDePasse ? "#EF4444" : "#9CA3AF"} 
+                  style={{ marginRight: 14 }}
+                />
+                <TextInput
+                  className="flex-1 text-gray-900 text-lg"
+                  placeholder="Votre mot de passe"
+                  placeholderTextColor="#C4C4C4"
+                  value={motDePasse}
+                  onChangeText={handleMotDePasseChange}
+                  secureTextEntry={!showPassword}
+                  editable={!loading}
+                />
+                <TouchableOpacity 
+                  onPress={() => setShowPassword(!showPassword)}
+                  disabled={loading}
+                  className="p-1"
+                >
                   <Ionicons 
-                    name="person-outline" 
-                    size={20} 
-                    color={errors.identifiant ? "#EF4444" : "#6B7280"} 
-                    style={{ marginRight: 10 }}
+                    name={showPassword ? "eye-outline" : "eye-off-outline"} 
+                    size={22} 
+                    color={errors.motDePasse ? "#EF4444" : "#9CA3AF"} 
                   />
-                  <TextInput
-                    className="flex-1 text-gray-900 text-base"
-                    placeholder="Veuillez entrer votre email ou numéro de téléphone"
-                    placeholderTextColor="#9CA3AF"
-                    value={identifiant}
-                    onChangeText={handleIdentifiantChange}
-                    autoCapitalize="none"
-                    editable={!loading}
-                  />
-                  {errors.identifiant && (
-                    <Ionicons name="alert-circle" size={20} color="#EF4444" />
-                  )}
-                </View>
+                </TouchableOpacity>
               </View>
-              
-              {/* Error Message for Identifiant */}
-              {errors.identifiant ? (
-                <View className="flex-row items-center mb-4 mt-1">
-                  <Text className="text-red-500 text-sm ml-1">
-                    {errors.identifiant}
-                  </Text>
-                </View>
-              ) : (
-                <View className="mb-4" />
-              )}
+            </View>
+            {errors.motDePasse ? (
+              <Text className="text-red-500 text-sm ml-2 mb-2 mt-1">{errors.motDePasse}</Text>
+            ) : (
+              <View className="mb-2" />
+            )}
 
-              {/* Password Label */}
-              <Text className="text-gray-900 font-medium text-xl mb-2">
-                Mot de passe
+            {/* Mot de passe oublié */}
+            <TouchableOpacity className="self-end mb-7">
+              <Text className="text-blue-600 font-semibold text-base">
+                Mot de passe oublié ?
               </Text>
+            </TouchableOpacity>
 
-              {/* Password Input */}
-              <View className="mb-1">
-                <View className={`bg-white border ${errors.motDePasse ? 'border-red-500' : 'border-gray-300'} rounded-xl px-4 py-3 flex-row items-center`}>
-                  <Ionicons 
-                    name="lock-closed-outline" 
-                    size={20} 
-                    color={errors.motDePasse ? "#EF4444" : "#6B7280"} 
-                    style={{ marginRight: 10 }}
-                  />
-                  <TextInput
-                    className="flex-1 text-gray-900 text-base"
-                    placeholder="Veuillez entrer votre Mot de passe"
-                    placeholderTextColor="#9CA3AF"
-                    value={motDePasse}
-                    onChangeText={handleMotDePasseChange}
-                    secureTextEntry={!showPassword}
-                    editable={!loading}
-                  />
-                  <TouchableOpacity 
-                    onPress={() => setShowPassword(!showPassword)}
-                    disabled={loading}
-                  >
-                    <Ionicons 
-                      name={showPassword ? "eye-outline" : "eye-off-outline"} 
-                      size={20} 
-                      color={errors.motDePasse ? "#EF4444" : "#6B7280"} 
-                    />
-                  </TouchableOpacity>
-                  {errors.motDePasse && (
-                    <Ionicons 
-                      name="alert-circle" 
-                      size={20} 
-                      color="#EF4444" 
-                      style={{ marginLeft: 8 }}
-                    />
-                  )}
-                </View>
-              </View>
-              
-              {/* Error Message for Password */}
-              {errors.motDePasse ? (
-                <View className="flex-row items-center mb-6 mt-1">
-                  <Text className="text-red-500 text-sm ml-1">
-                    {errors.motDePasse}
-                  </Text>
-                </View>
-              ) : (
-                <View className="mb-6" />
-              )}
-
-              {/* Login Button */}
-              <TouchableOpacity
-                className={`rounded-full py-4 mb-4 ${loading ? 'bg-blue-400' : 'bg-blue-700'
-                  }`}
-                onPress={handleLogin}
-                disabled={loading}
+            {/* Login Button */}
+            <TouchableOpacity
+              onPress={handleLogin}
+              disabled={loading}
+              activeOpacity={0.85}
+              style={{ overflow: 'hidden', borderRadius: 16 }}
+            >
+              <LinearGradient
+                colors={loading ? ['#93c5fd', '#60a5fa'] : ['#2563eb', '#1d4ed8']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{ paddingVertical: 18, borderRadius: 16, alignItems: 'center' }}
               >
                 {loading ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text className="text-white text-center font-semibold text-xl">
-                    Connexion
+                  <Text className="text-white text-center font-bold text-xl">
+                    Se connecter
                   </Text>
                 )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Divider */}
+            <View className="flex-row items-center my-6">
+              <View className="flex-1 h-px bg-gray-200" />
+              <Text className="mx-4 text-gray-400 text-sm font-medium">ou</Text>
+              <View className="flex-1 h-px bg-gray-200" />
+            </View>
+
+            {/* Social Login */}
+            <View className="flex-row justify-center items-center mb-6">
+              <TouchableOpacity
+                className="w-16 h-16 bg-white rounded-2xl items-center justify-center border border-gray-200"
+                style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }}
+              >
+                <Image
+                  source={require("../../../assets/images/google.png")}
+                  className="w-7 h-7"
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="w-16 h-16 bg-white rounded-2xl items-center justify-center border border-gray-200 mx-5"
+                style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }}
+              >
+                <Image
+                  source={require("../../../assets/images/facebook.png")}
+                  className="w-7 h-7"
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="w-16 h-16 bg-white rounded-2xl items-center justify-center border border-gray-200"
+                style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }}
+              >
+                <Image
+                  source={require("../../../assets/images/apple.png")}
+                  className="w-7 h-7"
+                  resizeMode="contain"
+                />
               </TouchableOpacity>
             </View>
 
-            {/* Footer Links */}
-            <View className="items-center mb-4">
-              <View className="flex-row items-center mb-4">
-                <Text className="text-gray-600 text-xl">
-                  Vous n'avez pas encore de compte ?{' '}
+            {/* Footer */}
+            <View className="items-center mb-2">
+              <View className="flex-row items-center">
+                <Text className="text-gray-500 text-base">
+                  Pas encore de compte ?{' '}
                 </Text>
                 <TouchableOpacity onPress={() => router.push('/screens/authentification/registerScreen')}>
-                  <Text className="text-blue-700 font-semibold text-xl">
+                  <Text className="text-blue-700 font-bold text-base">
                     Créer un compte
                   </Text>
                 </TouchableOpacity>
               </View>
-
-              <TouchableOpacity>
-                <Text className="text-blue-700 font-semibold text-xl mb-6">
-                  Mot de passe oublié ?
-                </Text>
-              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </LinearGradient>
   );
 }
