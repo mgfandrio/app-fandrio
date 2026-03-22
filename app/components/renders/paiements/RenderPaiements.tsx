@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -13,18 +14,18 @@ import { useConfirmDialog } from '../../common/ConfirmDialog';
 import compagnieService from '../../../services/compagnies/compagnieService';
 import { ModePaiementDetail } from '../../../types/compagnie';
 
+const PAYMENT_METHODS = [
+    { id: 2, nom: 'MVola', prefixes: ['034', '038'], colors: ['#dc2626', '#ef4444'] as [string, string], icon: 'phone-portrait' as const },
+    { id: 1, nom: 'Orange Money', prefixes: ['032', '037'], colors: ['#ea580c', '#f97316'] as [string, string], icon: 'phone-portrait' as const },
+    { id: 3, nom: 'Airtel Money', prefixes: ['033'], colors: ['#dc2626', '#b91c1c'] as [string, string], icon: 'phone-portrait' as const },
+];
+
 export const RenderPaiements = () => {
     const { showDialog, DialogComponent } = useConfirmDialog();
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [modesPaiement, setModesPaiement] = useState<ModePaiementDetail[]>([]);
     const [compId, setCompId] = useState<number | null>(null);
-
-    const PAYMENT_METHODS = [
-        { id: 2, nom: 'MVola', prefixes: ['034', '038'] },
-        { id: 1, nom: 'Orange Money', prefixes: ['032', '037'] },
-        { id: 3, nom: 'Airtel Money', prefixes: ['033'] },
-    ];
 
     useEffect(() => {
         const loadInitialData = async () => {
@@ -85,34 +86,54 @@ export const RenderPaiements = () => {
 
     if (loading) {
         return (
-            <View className="flex-1 items-center justify-center p-4">
-                <ActivityIndicator size="large" color="#3b82f6" />
-                <Text className="mt-4 text-gray-500">Chargement de vos modes de paiement...</Text>
+            <View className="flex-1 items-center justify-center bg-slate-50">
+                <View style={{ width: 56, height: 56, borderRadius: 28, overflow: 'hidden' }}>
+                    <LinearGradient colors={['#059669', '#10b981']} style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}>
+                        <ActivityIndicator size="large" color="#fff" />
+                    </LinearGradient>
+                </View>
+                <Text className="mt-4 text-slate-500 text-sm">Chargement de vos modes de paiement...</Text>
             </View>
         );
     }
 
     return (
-        <View className="flex-1">
+        <View className="flex-1 bg-slate-50">
             <DialogComponent />
-            <ScrollView className="flex-1 px-4 pt-6 pb-20">
-                <View className="mb-6">
-                    <Text className="text-2xl font-bold text-gray-900 mb-2">Modes de Paiement</Text>
-                    <Text className="text-gray-500 text-sm">
-                        Gérez les modes de paiement que vos clients utiliseront pour réserver.
-                    </Text>
+            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+                {/* Hero Header */}
+                <View className="mx-4 mt-5 rounded-3xl overflow-hidden" style={{ elevation: 4 }}>
+                    <LinearGradient colors={['#059669', '#10b981', '#34d399']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} className="p-5">
+                        <View className="flex-row items-center">
+                            <View className="bg-white/20 rounded-2xl p-3 mr-4">
+                                <Ionicons name="card" size={28} color="#fff" />
+                            </View>
+                            <View className="flex-1">
+                                <Text className="text-white text-2xl font-bold">Paiements</Text>
+                                <Text className="text-emerald-100 text-sm mt-0.5">
+                                    Gérez les modes de paiement pour vos clients
+                                </Text>
+                            </View>
+                        </View>
+                        <View className="flex-row mt-4">
+                            <View className="bg-white/15 rounded-xl px-4 py-2 flex-row items-center">
+                                <Ionicons name="checkmark-circle" size={16} color="#fff" style={{ marginRight: 6 }} />
+                                <Text className="text-white text-sm font-medium">{modesPaiement.length} mode(s) activé(s)</Text>
+                            </View>
+                        </View>
+                    </LinearGradient>
                 </View>
 
-                {/* Boutons de sélection */}
-                <View className="bg-white border border-gray-100 rounded-2xl p-4 mb-6 shadow-sm">
-                    <Text className="text-gray-900 font-bold text-base mb-4">Choisir les opérateurs</Text>
+                {/* Selector section */}
+                <View className="mx-4 mt-4 bg-white rounded-2xl p-4" style={{ elevation: 2 }}>
+                    <Text className="text-slate-800 font-bold text-base mb-3">Choisir les opérateurs</Text>
                     <View className="flex-row flex-wrap">
                         {PAYMENT_METHODS.map((method) => {
                             const isSelected = modesPaiement.some(m => m.id === method.id);
                             return (
                                 <TouchableOpacity
                                     key={method.id}
-                                    className={`rounded-xl px-4 py-3 mr-3 mb-3 flex-row items-center border ${isSelected ? 'bg-blue-600 border-blue-600' : 'bg-gray-50 border-gray-200'}`}
+                                    className="mr-3 mb-3"
                                     onPress={() => {
                                         if (isSelected) {
                                             setModesPaiement(modesPaiement.filter(m => m.id !== method.id));
@@ -121,115 +142,150 @@ export const RenderPaiements = () => {
                                         }
                                     }}
                                     disabled={saving}
+                                    activeOpacity={0.8}
                                 >
-                                    <Ionicons
-                                        name={isSelected ? "checkmark-circle" : "add-circle-outline"}
-                                        size={20}
-                                        color={isSelected ? "#fff" : "#4b5563"}
-                                        style={{ marginRight: 8 }}
-                                    />
-                                    <Text className={`font-semibold ${isSelected ? 'text-white' : 'text-gray-700'}`}>
-                                        {method.nom}
-                                    </Text>
+                                    {isSelected ? (
+                                        <View className="rounded-2xl overflow-hidden">
+                                            <LinearGradient
+                                                colors={method.colors}
+                                                className="px-4 py-3 flex-row items-center"
+                                            >
+                                                <Ionicons name="checkmark-circle" size={18} color="#fff" style={{ marginRight: 8 }} />
+                                                <Text className="text-white font-bold">{method.nom}</Text>
+                                            </LinearGradient>
+                                        </View>
+                                    ) : (
+                                        <View className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 flex-row items-center">
+                                            <Ionicons name="add-circle-outline" size={18} color="#94a3b8" style={{ marginRight: 8 }} />
+                                            <Text className="text-slate-500 font-semibold">{method.nom}</Text>
+                                        </View>
+                                    )}
                                 </TouchableOpacity>
                             );
                         })}
                     </View>
                 </View>
 
-                {/* Formulaires détaillés */}
-                {modesPaiement.length > 0 ? (
-                    modesPaiement.map((mode) => {
-                        const methodConfig = PAYMENT_METHODS.find(m => m.id === mode.id);
-                        return (
-                            <View key={mode.id} className="bg-white border border-gray-100 rounded-3xl p-5 mb-5 shadow-sm">
-                                <View className="flex-row items-center justify-between mb-4">
-                                    <View className="flex-row items-center">
-                                        <View className="bg-blue-100 rounded-2xl w-10 h-10 items-center justify-center mr-3">
-                                            <Ionicons name="card" size={20} color="#3b82f6" />
-                                        </View>
-                                        <Text className="font-bold text-xl text-gray-800">{methodConfig?.nom}</Text>
-                                    </View>
-                                    <TouchableOpacity
-                                        onPress={() => setModesPaiement(modesPaiement.filter(m => m.id !== mode.id))}
-                                        className="p-2"
-                                    >
-                                        <Ionicons name="trash-outline" size={20} color="#ef4444" />
-                                    </TouchableOpacity>
-                                </View>
-
-                                <View className="mb-4">
-                                    <Text className="text-sm font-medium text-gray-700 mb-2 ml-1">
-                                        Numéro de téléphone
-                                    </Text>
-                                    <View className="relative">
-                                        <TextInput
-                                            className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-gray-900"
-                                            value={mode.numero}
-                                            onChangeText={(text) => {
-                                                const newModes = modesPaiement.map(m =>
-                                                    m.id === mode.id ? { ...m, numero: text } : m
-                                                );
-                                                setModesPaiement(newModes);
-                                            }}
-                                            placeholder="03X XX XXX XX"
-                                            keyboardType="phone-pad"
-                                            maxLength={10}
-                                        />
-                                        <View className="absolute right-4 top-3">
-                                            <Text className="text-[10px] text-gray-400 font-bold uppercase">
-                                                {methodConfig?.prefixes.join('/')}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                </View>
-
-                                <View>
-                                    <Text className="text-sm font-medium text-gray-700 mb-2 ml-1">
-                                        Titulaire du compte
-                                    </Text>
-                                    <TextInput
-                                        className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-gray-900"
-                                        value={mode.titulaire}
-                                        onChangeText={(text) => {
-                                            const newModes = modesPaiement.map(m =>
-                                                m.id === mode.id ? { ...m, titulaire: text } : m
-                                            );
-                                            setModesPaiement(newModes);
-                                        }}
-                                        placeholder="Nom complet"
+                {/* Payment form cards */}
+                <View className="px-4 mt-4 pb-28">
+                    {modesPaiement.length > 0 ? (
+                        modesPaiement.map((mode) => {
+                            const methodConfig = PAYMENT_METHODS.find(m => m.id === mode.id);
+                            if (!methodConfig) return null;
+                            return (
+                                <View key={mode.id} className="bg-white rounded-2xl mb-4 overflow-hidden" style={{ elevation: 2 }}>
+                                    {/* Colored accent bar */}
+                                    <LinearGradient
+                                        colors={methodConfig.colors}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 0 }}
+                                        style={{ height: 3 }}
                                     />
-                                </View>
-                            </View>
-                        );
-                    })
-                ) : (
-                    <View className="bg-white border border-dashed border-gray-300 rounded-3xl p-10 items-center justify-center">
-                        <Ionicons name="card-outline" size={48} color="#9ca3af" />
-                        <Text className="text-gray-500 text-center mt-4">
-                            Aucun mode de paiement sélectionné.{"\n"}Veuillez en choisir un ci-dessus.
-                        </Text>
-                    </View>
-                )}
+                                    <View className="p-5">
+                                        <View className="flex-row items-center justify-between mb-5">
+                                            <View className="flex-row items-center">
+                                                <View className="rounded-xl overflow-hidden mr-3">
+                                                    <LinearGradient colors={methodConfig.colors} className="w-10 h-10 items-center justify-center">
+                                                        <Ionicons name="wallet" size={20} color="#fff" />
+                                                    </LinearGradient>
+                                                </View>
+                                                <View>
+                                                    <Text className="font-bold text-lg text-slate-800">{methodConfig.nom}</Text>
+                                                    <Text className="text-slate-400 text-xs">Préfixes: {methodConfig.prefixes.join(' / ')}</Text>
+                                                </View>
+                                            </View>
+                                            <TouchableOpacity
+                                                onPress={() => setModesPaiement(modesPaiement.filter(m => m.id !== mode.id))}
+                                                className="bg-red-50 rounded-xl p-2.5"
+                                                activeOpacity={0.7}
+                                            >
+                                                <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                                            </TouchableOpacity>
+                                        </View>
 
-                {/* Espace pour le scroll */}
-                <View style={{ height: 100 }} />
+                                        <View className="mb-4">
+                                            <Text className="text-sm font-semibold text-slate-600 mb-2 ml-1">
+                                                Numéro de téléphone
+                                            </Text>
+                                            <View className="bg-slate-50 border border-slate-200 rounded-xl flex-row items-center px-4">
+                                                <Ionicons name="call-outline" size={18} color="#94a3b8" />
+                                                <TextInput
+                                                    className="flex-1 ml-3 py-3.5 text-slate-800 text-base"
+                                                    value={mode.numero}
+                                                    onChangeText={(text) => {
+                                                        const newModes = modesPaiement.map(m =>
+                                                            m.id === mode.id ? { ...m, numero: text } : m
+                                                        );
+                                                        setModesPaiement(newModes);
+                                                    }}
+                                                    placeholder="03X XX XXX XX"
+                                                    placeholderTextColor="#94a3b8"
+                                                    keyboardType="phone-pad"
+                                                    maxLength={10}
+                                                />
+                                            </View>
+                                        </View>
+
+                                        <View>
+                                            <Text className="text-sm font-semibold text-slate-600 mb-2 ml-1">
+                                                Titulaire du compte
+                                            </Text>
+                                            <View className="bg-slate-50 border border-slate-200 rounded-xl flex-row items-center px-4">
+                                                <Ionicons name="person-outline" size={18} color="#94a3b8" />
+                                                <TextInput
+                                                    className="flex-1 ml-3 py-3.5 text-slate-800 text-base"
+                                                    value={mode.titulaire}
+                                                    onChangeText={(text) => {
+                                                        const newModes = modesPaiement.map(m =>
+                                                            m.id === mode.id ? { ...m, titulaire: text } : m
+                                                        );
+                                                        setModesPaiement(newModes);
+                                                    }}
+                                                    placeholder="Nom complet"
+                                                    placeholderTextColor="#94a3b8"
+                                                />
+                                            </View>
+                                        </View>
+                                    </View>
+                                </View>
+                            );
+                        })
+                    ) : (
+                        <View className="bg-white rounded-3xl p-10 items-center" style={{ elevation: 2 }}>
+                            <View className="bg-slate-100 rounded-full p-5 mb-4">
+                                <Ionicons name="card-outline" size={48} color="#94a3b8" />
+                            </View>
+                            <Text className="text-slate-800 font-bold text-lg">Aucun mode sélectionné</Text>
+                            <Text className="text-slate-400 text-sm mt-2 text-center leading-5">
+                                Choisissez un opérateur ci-dessus pour{"\n"}configurer vos modes de paiement
+                            </Text>
+                        </View>
+                    )}
+                </View>
             </ScrollView>
 
-            {/* Bouton de sauvegarde flottant */}
-            <View className="absolute bottom-6 left-6 right-6">
+            {/* Floating save button with gradient */}
+            <View className="absolute bottom-6 left-4 right-4">
                 <TouchableOpacity
-                    className={`bg-blue-600 rounded-2xl py-4 flex-row items-center justify-center shadow-lg ${saving ? 'opacity-70' : ''}`}
                     onPress={handleSave}
                     disabled={saving}
                     activeOpacity={0.8}
                 >
-                    {saving ? (
-                        <ActivityIndicator color="#fff" size="small" style={{ marginRight: 10 }} />
-                    ) : (
-                        <Ionicons name="save-outline" size={20} color="#fff" style={{ marginRight: 10 }} />
-                    )}
-                    <Text className="text-white font-bold text-lg">Enregistrer les modifications</Text>
+                    <View className="rounded-2xl overflow-hidden" style={{ elevation: 4 }}>
+                        <LinearGradient
+                            colors={saving ? ['#94a3b8', '#94a3b8'] : ['#059669', '#10b981']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            className="py-4 flex-row items-center justify-center"
+                        >
+                            {saving ? (
+                                <ActivityIndicator color="#fff" size="small" style={{ marginRight: 10 }} />
+                            ) : (
+                                <Ionicons name="save" size={20} color="#fff" style={{ marginRight: 10 }} />
+                            )}
+                            <Text className="text-white font-bold text-lg">Enregistrer les modifications</Text>
+                        </LinearGradient>
+                    </View>
                 </TouchableOpacity>
             </View>
         </View>

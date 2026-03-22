@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -84,8 +85,13 @@ export function RenderChauffers({ onAddPress, onEditPress }: RenderChauffeursPro
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center">
-        <ActivityIndicator size="large" color="#3b82f6" />
+      <View className="flex-1 justify-center items-center bg-slate-50">
+        <View style={{ width: 56, height: 56, borderRadius: 28, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+          <LinearGradient colors={['#1e40af', '#3b82f6']} style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color="#fff" />
+          </LinearGradient>
+        </View>
+        <Text className="text-slate-500 mt-4 text-sm">Chargement des chauffeurs...</Text>
       </View>
     );
   }
@@ -98,114 +104,147 @@ export function RenderChauffers({ onAddPress, onEditPress }: RenderChauffeursPro
 
   const getStatutBadge = (statut: number) => {
     if (statut === 1) {
-      return {
-        bg: 'bg-green-100',
-        text: 'text-green-600',
-        label: 'Actif',
-        icon: 'checkmark-circle',
-      };
+      return { colors: ['#059669', '#10b981'] as const, label: 'Actif', icon: 'checkmark-circle' as const };
     }
-    return {
-      bg: 'bg-red-100',
-      text: 'text-red-600',
-      label: 'Inactif',
-      icon: 'close-circle',
-    };
+    return { colors: ['#dc2626', '#ef4444'] as const, label: 'Inactif', icon: 'close-circle' as const };
   };
 
+  const actifsCount = chauffeurs.filter(c => c.chauff_statut === 1).length;
+  const inactifsCount = chauffeurs.length - actifsCount;
+  const getInitials = (nom: string, prenom: string) =>
+    `${(nom || '')[0] || ''}${(prenom || '')[0] || ''}`.toUpperCase();
+
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-slate-50">
       <DialogComponent />
       <ScrollView
-        className="flex-1 px-4 pt-6"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        className="flex-1"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />}
+        showsVerticalScrollIndicator={false}
       >
-        {/* En-tête */}
-        <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center flex-1">
-              <View className="bg-blue-100 rounded-full p-3 mr-3">
-                <Ionicons name="person" size={28} color="#2563eb" />
+        {/* Hero Header */}
+        <View className="mx-4 mt-5 rounded-3xl overflow-hidden" style={{ elevation: 4 }}>
+          <LinearGradient colors={['#1e40af', '#3b82f6', '#60a5fa']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} className="p-5">
+            <View className="flex-row items-center justify-between mb-4">
+              <View className="flex-row items-center flex-1">
+                <View className="bg-white/20 rounded-2xl p-3 mr-4">
+                  <Ionicons name="people" size={28} color="#fff" />
+                </View>
+                <View>
+                  <Text className="text-white text-2xl font-bold">Chauffeurs</Text>
+                  <Text className="text-blue-100 text-sm mt-0.5">{chauffeurs.length} chauffeur(s) enregistré(s)</Text>
+                </View>
               </View>
-              <View>
-                <Text className="text-2xl font-bold text-gray-900">Chauffeurs</Text>
-                <Text className="text-gray-500 text-sm">{chauffeurs.length} chauffeur(s)</Text>
+              <TouchableOpacity
+                className="bg-white rounded-2xl p-3"
+                onPress={() => handleOpenForm()}
+                activeOpacity={0.8}
+                style={{ elevation: 2 }}
+              >
+                <Ionicons name="add" size={24} color="#1e40af" />
+              </TouchableOpacity>
+            </View>
+            {/* Mini stats */}
+            <View className="flex-row mt-1">
+              <View className="bg-white/15 rounded-xl px-4 py-2 mr-3 flex-row items-center">
+                <View className="bg-emerald-400 rounded-full w-2.5 h-2.5 mr-2" />
+                <Text className="text-white text-sm font-medium">{actifsCount} Actifs</Text>
+              </View>
+              <View className="bg-white/15 rounded-xl px-4 py-2 flex-row items-center">
+                <View className="bg-red-400 rounded-full w-2.5 h-2.5 mr-2" />
+                <Text className="text-white text-sm font-medium">{inactifsCount} Inactifs</Text>
               </View>
             </View>
-            <TouchableOpacity
-              className="bg-blue-500 rounded-full p-3 shadow-md"
-              onPress={() => handleOpenForm()}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="add" size={28} color="#fff" />
-            </TouchableOpacity>
-          </View>
+          </LinearGradient>
         </View>
 
         {/* Barre de recherche */}
-        <View className="bg-white rounded-2xl p-3 mb-4 flex-row items-center">
-          <Ionicons name="search" size={20} color="#9ca3af" />
+        <View className="mx-4 mt-4 bg-white rounded-2xl flex-row items-center px-4 py-1" style={{ elevation: 2 }}>
+          <Ionicons name="search" size={20} color="#94a3b8" />
           <TextInput
-            className="flex-1 ml-2 text-gray-900"
+            className="flex-1 ml-3 text-slate-800 text-base py-3"
             placeholder="Rechercher par nom, CIN..."
             value={searchText}
             onChangeText={setSearchText}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#94a3b8"
           />
           {searchText.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSearchText('')}
-            >
-              <Ionicons name="close-circle" size={20} color="#9ca3af" />
+            <TouchableOpacity onPress={() => setSearchText('')} className="p-1">
+              <Ionicons name="close-circle" size={20} color="#94a3b8" />
             </TouchableOpacity>
           )}
         </View>
 
         {/* Liste des chauffeurs */}
-        {chauffeursFiltres.length === 0 ? (
-          <View className="bg-white rounded-2xl p-8 items-center">
-            <Ionicons name="person-outline" size={64} color="#d1d5db" />
-            <Text className="text-gray-900 font-semibold text-lg mt-4">Aucun chauffeur trouvé</Text>
-            <Text className="text-gray-500 text-sm mt-2 text-center">
-              {searchText.length > 0 
-                ? 'Aucun chauffeur ne correspond à votre recherche'
-                : 'Cliquez sur le bouton + pour ajouter un chauffeur'}
-            </Text>
-          </View>
-        ) : (
-          chauffeursFiltres.map((chauffeur) => {
-            const badge = getStatutBadge(chauffeur.chauff_statut);
-            return (
-              <TouchableOpacity
-                key={chauffeur.chauff_id}
-                className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
-                onPress={() => handleOpenDetail(chauffeur.chauff_id)}
-                activeOpacity={0.7}
-              >
-                <View className="flex-row items-center">
-                  <View className="bg-blue-100 rounded-full w-14 h-14 items-center justify-center mr-4">
-                    <Ionicons name="person" size={24} color="#2563eb" />
-                  </View>
-                  
-                  <View className="flex-1">
-                    <Text className="text-gray-900 font-bold text-base">
-                      {chauffeur.chauff_nom} {chauffeur.chauff_prenom}
-                    </Text>
-                    <Text className="text-gray-500 text-sm">
-                      CIN: {chauffeur.chauff_cin} • {chauffeur.chauff_age} ans
-                    </Text>
-                  </View>
+        <View className="px-4 mt-4 pb-6">
+          {chauffeursFiltres.length === 0 ? (
+            <View className="bg-white rounded-3xl p-10 items-center" style={{ elevation: 2 }}>
+              <View className="bg-slate-100 rounded-full p-5 mb-4">
+                <Ionicons name="person-outline" size={48} color="#94a3b8" />
+              </View>
+              <Text className="text-slate-800 font-bold text-lg">Aucun chauffeur trouvé</Text>
+              <Text className="text-slate-400 text-sm mt-2 text-center leading-5">
+                {searchText.length > 0 
+                  ? 'Aucun chauffeur ne correspond à votre recherche'
+                  : 'Appuyez sur + pour ajouter votre premier chauffeur'}
+              </Text>
+            </View>
+          ) : (
+            chauffeursFiltres.map((chauffeur) => {
+              const badge = getStatutBadge(chauffeur.chauff_statut);
+              const initials = getInitials(chauffeur.chauff_nom, chauffeur.chauff_prenom);
+              return (
+                <TouchableOpacity
+                  key={chauffeur.chauff_id}
+                  className="bg-white rounded-2xl p-4 mb-3"
+                  onPress={() => handleOpenDetail(chauffeur.chauff_id)}
+                  activeOpacity={0.7}
+                  style={{ elevation: 2 }}
+                >
+                  <View className="flex-row items-center">
+                    {/* Avatar with gradient initials */}
+                    <View className="rounded-2xl w-14 h-14 overflow-hidden mr-4">
+                      <LinearGradient
+                        colors={['#1e40af', '#3b82f6']}
+                        className="w-full h-full items-center justify-center"
+                      >
+                        <Text className="text-white font-bold text-lg">{initials}</Text>
+                      </LinearGradient>
+                    </View>
+                    
+                    <View className="flex-1">
+                      <Text className="text-slate-800 font-bold text-base">
+                        {chauffeur.chauff_nom} {chauffeur.chauff_prenom}
+                      </Text>
+                      <View className="flex-row items-center mt-1">
+                        <Ionicons name="id-card-outline" size={14} color="#94a3b8" />
+                        <Text className="text-slate-400 text-sm ml-1.5">
+                          {chauffeur.chauff_cin}
+                        </Text>
+                        <Text className="text-slate-300 mx-2">•</Text>
+                        <Ionicons name="calendar-outline" size={14} color="#94a3b8" />
+                        <Text className="text-slate-400 text-sm ml-1">
+                          {chauffeur.chauff_age} ans
+                        </Text>
+                      </View>
+                    </View>
 
-                  <View className={`${badge.bg} rounded-full px-2 py-1`}>
-                    <Text className={`${badge.text} text-xs font-semibold`}>
-                      {badge.label}
-                    </Text>
+                    {/* Status badge with gradient */}
+                    <View className="rounded-xl overflow-hidden">
+                      <LinearGradient
+                        colors={[...badge.colors]}
+                        className="px-3 py-1.5 flex-row items-center"
+                      >
+                        <Ionicons name={badge.icon} size={12} color="#fff" style={{ marginRight: 4 }} />
+                        <Text className="text-white text-xs font-bold">{badge.label}</Text>
+                      </LinearGradient>
+                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })
-        )}
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </View>
       </ScrollView>
 
       {/* Modal de détails */}
