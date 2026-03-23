@@ -1,22 +1,32 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { View } from 'react-native';
+import { View, Platform } from 'react-native';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#1e3a8a',
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarActiveTintColor: '#1e40af',
+        tabBarInactiveTintColor: '#94a3b8',
         tabBarStyle: {
           backgroundColor: '#ffffff',
-          borderTopColor: '#e5e7eb',
-          borderTopWidth: 1,
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 70,
+          borderTopWidth: 0,
+          paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+          paddingTop: 10,
+          height: Platform.OS === 'ios' ? 85 : 70,
+          elevation: 20,
+          shadowColor: '#0f172a',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+          marginTop: 2,
         },
       }}
     >
@@ -52,8 +62,13 @@ export default function TabsLayout() {
         options={{
           title: 'Recherche',
           tabBarIcon: ({ color }) => (
-            <View className="w-14 h-14 rounded-full bg-[#1e3a8a] items-center justify-center -mt-6 shadow-lg">
-              <Feather name="search" color="#ffffff" size={24} />
+            <View style={{ width: 56, height: 56, borderRadius: 28, marginTop: -24, overflow: 'hidden', elevation: 8, shadowColor: '#1e40af', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 }}>
+              <LinearGradient
+                colors={['#1e40af', '#3b82f6']}
+                style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Feather name="search" color="#ffffff" size={24} />
+              </LinearGradient>
             </View>
           ),
           tabBarLabel: '',

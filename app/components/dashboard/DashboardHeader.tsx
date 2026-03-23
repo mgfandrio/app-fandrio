@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, TextInput, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { EdgeInsets } from 'react-native-safe-area-context';
 
 interface DashboardHeaderProps {
@@ -16,114 +17,127 @@ interface DashboardHeaderProps {
     searchIcon?: string;
 }
 
+const getGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Bonjour';
+    if (h < 18) return 'Bon après-midi';
+    return 'Bonsoir';
+};
+
 export const DashboardHeader = ({
     user,
     insets,
     onMenuPress,
     onFilterPress,
-    searchPlaceholder = "Destination, ville ...",
+    searchPlaceholder = "Où voulez-vous aller ?",
     searchValue,
     onSearchChange,
     onSearchPress,
     onResetPress,
     searchIcon = "search"
 }: DashboardHeaderProps) => {
+    const greeting = getGreeting();
+    const initials = `${(user?.prenom?.[0] || '').toUpperCase()}${(user?.nom?.[0] || '').toUpperCase()}`;
+
     return (
         <View>
-            {/* Refined Header with Elegant Navy Background */}
-            <View
+            {/* Gradient Header */}
+            <LinearGradient
+                colors={['#0f172a', '#1e3a8a', '#2563eb']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
                 style={{
-                    backgroundColor: '#1e3a8a',
-                    borderBottomLeftRadius: 40,
-                    borderBottomRightRadius: 40,
-                    paddingTop: insets.top + 10,
-                    paddingBottom: 56
+                    borderBottomLeftRadius: 32,
+                    borderBottomRightRadius: 32,
+                    paddingTop: insets.top + 12,
+                    paddingBottom: 52,
                 }}
-                className="px-6 shadow-lg"
             >
-                <View className="flex-row justify-between items-center">
-                    <View className="flex-row items-center">
-                        {/* Avatar */}
-                        <View className="w-16 h-16 bg-white rounded-full items-center justify-center shadow-md">
-                            <Text style={{ color: '#1e3a8a' }} className="font-bold text-2xl">
-                                {user?.prenom?.[0]?.toUpperCase() || ''}{user?.nom?.[0]?.toUpperCase() || ''}
-                            </Text>
+                <View className="px-5">
+                    <View className="flex-row justify-between items-center">
+                        <View className="flex-row items-center flex-1">
+                            {/* Avatar with gradient ring */}
+                            <View className="rounded-full p-0.5 mr-3" style={{ backgroundColor: 'rgba(255,255,255,0.3)' }}>
+                                <View className="w-13 h-13 rounded-full overflow-hidden" style={{ width: 50, height: 50 }}>
+                                    <LinearGradient
+                                        colors={['#3b82f6', '#60a5fa']}
+                                        className="w-full h-full items-center justify-center"
+                                    >
+                                        <Text className="text-white font-bold text-lg">{initials}</Text>
+                                    </LinearGradient>
+                                </View>
+                            </View>
+                            <View className="flex-1">
+                                <Text className="text-blue-200 text-sm">{greeting} 👋</Text>
+                                <Text className="text-white font-bold text-lg" numberOfLines={1}>
+                                    {user?.prenom || ''} {user?.nom?.toUpperCase() || ''}
+                                </Text>
+                            </View>
                         </View>
 
-                        {/* User Name Display */}
-                        <View className="ml-4">
-                            <Text className="text-white font-bold text-xl leading-tight">
-                                {user?.nom?.toUpperCase() || ''}
-                            </Text>
-                            <Text className="text-blue-100 text-sm font-medium opacity-80">
-                                {user?.prenom || ''}
-                            </Text>
+                        {/* Action icons */}
+                        <View className="flex-row items-center">
+                            <TouchableOpacity
+                                className="relative p-2.5 rounded-xl mr-2"
+                                style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}
+                            >
+                                <Ionicons name="notifications-outline" size={22} color="#fff" />
+                                <View className="absolute -top-0.5 -right-0.5 bg-red-500 rounded-full w-4.5 h-4.5 items-center justify-center" style={{ width: 18, height: 18, borderWidth: 2, borderColor: '#1e3a8a' }}>
+                                    <Text className="text-white text-[9px] font-bold">0</Text>
+                                </View>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                onPress={onMenuPress}
+                                className="p-2.5 rounded-xl"
+                                style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}
+                            >
+                                <Ionicons name="menu" size={22} color="#fff" />
+                            </TouchableOpacity>
                         </View>
-                    </View>
-
-                    {/* Icons */}
-                    <View className="flex-row items-center">
-                        <TouchableOpacity className="relative p-2 bg-white/10 rounded-full mr-4">
-                            <Ionicons name="notifications-outline" size={24} color="#ffffff" />
-                            <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-5 h-5 items-center justify-center border-2 border-[#1e3a8a]">
-                                <Text className="text-white text-[10px] font-bold">0</Text>
-                            </View>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity className="relative p-2 bg-white/10 rounded-full mr-4">
-                            <Ionicons name="mail-outline" size={24} color="#ffffff" />
-                            <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-5 h-5 items-center justify-center border-2 border-[#1e3a8a]">
-                                <Text className="text-white text-[10px] font-bold">0</Text>
-                            </View>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            onPress={onMenuPress}
-                            className="p-2 bg-white/10 rounded-full"
-                        >
-                            <Ionicons name="menu-outline" size={28} color="#ffffff" />
-                        </TouchableOpacity>
                     </View>
                 </View>
-            </View>
+            </LinearGradient>
 
-            {/* Fixed Styled Search Bar (Outside ScrollView) */}
-            <View className="px-6 -mt-7 z-10">
+            {/* Floating Search Bar */}
+            <View className="px-5 -mt-7 z-10">
                 <Pressable
-                    onPress={onSearchPress}
-                    className="flex-row items-center bg-white rounded-2xl px-4 py-3 shadow-md border border-gray-100"
+                    onPress={onSearchPress || onFilterPress}
+                    className="flex-row items-center bg-white rounded-2xl px-4"
+                    style={{ elevation: 6, shadowColor: '#1e3a8a', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12 }}
                 >
-                    <Ionicons name={searchIcon as any} size={20} color="#9ca3af" />
+                    <View className="bg-blue-50 rounded-xl p-2 mr-3">
+                        <Ionicons name={searchIcon as any} size={20} color="#2563eb" />
+                    </View>
                     {onSearchPress ? (
-                        <View className="flex-1 ml-3">
-                            <Text className={searchValue ? "text-gray-800 text-base" : "text-gray-400 text-base"}>
+                        <View className="flex-1 py-4">
+                            <Text className={searchValue ? "text-slate-800 text-base" : "text-slate-400 text-base"}>
                                 {searchValue || searchPlaceholder}
                             </Text>
                         </View>
                     ) : (
                         <TextInput
                             placeholder={searchPlaceholder}
-                            placeholderTextColor="#9ca3af"
-                            className="flex-1 ml-3 text-gray-800 text-base"
+                            placeholderTextColor="#94a3b8"
+                            className="flex-1 text-slate-800 text-base py-4"
                             value={searchValue}
                             onChangeText={onSearchChange}
                         />
                     )}
 
                     {onResetPress && searchValue && (
-                        <TouchableOpacity
-                            onPress={onResetPress}
-                            className="p-1 px-2"
-                        >
-                            <Ionicons name="refresh-outline" size={20} color="#1e3a8a" />
+                        <TouchableOpacity onPress={onResetPress} className="p-1.5">
+                            <Ionicons name="refresh-outline" size={18} color="#3b82f6" />
                         </TouchableOpacity>
                     )}
 
                     <TouchableOpacity
                         onPress={onFilterPress}
-                        className="ml-2 p-1.5 bg-blue-50 rounded-xl"
+                        className="ml-2 rounded-xl overflow-hidden"
                     >
-                        <Ionicons name="options-outline" size={22} color="#1e3a8a" />
+                        <LinearGradient colors={['#1e40af', '#3b82f6']} className="p-2.5">
+                            <Ionicons name="options" size={18} color="#fff" />
+                        </LinearGradient>
                     </TouchableOpacity>
                 </Pressable>
             </View>

@@ -69,15 +69,29 @@ export default function ReserverScreen() {
 
             // Écouter les mises à jour en temps réel pour ce voyage
             const channel = echo.channel(`sieges.voyage.${selectedVoyage.voyage_id}`)
-                .listen('SiegeUpdated', (event: any) => {
+                .listen('.siege.updated', (event: any) => {
                     console.log('Real-time seat update received:', event);
+                    const siegeNumero = event.siege_numero;
+                    const statut = event.data?.statut;
+                    // Convertir le statut numérique en label frontend
+                    const newStatut = statut === 1 ? 'reserve'
+                        : statut === 3 ? 'selectionne'
+                        : statut === 2 ? 'disponible'
+                        : null;
+                    if (!newStatut || !siegeNumero) return;
+
                     setSeatPlan((prevPlan) => 
                         prevPlan.map((seat) => 
-                            seat.code === event.siege.siege_numero 
-                                ? { ...seat, statut: event.siege.statut, selectable: event.siege.selectable }
+                            seat.code === siegeNumero 
+                                ? { ...seat, statut: newStatut, selectable: newStatut === 'disponible' }
                                 : seat
                         )
                     );
+
+                    // Si un siège sélectionné localement a été pris par un autre, le désélectionner
+                    if (newStatut !== 'disponible') {
+                        setSelectedSeats((prev) => prev.filter(s => s !== siegeNumero));
+                    }
                 });
 
             return () => {

@@ -19,6 +19,7 @@ import { RenderChauffers } from '../../../components/renders/chauffeurs/RenderCh
 import { RenderTrajets } from '../../../components/renders/trajets/RenderTrajets';
 import { RenderVoitures } from '../../../components/renders/voitures/RenderVoitures';
 import { RenderPaiements } from '../../../components/renders/paiements/RenderPaiements';
+import { RenderReservations } from '../../../components/renders/reservations/RenderReservations';
 import { RenderVoyages } from '../../../components/RenderVoyages';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.78;
@@ -396,23 +397,6 @@ export default function DashboardCompagnie() {
     </ScrollView>
   );
 
-  const renderReservations = () => (
-    <ScrollView className="flex-1 bg-gray-50 px-4 pt-6" showsVerticalScrollIndicator={false}>
-      <View
-        className="bg-white rounded-2xl p-8 items-center justify-center"
-        style={{ minHeight: 300, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
-      >
-        <View style={{ width: 80, height: 80, borderRadius: 20, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="ticket-outline" size={40} color="#94a3b8" />
-        </View>
-        <Text className="text-gray-900 font-bold text-lg mt-5">Réservations</Text>
-        <Text className="text-gray-400 text-center mt-2 text-base">
-          La gestion des réservations sera bientôt disponible
-        </Text>
-      </View>
-    </ScrollView>
-  );
-
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
       <DialogComponent />
@@ -484,7 +468,7 @@ export default function DashboardCompagnie() {
           {activeTab === 'voitures' && <RenderVoitures />}
           {activeTab === 'trajets' && <RenderTrajets />}
           {activeTab === 'voyages' && <RenderVoyages />}
-          {activeTab === 'reservations' && renderReservations()}
+          {activeTab === 'reservations' && <RenderReservations />}
           {activeTab === 'paiements' && <RenderPaiements />}
           {activeTab === 'settings' && renderSettings()}
         </View>
