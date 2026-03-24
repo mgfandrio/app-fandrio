@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, TextInput, Pressable } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EdgeInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 interface DashboardHeaderProps {
     user: any;
@@ -15,6 +16,7 @@ interface DashboardHeaderProps {
     onSearchPress?: () => void;
     onResetPress?: () => void;
     searchIcon?: string;
+    notificationCount?: number;
 }
 
 const getGreeting = () => {
@@ -34,9 +36,11 @@ export const DashboardHeader = ({
     onSearchChange,
     onSearchPress,
     onResetPress,
-    searchIcon = "search"
+    searchIcon = "search",
+    notificationCount = 0
 }: DashboardHeaderProps) => {
     const greeting = getGreeting();
+    const router = useRouter();
     const initials = `${(user?.prenom?.[0] || '').toUpperCase()}${(user?.nom?.[0] || '').toUpperCase()}`;
 
     return (
@@ -80,11 +84,14 @@ export const DashboardHeader = ({
                             <TouchableOpacity
                                 className="relative p-2.5 rounded-xl mr-2"
                                 style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}
+                                onPress={() => router.push('/screens/notifications/notificationsScreen')}
                             >
                                 <Ionicons name="notifications-outline" size={22} color="#fff" />
-                                <View className="absolute -top-0.5 -right-0.5 bg-red-500 rounded-full w-4.5 h-4.5 items-center justify-center" style={{ width: 18, height: 18, borderWidth: 2, borderColor: '#1e3a8a' }}>
-                                    <Text className="text-white text-[9px] font-bold">0</Text>
-                                </View>
+                                {notificationCount > 0 && (
+                                    <View className="absolute -top-0.5 -right-0.5 bg-red-500 rounded-full items-center justify-center" style={{ width: 18, height: 18, borderWidth: 2, borderColor: '#1e3a8a' }}>
+                                        <Text className="text-white text-[9px] font-bold">{notificationCount > 99 ? '99+' : notificationCount}</Text>
+                                    </View>
+                                )}
                             </TouchableOpacity>
 
                             <TouchableOpacity

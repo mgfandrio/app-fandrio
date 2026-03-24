@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { DashboardHeader } from '@/app/components/dashboard/DashboardHeader';
 import { SideMenu } from '@/app/components/dashboard/SideMenu';
 import { reservationService } from '@/app/services/reservations/reservationService';
+import { useNotifications } from '@/app/hooks/useNotifications';
 
 const MENU_ITEMS = [
   { label: 'Voyages', icon: 'map-outline' },
@@ -26,6 +27,7 @@ export default function ReservationScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [date, setDate] = useState(new Date());
   const insets = useSafeAreaInsets();
+  const { unreadCount } = useNotifications();
 
   const fetchData = useCallback(async () => {
     try {
@@ -108,6 +110,7 @@ export default function ReservationScreen() {
           setDate(new Date());
         }}
         searchIcon="calendar-outline"
+        notificationCount={unreadCount}
       />
 
       {showDatePicker && (() => {

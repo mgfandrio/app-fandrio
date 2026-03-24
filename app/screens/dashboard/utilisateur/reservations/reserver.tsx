@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal, Pressable } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal, Pressable, Linking } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,6 +11,8 @@ import { SearchableDropdown } from '../../../../components/common/SearchableDrop
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Platform } from 'react-native';
 import echo from '../../../../services/echo/echoConfig';
+import QRCode from 'react-native-qrcode-svg';
+import * as Clipboard from 'expo-clipboard';
 
 const STEPS = [
     'Itinéraire',
@@ -37,6 +39,8 @@ export default function ReserverScreen() {
     const [paymentMode, setPaymentMode] = useState<any>(null);
     const [reservationResult, setReservationResult] = useState<any>(null);
     const [invoiceData, setInvoiceData] = useState<any>(null);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [copiedField, setCopiedField] = useState<string | null>(null);
 
     // Timer State
     const [timeLeft, setTimeLeft] = useState(120); // 2 minutes in seconds
@@ -254,11 +258,16 @@ export default function ReserverScreen() {
             Alert.alert('Attention', 'Veuillez choisir un mode de paiement.');
             return;
         }
+        setShowPaymentModal(true);
+    };
+
+    const handlePaymentConfirmed = async () => {
+        setShowPaymentModal(false);
         setLoading(true);
         try {
             const response = await reservationService.confirmerReservation(reservationResult.res_id, {
-                type_paie_id: paymentMode.id,
-                numero_paiement: 'PAY-' + Date.now() // Mock payment number
+                type_paie_id: paymentMode.type_paie_id,
+                numero_paiement: paymentMode.numero || 'N/A'
             });
             if (response.statut) {
                 stopTimer();
@@ -269,6 +278,28 @@ export default function ReserverScreen() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const copyToClipboard = async (text: string, field: string) => {
+        await Clipboard.setStringAsync(text);
+        setCopiedField(field);
+        setTimeout(() => setCopiedField(null), 2000);
+    };
+
+    const getPaymentColor = (name: string) => {
+        const n = (name || '').toLowerCase();
+        if (n.includes('orange')) return '#ff7900';
+        if (n.includes('mvola') || n.includes('telma')) return '#00a4e4';
+        if (n.includes('airtel')) return '#e11900';
+        return '#6b7280';
+    };
+
+    const getPaymentIcon = (name: string) => {
+        const n = (name || '').toLowerCase();
+        if (n.includes('orange')) return 'phone-portrait-outline';
+        if (n.includes('mvola') || n.includes('telma')) return 'wallet-outline';
+        if (n.includes('airtel')) return 'phone-portrait-outline';
+        return 'card-outline';
     };
 
     const handleCancelProcess = () => {
@@ -885,125 +916,250 @@ export default function ReserverScreen() {
         </View>
     );
 
-    const renderStep5 = () => (
-        <View className="flex-1">
-            <View className="bg-red-50 p-6 rounded-[32px] border border-red-100 items-center mb-6">
-                <Ionicons name="timer-outline" size={32} color="#ef4444" />
-                <Text className="text-red-900 font-bold text-2xl mt-2">{formatTime(timeLeft)}</Text>
-                <Text className="text-red-600 text-[10px] text-center mt-1 mb-4">Veuillez confirmer votre paiement avant l'expiration du délai.</Text>
-                
-                <TouchableOpacity 
-                    onPress={handleCancelProcess}
-                    className="bg-white border border-red-200 px-6 py-2 rounded-full shadow-sm"
-                >
-                    <Text className="text-red-600 font-bold text-xs uppercase">Abandonner la réservation</Text>
-                </TouchableOpacity>
-            </View>
+    const renderStep5 = () => {
+        const modes = selectedVoyage?.compagnie?.modes_paiement || [];
+        const totalAmount = selectedSeats.length * (selectedVoyage?.trajet?.tarif || 0);
 
-            {/* Reservation Summary Card */}
-            <View className="bg-white p-5 rounded-[32px] mb-6 border border-blue-100 shadow-sm overflow-hidden relative">
-                <View className="absolute -top-6 -right-6 w-20 h-20 bg-blue-50/50 rounded-full" />
-                
-                <View className="flex-row items-center mb-4">
-                    <View className="w-8 h-8 bg-blue-100 rounded-lg items-center justify-center mr-3">
-                        <Ionicons name="receipt-outline" size={18} color="#1e3a8a" />
-                    </View>
-                    <Text className="text-gray-900 font-bold text-lg">Détails de réservation</Text>
-                </View>
-
-                <View className="space-y-3">
-                    <View className="flex-row justify-between">
-                        <Text className="text-gray-500 text-xs">Itinéraire</Text>
-                        <Text className="text-gray-900 font-bold text-xs" numberOfLines={1}>
-                            {(provinces.find(p => p.id === proDepartId)?.nom || 'N/A') + ' → ' + (provinces.find(p => p.id === proArriveeId)?.nom || 'N/A')}
-                        </Text>
-                    </View>
-                    <View className="flex-row justify-between">
-                        <Text className="text-gray-500 text-xs">Date & Heure</Text>
-                        <Text className="text-gray-900 font-bold text-xs">{selectedVoyage?.date} à {selectedVoyage?.heure_depart}</Text>
-                    </View>
-                    <View className="flex-row justify-between">
-                        <Text className="text-gray-500 text-xs">Passagers ({selectedSeats.length})</Text>
-                        <Text className="text-gray-900 font-bold text-xs">Sièges: {selectedSeats.join(', ')}</Text>
-                    </View>
-                    <View className="flex-row justify-between pt-3 border-t border-gray-50 mt-2">
-                        <Text className="text-gray-900 font-bold text-base">Total à payer</Text>
-                        <Text className="text-blue-900 font-bold text-lg">
-                            {new Intl.NumberFormat('fr-FR').format(selectedSeats.length * (selectedVoyage?.trajet?.tarif || 0))} Ar
-                        </Text>
-                    </View>
-                </View>
-            </View>
-
-            <Text className="text-lg font-bold text-gray-900 mb-4 px-1">Sélectionner le mode paiement</Text>
-            <View className="flex-row flex-wrap justify-between" style={{ gap: 10 }}>
-                {[
-                    { id: 1, name: 'Orange Money', color: '#ff7900', icon: 'logo-edge' }, // approximation de icon
-                    { id: 2, name: 'Mvola', color: '#00a4e4', icon: 'wallet-outline' },
-                    { id: 3, name: 'Airtel Money', color: '#e11900', icon: 'phone-portrait-outline' }
-                ].map(mode => (
-                    <TouchableOpacity
-                        key={mode.id}
-                        className={`w-[48%] bg-white p-5 rounded-[28px] mb-2 border-2 items-center justify-center ${paymentMode?.id === mode.id ? 'border-blue-500 bg-blue-50/50' : 'border-gray-50 shadow-sm'}`}
-                        onPress={() => setPaymentMode(mode)}
+        return (
+            <View className="flex-1">
+                <View className="bg-red-50 p-6 rounded-[32px] border border-red-100 items-center mb-6">
+                    <Ionicons name="timer-outline" size={32} color="#ef4444" />
+                    <Text className="text-red-900 font-bold text-2xl mt-2">{formatTime(timeLeft)}</Text>
+                    <Text className="text-red-600 text-[10px] text-center mt-1 mb-4">Veuillez confirmer votre paiement avant l'expiration du délai.</Text>
+                    
+                    <TouchableOpacity 
+                        onPress={handleCancelProcess}
+                        className="bg-white border border-red-200 px-6 py-2 rounded-full shadow-sm"
                     >
-                        <View className="w-12 h-12 rounded-2xl items-center justify-center mb-3" style={{ backgroundColor: mode.color + '15' }}>
-                            <Ionicons name={mode.icon as any} size={24} color={mode.color} />
+                        <Text className="text-red-600 font-bold text-xs uppercase">Abandonner la réservation</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Reservation Summary Card */}
+                <View className="bg-white p-5 rounded-[32px] mb-6 border border-blue-100 shadow-sm overflow-hidden relative">
+                    <View className="absolute -top-6 -right-6 w-20 h-20 bg-blue-50/50 rounded-full" />
+                    
+                    <View className="flex-row items-center mb-4">
+                        <View className="w-8 h-8 bg-blue-100 rounded-lg items-center justify-center mr-3">
+                            <Ionicons name="receipt-outline" size={18} color="#1e3a8a" />
                         </View>
-                        <Text className="text-gray-900 font-bold text-center text-xs">{mode.name}</Text>
-                        {paymentMode?.id === mode.id && (
-                            <View className="absolute top-2 right-2">
-                                <Ionicons name="checkmark-circle" size={18} color="#3b82f6" />
+                        <Text className="text-gray-900 font-bold text-lg">Détails de réservation</Text>
+                    </View>
+
+                    <View className="space-y-3">
+                        <View className="flex-row justify-between">
+                            <Text className="text-gray-500 text-xs">Itinéraire</Text>
+                            <Text className="text-gray-900 font-bold text-xs" numberOfLines={1}>
+                                {(provinces.find(p => p.id === proDepartId)?.nom || 'N/A') + ' → ' + (provinces.find(p => p.id === proArriveeId)?.nom || 'N/A')}
+                            </Text>
+                        </View>
+                        <View className="flex-row justify-between">
+                            <Text className="text-gray-500 text-xs">Date & Heure</Text>
+                            <Text className="text-gray-900 font-bold text-xs">{selectedVoyage?.date} à {selectedVoyage?.heure_depart}</Text>
+                        </View>
+                        <View className="flex-row justify-between">
+                            <Text className="text-gray-500 text-xs">Passagers ({selectedSeats.length})</Text>
+                            <Text className="text-gray-900 font-bold text-xs">Sièges: {selectedSeats.join(', ')}</Text>
+                        </View>
+                        <View className="flex-row justify-between pt-3 border-t border-gray-50 mt-2">
+                            <Text className="text-gray-900 font-bold text-base">Total à payer</Text>
+                            <Text className="text-blue-900 font-bold text-lg">
+                                {new Intl.NumberFormat('fr-FR').format(totalAmount)} Ar
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+
+                <Text className="text-lg font-bold text-gray-900 mb-4 px-1">Sélectionner le mode paiement</Text>
+                {modes.length === 0 && (
+                    <View className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200 items-center">
+                        <Ionicons name="warning-outline" size={24} color="#d97706" />
+                        <Text className="text-yellow-700 text-xs text-center mt-2">Aucun mode de paiement disponible pour cette compagnie.</Text>
+                    </View>
+                )}
+                <View className="flex-row flex-wrap justify-between" style={{ gap: 10 }}>
+                    {modes.map((mode: any) => {
+                        const color = getPaymentColor(mode.nom_paie || mode.type_paie);
+                        const icon = getPaymentIcon(mode.nom_paie || mode.type_paie);
+                        const isSelected = paymentMode?.type_paie_id === mode.type_paie_id;
+                        return (
+                            <TouchableOpacity
+                                key={mode.type_paie_id}
+                                className={`w-[48%] bg-white p-5 rounded-[28px] mb-2 border-2 items-center justify-center ${isSelected ? 'border-blue-500 bg-blue-50/50' : 'border-gray-50 shadow-sm'}`}
+                                onPress={() => setPaymentMode(mode)}
+                            >
+                                <View className="w-12 h-12 rounded-2xl items-center justify-center mb-3" style={{ backgroundColor: color + '15' }}>
+                                    <Ionicons name={icon as any} size={24} color={color} />
+                                </View>
+                                <Text className="text-gray-900 font-bold text-center text-xs">{mode.nom_paie || mode.type_paie}</Text>
+                                {isSelected && (
+                                    <View className="absolute top-2 right-2">
+                                        <Ionicons name="checkmark-circle" size={18} color="#3b82f6" />
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+
+                {/* Payment Detail Modal */}
+                <Modal visible={showPaymentModal} transparent animationType="slide">
+                    <Pressable className="flex-1 bg-black/50 justify-end" onPress={() => setShowPaymentModal(false)}>
+                        <Pressable className="bg-white rounded-t-[32px] p-6" onPress={(e) => e.stopPropagation()}>
+                            <View className="w-12 h-1.5 bg-gray-200 rounded-full self-center mb-6" />
+                            
+                            <View className="items-center mb-6">
+                                <View className="w-16 h-16 rounded-full items-center justify-center mb-3" style={{ backgroundColor: getPaymentColor(paymentMode?.nom_paie || paymentMode?.type_paie) + '15' }}>
+                                    <Ionicons name={getPaymentIcon(paymentMode?.nom_paie || paymentMode?.type_paie) as any} size={32} color={getPaymentColor(paymentMode?.nom_paie || paymentMode?.type_paie)} />
+                                </View>
+                                <Text className="text-gray-900 font-bold text-xl">{paymentMode?.nom_paie || paymentMode?.type_paie}</Text>
+                            </View>
+
+                            {/* Amount */}
+                            <View className="bg-blue-50 p-5 rounded-2xl mb-5 items-center border border-blue-100">
+                                <Text className="text-blue-600 text-xs font-bold uppercase mb-1">Montant à payer</Text>
+                                <Text className="text-blue-900 font-bold text-3xl">{new Intl.NumberFormat('fr-FR').format(totalAmount)} Ar</Text>
+                            </View>
+
+                            {/* Account Info */}
+                            <View className="bg-gray-50 p-5 rounded-2xl mb-5 border border-gray-100">
+                                <Text className="text-gray-500 text-xs font-bold uppercase mb-3">Informations du compte</Text>
+                                
+                                <View className="flex-row items-center justify-between mb-3">
+                                    <View className="flex-1">
+                                        <Text className="text-gray-400 text-[10px] uppercase">Numéro</Text>
+                                        <Text className="text-gray-900 font-bold text-lg tracking-wider">{paymentMode?.numero || 'N/A'}</Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        className={`px-4 py-2 rounded-xl flex-row items-center ${copiedField === 'numero' ? 'bg-green-100' : 'bg-white border border-gray-200'}`}
+                                        onPress={() => paymentMode?.numero && copyToClipboard(paymentMode.numero, 'numero')}
+                                    >
+                                        <Ionicons name={copiedField === 'numero' ? 'checkmark' : 'copy-outline'} size={16} color={copiedField === 'numero' ? '#22c55e' : '#6b7280'} />
+                                        <Text className={`ml-1 text-xs font-bold ${copiedField === 'numero' ? 'text-green-600' : 'text-gray-500'}`}>
+                                            {copiedField === 'numero' ? 'Copié !' : 'Copier'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+
+                                <View>
+                                    <Text className="text-gray-400 text-[10px] uppercase">Titulaire du compte</Text>
+                                    <Text className="text-gray-900 font-bold text-base">{paymentMode?.titulaire || 'N/A'}</Text>
+                                </View>
+                            </View>
+
+                            {/* Instructions */}
+                            <View className="bg-yellow-50 p-4 rounded-2xl mb-6 border border-yellow-100 flex-row items-start">
+                                <Ionicons name="information-circle-outline" size={20} color="#d97706" style={{ marginTop: 2 }} />
+                                <Text className="text-yellow-800 text-xs ml-2 flex-1 leading-5">
+                                    Envoyez le montant exact au numéro ci-dessus via {paymentMode?.nom_paie || paymentMode?.type_paie}, puis appuyez sur "J'ai effectué le paiement" pour confirmer.
+                                </Text>
+                            </View>
+
+                            <TouchableOpacity
+                                className={`py-4 rounded-2xl items-center shadow-md ${loading ? 'bg-gray-300' : 'bg-blue-900'}`}
+                                onPress={handlePaymentConfirmed}
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <ActivityIndicator color="#fff" />
+                                ) : (
+                                    <Text className="text-white font-bold text-lg">J'ai effectué le paiement</Text>
+                                )}
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                className="py-3 items-center mt-2"
+                                onPress={() => setShowPaymentModal(false)}
+                            >
+                                <Text className="text-gray-400 font-bold text-sm">Annuler</Text>
+                            </TouchableOpacity>
+                        </Pressable>
+                    </Pressable>
+                </Modal>
+            </View>
+        );
+    };
+
+    const renderStep6 = () => {
+        const qrData = invoiceData?.reservation?.qr_data || '';
+        let qrString = '';
+        try {
+            qrString = qrData ? atob(qrData) : '';
+        } catch {
+            qrString = qrData;
+        }
+
+        return (
+            <View className="flex-1 items-center">
+                <View className="w-20 h-20 bg-green-100 rounded-full items-center justify-center mb-6">
+                    <Ionicons name="checkmark-circle" size={50} color="#22c55e" />
+                </View>
+                <Text className="text-2xl font-bold text-gray-900 mb-2">Réservation Confirmée !</Text>
+                <Text className="text-gray-500 text-center mb-8">Votre ticket est prêt. Présentez le QR code à l'embarquement.</Text>
+
+                <View className="bg-white p-6 rounded-[40px] border border-gray-100 shadow-sm w-full items-center">
+                    <Text className="text-gray-400 font-bold text-xs uppercase mb-1">Ticket N°</Text>
+                    <Text className="text-2xl font-bold text-blue-900 mb-5">{invoiceData?.reservation?.numero}</Text>
+
+                    {/* QR Code */}
+                    <View className="bg-white p-4 rounded-3xl border border-gray-100 mb-5">
+                        {qrString ? (
+                            <QRCode value={qrString} size={200} backgroundColor="#ffffff" />
+                        ) : (
+                            <View className="w-[200px] h-[200px] items-center justify-center">
+                                <Ionicons name="qr-code-outline" size={100} color="#cbd5e1" />
+                                <Text className="text-[10px] text-gray-400 mt-2">Chargement...</Text>
                             </View>
                         )}
-                    </TouchableOpacity>
-                ))}
-            </View>
-        </View>
-    );
+                    </View>
+                    <Text className="text-gray-400 text-[10px] text-center mb-5">Scannez ce code lors de l'embarquement</Text>
 
-    const renderStep6 = () => (
-        <View className="flex-1 items-center">
-            <View className="w-20 h-20 bg-green-100 rounded-full items-center justify-center mb-6">
-                <Ionicons name="checkmark-circle" size={50} color="#22c55e" />
-            </View>
-            <Text className="text-2xl font-bold text-gray-900 mb-2">Réservation Confirmée !</Text>
-            <Text className="text-gray-500 text-center mb-8">Votre ticket est prêt. Présentez-le à l'embarquement.</Text>
-
-            <View className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm w-full items-center">
-                <Text className="text-gray-400 font-bold text-xs uppercase mb-1">Ticket N°</Text>
-                <Text className="text-2xl font-bold text-blue-900 mb-6">{invoiceData?.reservation?.numero}</Text>
-
-                {/* QR Code Placeholder */}
-                <View className="w-48 h-48 bg-gray-50 items-center justify-center rounded-3xl border border-gray-100 mb-6">
-                    <Ionicons name="qr-code-outline" size={100} color="#cbd5e1" />
-                    <Text className="text-[10px] text-gray-400 mt-2">QR Code</Text>
+                    {/* Invoice details */}
+                    <View className="w-full space-y-3">
+                        <View className="flex-row justify-between border-b border-gray-50 pb-2">
+                            <Text className="text-gray-500 text-sm">Trajet</Text>
+                            <Text className="text-gray-900 font-bold text-sm">{invoiceData?.voyage?.depart} → {invoiceData?.voyage?.arrivee}</Text>
+                        </View>
+                        <View className="flex-row justify-between border-b border-gray-50 pb-2">
+                            <Text className="text-gray-500 text-sm">Date & Heure</Text>
+                            <Text className="text-gray-900 font-bold text-sm">{invoiceData?.voyage?.date} à {invoiceData?.voyage?.heure}</Text>
+                        </View>
+                        <View className="flex-row justify-between border-b border-gray-50 pb-2">
+                            <Text className="text-gray-500 text-sm">Compagnie</Text>
+                            <Text className="text-gray-900 font-bold text-sm">{invoiceData?.voyage?.compagnie || selectedVoyage?.compagnie?.nom}</Text>
+                        </View>
+                        {invoiceData?.voyageurs && invoiceData.voyageurs.length > 0 && (
+                            <View className="border-b border-gray-50 pb-2">
+                                <Text className="text-gray-500 text-sm mb-1">Voyageurs</Text>
+                                {invoiceData.voyageurs.map((v: any, i: number) => (
+                                    <Text key={i} className="text-gray-900 text-xs">
+                                        {v.nom} {v.prenom} — Siège {v.siege}
+                                    </Text>
+                                ))}
+                            </View>
+                        )}
+                        {invoiceData?.reservation?.paiement && (
+                            <View className="flex-row justify-between border-b border-gray-50 pb-2">
+                                <Text className="text-gray-500 text-sm">Paiement</Text>
+                                <Text className="text-gray-900 font-bold text-sm">{invoiceData.reservation.paiement.type}</Text>
+                            </View>
+                        )}
+                        <View className="flex-row justify-between pt-1">
+                            <Text className="text-gray-900 font-bold text-base">Montant Payé</Text>
+                            <Text className="text-blue-900 font-bold text-lg">{new Intl.NumberFormat('fr-FR').format(invoiceData?.reservation?.montant || 0)} Ar</Text>
+                        </View>
+                    </View>
                 </View>
 
-                <View className="w-full space-y-3">
-                    <View className="flex-row justify-between border-b border-gray-50 pb-2">
-                        <Text className="text-gray-500 text-sm">Trajet</Text>
-                        <Text className="text-gray-900 font-bold text-sm">{invoiceData?.voyage?.depart} → {invoiceData?.voyage?.arrivee}</Text>
-                    </View>
-                    <View className="flex-row justify-between border-b border-gray-50 pb-2">
-                        <Text className="text-gray-500 text-sm">Date & Heure</Text>
-                        <Text className="text-gray-900 font-bold text-sm">{invoiceData?.voyage?.date} à {invoiceData?.voyage?.heure}</Text>
-                    </View>
-                    <View className="flex-row justify-between">
-                        <Text className="text-gray-500 text-sm">Montant Payé</Text>
-                        <Text className="text-blue-900 font-bold text-base">{new Intl.NumberFormat('fr-FR').format(invoiceData?.reservation?.montant || 0)} Ar</Text>
-                    </View>
-                </View>
+                <TouchableOpacity
+                    className="bg-blue-900 w-full py-4 rounded-2xl items-center mt-10"
+                    onPress={() => router.replace('/screens/dashboard/utilisateur/(tabs)/reservation')}
+                >
+                    <Text className="text-white font-bold text-lg">Retour à l'accueil</Text>
+                </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-                className="bg-blue-900 w-full py-4 rounded-2xl items-center mt-10"
-                onPress={() => router.replace('/screens/dashboard/utilisateur/(tabs)/reservation')}
-            >
-                <Text className="text-white font-bold text-lg">Retour à l'accueil</Text>
-            </TouchableOpacity>
-        </View>
-    );
+        );
+    };
 
     return (
         <SafeAreaView className="flex-1 bg-gray-50">
@@ -1048,11 +1204,11 @@ export default function ReserverScreen() {
             {currentStep === 5 && (
                 <View className="p-6 bg-white border-t border-gray-100">
                     <TouchableOpacity
-                        className={`py-4 rounded-2xl items-center shadow-md ${loading ? 'bg-gray-300' : 'bg-blue-900'}`}
-                        onPress={handleNext}
-                        disabled={loading}
+                        className={`py-4 rounded-2xl items-center shadow-md ${(!paymentMode || loading) ? 'bg-gray-300' : 'bg-blue-900'}`}
+                        onPress={confirmPayment}
+                        disabled={!paymentMode || loading}
                     >
-                        <Text className="text-white font-bold text-lg">Confirmer le mode de paiement</Text>
+                        <Text className="text-white font-bold text-lg">Procéder au paiement</Text>
                     </TouchableOpacity>
                 </View>
             )}

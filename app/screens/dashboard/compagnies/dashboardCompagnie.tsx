@@ -21,6 +21,7 @@ import { RenderVoitures } from '../../../components/renders/voitures/RenderVoitu
 import { RenderPaiements } from '../../../components/renders/paiements/RenderPaiements';
 import { RenderReservations } from '../../../components/renders/reservations/RenderReservations';
 import { RenderVoyages } from '../../../components/RenderVoyages';
+import { useNotifications } from '../../../hooks/useNotifications';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.78;
 
@@ -31,9 +32,9 @@ export default function DashboardCompagnie() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [notificationCount, setNotificationCount] = useState(0);
   const [messageCount, setMessageCount] = useState(0);
   const drawerAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
+  const { unreadCount: notificationCount } = useNotifications();
 
   useEffect(() => {
     (async () => {
@@ -436,11 +437,12 @@ export default function DashboardCompagnie() {
           <TouchableOpacity
             className="relative w-10 h-10 rounded-xl items-center justify-center"
             style={{ backgroundColor: '#f1f5f9' }}
+            onPress={() => router.push('/screens/notifications/notificationsScreen')}
           >
             <Ionicons name="notifications-outline" size={20} color="#1e293b" />
             {notificationCount > 0 && (
               <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 items-center justify-center">
-                <Text className="text-white text-[9px] font-bold">{notificationCount}</Text>
+                <Text className="text-white text-[9px] font-bold">{notificationCount > 99 ? '99+' : notificationCount}</Text>
               </View>
             )}
           </TouchableOpacity>

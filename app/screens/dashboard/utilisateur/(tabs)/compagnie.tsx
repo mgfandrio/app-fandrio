@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { DashboardHeader } from '@/app/components/dashboard/DashboardHeader';
 import { SideMenu } from '@/app/components/dashboard/SideMenu';
 import { compagnieService } from '@/app/services/compagnies/compagnieService';
+import { useNotifications } from '@/app/hooks/useNotifications';
 import { Ionicons } from '@expo/vector-icons';
 import RechercheFilterModal from '@/app/components/modals/recherche/RechercheFilterModal';
 import { useRouter } from 'expo-router';
@@ -27,6 +28,7 @@ export default function CompagnieScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { unreadCount } = useNotifications();
 
   useEffect(() => {
     (async () => {
@@ -76,6 +78,7 @@ export default function CompagnieScreen() {
         onMenuPress={() => setMenuVisible(true)}
         onFilterPress={() => setShowSearchModal(true)}
         searchPlaceholder="Rechercher une compagnie..."
+        notificationCount={unreadCount}
       />
 
       <ScrollView

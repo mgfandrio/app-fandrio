@@ -11,6 +11,7 @@ import { provinceService } from '@/app/services/provinces/provinceService';
 import RechercheFilterModal from '@/app/components/modals/recherche/RechercheFilterModal';
 import { DashboardHeader } from '@/app/components/dashboard/DashboardHeader';
 import { SideMenu } from '@/app/components/dashboard/SideMenu';
+import { useNotifications } from '@/app/hooks/useNotifications';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
@@ -42,6 +43,7 @@ export default function AccueilScreen() {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
+  const { unreadCount } = useNotifications();
 
   useEffect(() => {
     if (params.openSearch) {
@@ -131,6 +133,7 @@ export default function AccueilScreen() {
         insets={insets}
         onMenuPress={() => setMenuVisible(true)}
         onFilterPress={() => setShowSearchModal(true)}
+        notificationCount={unreadCount}
       />
 
       {/* Scrollable Content */}
