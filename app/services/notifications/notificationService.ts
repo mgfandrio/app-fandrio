@@ -5,7 +5,7 @@ export const notificationService = {
      * Récupérer les notifications
      */
     async getNotifications(page: number = 1) {
-        const response = await apiClient.get(`/notifications?per_page=20&page=${page}`);
+        const response = await apiClient.get(`/api/notifications?per_page=20&page=${page}`);
         return response.data;
     },
 
@@ -13,7 +13,7 @@ export const notificationService = {
      * Récupérer le nombre de notifications non lues
      */
     async getUnreadCount() {
-        const response = await apiClient.get('/notifications/unread-count');
+        const response = await apiClient.get('/api/notifications/unread-count');
         return response.data;
     },
 
@@ -21,7 +21,7 @@ export const notificationService = {
      * Marquer une notification comme lue
      */
     async markAsRead(notifId: number) {
-        const response = await apiClient.patch(`/notifications/${notifId}/read`);
+        const response = await apiClient.patch(`/api/notifications/${notifId}/read`);
         return response.data;
     },
 
@@ -29,7 +29,7 @@ export const notificationService = {
      * Marquer toutes les notifications comme lues
      */
     async markAllAsRead() {
-        const response = await apiClient.patch('/notifications/read-all');
+        const response = await apiClient.patch('/api/notifications/read-all');
         return response.data;
     },
 
@@ -37,7 +37,7 @@ export const notificationService = {
      * Enregistrer le push token
      */
     async registerPushToken(pushToken: string) {
-        const response = await apiClient.post('/notifications/push-token', { push_token: pushToken });
+        const response = await apiClient.post('/api/notifications/push-token', { push_token: pushToken });
         return response.data;
     },
 
@@ -45,7 +45,7 @@ export const notificationService = {
      * Supprimer le push token
      */
     async unregisterPushToken() {
-        const response = await apiClient.delete('/notifications/push-token');
+        const response = await apiClient.delete('/api/notifications/push-token');
         return response.data;
     },
 };

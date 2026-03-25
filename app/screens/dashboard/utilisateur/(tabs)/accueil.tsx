@@ -375,7 +375,13 @@ export default function AccueilScreen() {
                         <Text className="text-emerald-700 text-xs font-semibold ml-1">{voyage.places_disponibles}</Text>
                       </View>
                     </View>
-                    <TouchableOpacity activeOpacity={0.8}>
+                    <TouchableOpacity activeOpacity={0.8} onPress={(e) => {
+                      e.stopPropagation();
+                      router.push({
+                        pathname: '/screens/dashboard/utilisateur/reservations/reserver',
+                        params: { voyageData: JSON.stringify(voyage) }
+                      });
+                    }}>
                       <View className="rounded-xl overflow-hidden">
                         <LinearGradient
                           colors={['#1e40af', '#3b82f6']}

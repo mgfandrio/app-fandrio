@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNotifications } from '@/app/hooks/useNotifications';
+import * as SecureStore from 'expo-secure-store';
 
 const getNotifIcon = (type: number) => {
     switch (type) {
@@ -44,6 +45,31 @@ export default function NotificationsScreen() {
         await fetchNotifications(1);
         setRefreshing(false);
     };
+
+    const handleNotificationPress = useCallback(async (notif: any) => {
+        if (notif.notif_statut !== 3) markAsRead(notif.notif_id);
+
+        // Notifications liées à une réservation (type 1,2,3,4)
+        if (notif.res_id) {
+            try {
+                const userJson = await SecureStore.getItemAsync('fandrioUser');
+                const user = userJson ? JSON.parse(userJson) : null;
+
+                if (user?.role === 2) {
+                    // Admin compagnie → aller au dashboard tab réservations
+                    router.replace({
+                        pathname: '/screens/dashboard/compagnies/dashboardCompagnie',
+                        params: { tab: 'reservations' },
+                    });
+                } else if (user?.role === 1) {
+                    // Client → aller à l'onglet réservation
+                    router.replace('/screens/dashboard/utilisateur/(tabs)/reservation');
+                }
+            } catch (e) {
+                console.warn('Navigation error:', e);
+            }
+        }
+    }, [markAsRead, router]);
 
     return (
         <SafeAreaView className="flex-1 bg-gray-50">
@@ -94,9 +120,7 @@ export default function NotificationsScreen() {
                                 <TouchableOpacity
                                     key={notif.notif_id}
                                     className={`bg-white rounded-2xl p-4 flex-row border ${isUnread ? 'border-blue-100 bg-blue-50/30' : 'border-gray-50'}`}
-                                    onPress={() => {
-                                        if (isUnread) markAsRead(notif.notif_id);
-                                    }}
+                                    onPress={() => handleNotificationPress(notif)}
                                     activeOpacity={0.7}
                                 >
                                     <View

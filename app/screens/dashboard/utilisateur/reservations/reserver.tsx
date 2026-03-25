@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal, Pressable, Linking } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { provinceService } from '../../../../services/provinces/provinceService';
@@ -25,6 +25,7 @@ const STEPS = [
 
 export default function ReserverScreen() {
     const router = useRouter();
+    const params = useLocalSearchParams<{ voyageData?: string }>();
     const [currentStep, setCurrentStep] = useState(1);
     const [loading, setLoading] = useState(false);
 
@@ -41,6 +42,8 @@ export default function ReserverScreen() {
     const [invoiceData, setInvoiceData] = useState<any>(null);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [copiedField, setCopiedField] = useState<string | null>(null);
+    const [transactionRef, setTransactionRef] = useState('');
+    const [transactionRefError, setTransactionRefError] = useState<string | null>(null);
 
     // Timer State
     const [timeLeft, setTimeLeft] = useState(120); // 2 minutes in seconds
@@ -66,6 +69,26 @@ export default function ReserverScreen() {
     useEffect(() => {
         fetchProvinces();
     }, []);
+
+    // Si un voyage est passé en paramètre, démarrer directement à l'étape 3
+    useEffect(() => {
+        if (params.voyageData) {
+            try {
+                const voyage = JSON.parse(params.voyageData);
+                setSelectedVoyage(voyage);
+
+                // Extraire les IDs des provinces pour le récap
+                const depId = voyage.trajet?.province_depart?.id || voyage.trajet?.province_depart?.pro_id || voyage.trajet?.pro_depart;
+                const arrId = voyage.trajet?.province_arrivee?.id || voyage.trajet?.province_arrivee?.pro_id || voyage.trajet?.pro_arrivee;
+                if (depId) setProDepartId(depId);
+                if (arrId) setProArriveeId(arrId);
+
+                setCurrentStep(3);
+            } catch (e) {
+                console.warn('Invalid voyageData param:', e);
+            }
+        }
+    }, [params.voyageData]);
 
     useEffect(() => {
         if (currentStep === 3 && selectedVoyage) {
@@ -261,16 +284,31 @@ export default function ReserverScreen() {
         setShowPaymentModal(true);
     };
 
+    const validateTransactionRef = (ref: string): string | null => {
+        const cleaned = ref.replace(/[^a-zA-Z0-9\-]/g, '');
+        if (!cleaned || cleaned.length < 5) return 'Minimum 5 caractères alphanumériques.';
+        if (cleaned.length > 50) return 'Maximum 50 caractères.';
+        return null;
+    };
+
     const handlePaymentConfirmed = async () => {
+        const error = validateTransactionRef(transactionRef);
+        if (error) {
+            setTransactionRefError(error);
+            return;
+        }
+        setTransactionRefError(null);
         setShowPaymentModal(false);
         setLoading(true);
         try {
+            const cleanRef = transactionRef.replace(/[^a-zA-Z0-9\-]/g, '');
             const response = await reservationService.confirmerReservation(reservationResult.res_id, {
                 type_paie_id: paymentMode.type_paie_id,
-                numero_paiement: paymentMode.numero || 'N/A'
+                numero_paiement: cleanRef
             });
             if (response.statut) {
                 stopTimer();
+                setTransactionRef('');
                 fetchInvoice();
             }
         } catch (error: any) {
@@ -1048,17 +1086,52 @@ export default function ReserverScreen() {
                             </View>
 
                             {/* Instructions */}
-                            <View className="bg-yellow-50 p-4 rounded-2xl mb-6 border border-yellow-100 flex-row items-start">
+                            <View className="bg-yellow-50 p-4 rounded-2xl mb-5 border border-yellow-100 flex-row items-start">
                                 <Ionicons name="information-circle-outline" size={20} color="#d97706" style={{ marginTop: 2 }} />
                                 <Text className="text-yellow-800 text-xs ml-2 flex-1 leading-5">
-                                    Envoyez le montant exact au numéro ci-dessus via {paymentMode?.nom_paie || paymentMode?.type_paie}, puis appuyez sur "J'ai effectué le paiement" pour confirmer.
+                                    Envoyez le montant exact au numéro ci-dessus via {paymentMode?.nom_paie || paymentMode?.type_paie}, puis saisissez le numéro de référence de la transaction ci-dessous.
+                                </Text>
+                            </View>
+
+                            {/* Transaction Reference Input */}
+                            <View className="mb-6">
+                                <Text className="text-gray-700 font-bold text-sm mb-2">Numéro de référence / ID transaction</Text>
+                                <View className={`flex-row items-center bg-gray-50 rounded-2xl border ${transactionRefError ? 'border-red-300' : 'border-gray-200'} px-4`}>
+                                    <Ionicons name="document-text-outline" size={18} color={transactionRefError ? '#ef4444' : '#6b7280'} />
+                                    <TextInput
+                                        className="flex-1 py-4 px-3 text-base text-gray-900 font-bold"
+                                        placeholder="Ex: TRX123456789"
+                                        placeholderTextColor="#9ca3af"
+                                        value={transactionRef}
+                                        onChangeText={(text) => {
+                                            setTransactionRef(text);
+                                            if (transactionRefError) setTransactionRefError(null);
+                                        }}
+                                        maxLength={50}
+                                        autoCapitalize="characters"
+                                        autoCorrect={false}
+                                    />
+                                    {transactionRef.length > 0 && (
+                                        <TouchableOpacity onPress={() => { setTransactionRef(''); setTransactionRefError(null); }}>
+                                            <Ionicons name="close-circle" size={20} color="#9ca3af" />
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                                {transactionRefError && (
+                                    <View className="flex-row items-center mt-1.5 ml-1">
+                                        <Ionicons name="alert-circle" size={14} color="#ef4444" />
+                                        <Text className="text-red-500 text-xs ml-1">{transactionRefError}</Text>
+                                    </View>
+                                )}
+                                <Text className="text-gray-400 text-[10px] mt-1.5 ml-1">
+                                    Saisissez le numéro de référence reçu après votre paiement {paymentMode?.nom_paie || paymentMode?.type_paie}.
                                 </Text>
                             </View>
 
                             <TouchableOpacity
-                                className={`py-4 rounded-2xl items-center shadow-md ${loading ? 'bg-gray-300' : 'bg-blue-900'}`}
+                                className={`py-4 rounded-2xl items-center shadow-md ${(!transactionRef.trim() || loading) ? 'bg-gray-300' : 'bg-blue-900'}`}
                                 onPress={handlePaymentConfirmed}
-                                disabled={loading}
+                                disabled={!transactionRef.trim() || loading}
                             >
                                 {loading ? (
                                     <ActivityIndicator color="#fff" />

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -27,14 +27,20 @@ const DRAWER_WIDTH = Dimensions.get('window').width * 0.78;
 
 export default function DashboardCompagnie() {
   const router = useRouter();
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const { showDialog, DialogComponent } = useConfirmDialog();
   const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(tab || 'dashboard');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const drawerAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const { unreadCount: notificationCount } = useNotifications();
+
+  // Appliquer le param tab si fourni (ex: depuis une notification)
+  useEffect(() => {
+    if (tab) setActiveTab(tab);
+  }, [tab]);
 
   useEffect(() => {
     (async () => {

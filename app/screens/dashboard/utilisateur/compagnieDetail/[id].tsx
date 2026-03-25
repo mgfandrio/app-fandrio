@@ -384,7 +384,10 @@ export default function CompagnieDetailScreen() {
                                         </View>
                                         <TouchableOpacity
                                             activeOpacity={0.8}
-                                            onPress={() => router.push({ pathname: '/screens/dashboard/utilisateur/reservation', params: { voyage_id: voyage.voyage_id } })}
+                                            onPress={() => router.push({
+                                                pathname: '/screens/dashboard/utilisateur/reservations/reserver',
+                                                params: { voyageData: JSON.stringify(voyage) }
+                                            })}
                                         >
                                             <View className="rounded-xl overflow-hidden">
                                                 <LinearGradient
