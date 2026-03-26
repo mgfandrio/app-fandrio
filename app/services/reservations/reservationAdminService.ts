@@ -102,4 +102,50 @@ export const reservationAdminService = {
       };
     }
   },
+
+  obtenirTableauBordFinancier: async () => {
+    try {
+      const response = await apiClient.get('/api/adminCompagnie/reservations/tableau-bord-financier');
+      return {
+        statut: true,
+        data: response.data?.data || {},
+      };
+    } catch (error: any) {
+      console.error('Erreur obtenirTableauBordFinancier:', error.message);
+      return { statut: false, data: {} };
+    }
+  },
+
+  obtenirFactures: async (params: { page?: number; search?: string; date_debut?: string; date_fin?: string; type_paie_id?: number } = {}) => {
+    try {
+      const response = await apiClient.get('/api/adminCompagnie/reservations/factures', {
+        params: { per_page: 20, ...params },
+      });
+      return {
+        statut: true,
+        data: response.data?.data || { resume: {}, factures: [], pagination: {} },
+      };
+    } catch (error: any) {
+      console.error('Erreur obtenirFactures:', error.message);
+      return { statut: false, data: { resume: {}, factures: [], pagination: {} } };
+    }
+  },
+
+  scannerQR: async (qrData: string) => {
+    try {
+      const response = await apiClient.post('/api/adminCompagnie/reservations/scanner-qr', { qr_data: qrData });
+      return response.data;
+    } catch (error: any) {
+      return error.response?.data || { statut: false, message: 'Erreur réseau', validation: 'erreur' };
+    }
+  },
+
+  embarquer: async (resId: number) => {
+    try {
+      const response = await apiClient.post(`/api/adminCompagnie/reservations/${resId}/embarquer`);
+      return response.data;
+    } catch (error: any) {
+      return error.response?.data || { statut: false, message: 'Erreur réseau' };
+    }
+  },
 };

@@ -20,6 +20,7 @@ import { RenderTrajets } from '../../../components/renders/trajets/RenderTrajets
 import { RenderVoitures } from '../../../components/renders/voitures/RenderVoitures';
 import { RenderPaiements } from '../../../components/renders/paiements/RenderPaiements';
 import { RenderReservations } from '../../../components/renders/reservations/RenderReservations';
+import { RenderFactures } from '../../../components/renders/factures/RenderFactures';
 import { RenderVoyages } from '../../../components/RenderVoyages';
 import { useNotifications } from '../../../hooks/useNotifications';
 
@@ -97,6 +98,7 @@ export default function DashboardCompagnie() {
         { key: 'dashboard', label: 'Dashboard', icon: 'grid', activeIcon: 'grid' },
         { key: 'voyages', label: 'Voyages', icon: 'navigate-outline', activeIcon: 'navigate' },
         { key: 'reservations', label: 'Réservations', icon: 'ticket-outline', activeIcon: 'ticket' },
+        { key: 'factures', label: 'Factures', icon: 'receipt-outline', activeIcon: 'receipt' },
       ],
     },
     {
@@ -290,16 +292,18 @@ export default function DashboardCompagnie() {
         <Text className="text-lg font-bold text-gray-900 mb-4">Accès rapide</Text>
         <View className="flex-row flex-wrap" style={{ gap: 12 }}>
           {[
-            { key: 'chauffeurs', label: 'Chauffeurs', icon: 'people', color: '#3b82f6', bg: '#dbeafe' },
-            { key: 'voitures', label: 'Voitures', icon: 'car', color: '#10b981', bg: '#d1fae5' },
             { key: 'voyages', label: 'Voyages', icon: 'navigate', color: '#8b5cf6', bg: '#ede9fe' },
-            { key: 'trajets', label: 'Trajets', icon: 'map', color: '#f59e0b', bg: '#fef3c7' },
+            { key: 'reservations', label: 'Réservations', icon: 'ticket', color: '#3b82f6', bg: '#dbeafe' },
+            { key: 'factures', label: 'Factures', icon: 'receipt', color: '#10b981', bg: '#d1fae5' },
+            { key: 'scanner', label: 'Scanner QR', icon: 'qr-code', color: '#f59e0b', bg: '#fef3c7' },
+            { key: 'chauffeurs', label: 'Chauffeurs', icon: 'people', color: '#6366f1', bg: '#e0e7ff' },
+            { key: 'voitures', label: 'Voitures', icon: 'car', color: '#ec4899', bg: '#fce7f3' },
           ].map((item) => (
             <TouchableOpacity
               key={item.key}
               className="bg-white rounded-2xl p-4 items-center"
-              style={{ width: '23%', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
-              onPress={() => setActiveTab(item.key)}
+              style={{ width: '30%', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
+              onPress={() => item.key === 'scanner' ? router.push('/screens/scanner/scannerScreen') : setActiveTab(item.key)}
               activeOpacity={0.7}
             >
               <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: item.bg, alignItems: 'center', justifyContent: 'center' }}>
@@ -312,35 +316,8 @@ export default function DashboardCompagnie() {
       </View>
 
       {/* Statistiques du tableau de bord */}
-      <View className="px-4 mt-6">
-        <DashboardStats refreshTrigger={0} />
-      </View>
-
-      {/* Infos compagnie */}
-      <View className="px-4 mb-8">
-        <View className="bg-white rounded-2xl p-5" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
-          <Text className="text-lg font-bold text-gray-900 mb-4">Informations</Text>
-
-          <View className="flex-row items-center pb-4 mb-4 border-b border-gray-100">
-            <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: '#dbeafe', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="shield-checkmark" size={20} color="#3b82f6" />
-            </View>
-            <View className="ml-4">
-              <Text className="text-gray-400 text-sm">Rôle</Text>
-              <Text className="text-gray-900 font-semibold">Admin Compagnie</Text>
-            </View>
-          </View>
-
-          <View className="flex-row items-center">
-            <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: '#dbeafe', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="mail" size={20} color="#3b82f6" />
-            </View>
-            <View className="ml-4">
-              <Text className="text-gray-400 text-sm">Email</Text>
-              <Text className="text-gray-900 font-semibold">{user?.email || 'N/A'}</Text>
-            </View>
-          </View>
-        </View>
+      <View className="px-4 mt-6 mb-8">
+        <DashboardStats refreshTrigger={0} onNavigate={setActiveTab} />
       </View>
     </ScrollView>
   );
@@ -434,6 +411,7 @@ export default function DashboardCompagnie() {
              activeTab === 'trajets' ? 'Trajets' :
              activeTab === 'voyages' ? 'Voyages' :
              activeTab === 'reservations' ? 'Réservations' :
+             activeTab === 'factures' ? 'Factures' :
              activeTab === 'paiements' ? 'Paiements' :
              activeTab === 'settings' ? 'Paramètres' : ''}
           </Text>
@@ -477,6 +455,7 @@ export default function DashboardCompagnie() {
           {activeTab === 'trajets' && <RenderTrajets />}
           {activeTab === 'voyages' && <RenderVoyages />}
           {activeTab === 'reservations' && <RenderReservations />}
+          {activeTab === 'factures' && <RenderFactures />}
           {activeTab === 'paiements' && <RenderPaiements />}
           {activeTab === 'settings' && renderSettings()}
         </View>
