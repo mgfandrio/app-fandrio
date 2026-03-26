@@ -7,6 +7,7 @@ const { width } = Dimensions.get('window');
 interface SideMenuItem {
     label: string;
     icon: string;
+    onPress?: () => void;
 }
 
 interface SideMenuProps {
@@ -86,6 +87,12 @@ export const SideMenu = ({ visible, onClose, items }: SideMenuProps) => {
                         <TouchableOpacity
                             key={index}
                             className="flex-row items-center p-4 mb-3 rounded-2xl bg-blue-50/50 border border-blue-50"
+                            onPress={() => {
+                                if (item.onPress) {
+                                    onClose();
+                                    item.onPress();
+                                }
+                            }}
                         >
                             <View style={{ backgroundColor: '#1e3a8a' }} className="p-2.5 rounded-xl mr-4 shadow-sm">
                                 <Ionicons name={item.icon as any} size={22} color="#ffffff" />

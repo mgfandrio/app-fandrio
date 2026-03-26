@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl, SafeAreaView } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl, SafeAreaView, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import QRCode from 'react-native-qrcode-svg';
 import { reservationService } from '@/app/services/reservations/reservationService';
 
 export default function HistoryScreen() {
@@ -13,6 +14,10 @@ export default function HistoryScreen() {
     const [reservations, setReservations] = useState<any[]>([]);
     const [pagination, setPagination] = useState<any>(null);
     const [page, setPage] = useState(1);
+    const [qrModalVisible, setQrModalVisible] = useState(false);
+    const [qrLoading, setQrLoading] = useState(false);
+    const [qrString, setQrString] = useState('');
+    const [qrNumero, setQrNumero] = useState('');
 
     const fetchHistory = async (pageNumber = 1, isRefreshing = false) => {
         if (!isRefreshing && pageNumber === 1) setLoading(true);
@@ -52,10 +57,33 @@ export default function HistoryScreen() {
         }
     };
 
+    const openQrModal = async (resId: number) => {
+        setQrModalVisible(true);
+        setQrLoading(true);
+        setQrString('');
+        try {
+            const response = await reservationService.obtenirFacture(resId);
+            if (response.statut && response.data?.reservation?.qr_data) {
+                const qrData = response.data.reservation.qr_data;
+                try {
+                    setQrString(atob(qrData));
+                } catch {
+                    setQrString(qrData);
+                }
+                setQrNumero(response.data.reservation.numero || '');
+            }
+        } catch (e) {
+            console.error('Error loading QR:', e);
+        } finally {
+            setQrLoading(false);
+        }
+    };
+
     const getStatusColor = (statut: number) => {
         switch (statut) {
-            case 2: return { bg: 'bg-green-100', text: 'text-green-700', label: 'Valider' };
-            case 4: return { bg: 'bg-red-100', text: 'text-red-700', label: 'Annuler' };
+            case 2: return { bg: 'bg-green-100', text: 'text-green-700', label: 'Confirmée' };
+            case 3: return { bg: 'bg-gray-200', text: 'text-gray-700', label: 'Terminée' };
+            case 4: return { bg: 'bg-red-100', text: 'text-red-700', label: 'Annulée' };
             case 1: return { bg: 'bg-orange-100', text: 'text-orange-700', label: 'En attente' };
             default: return { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Inconnu' };
         }
@@ -110,12 +138,23 @@ export default function HistoryScreen() {
                                         <Text style={{ color: '#1e3a8a' }} className="font-bold text-base">
                                             {new Intl.NumberFormat('fr-FR').format(res.montant)} Ar
                                         </Text>
-                                        <TouchableOpacity
-                                            className="bg-blue-50 px-4 py-2 rounded-xl"
-                                            onPress={() => {/* Navigate to details if needed */}}
-                                        >
-                                            <Text style={{ color: '#1e3a8a' }} className="text-xs font-bold">Voir détail</Text>
-                                        </TouchableOpacity>
+                                        <View className="flex-row items-center">
+                                            {res.statut === 2 && (
+                                                <TouchableOpacity
+                                                    onPress={() => openQrModal(res.id)}
+                                                    className="w-10 h-10 bg-green-100 rounded-xl items-center justify-center mr-2"
+                                                    activeOpacity={0.7}
+                                                >
+                                                    <Ionicons name="qr-code" size={22} color="#22c55e" />
+                                                </TouchableOpacity>
+                                            )}
+                                            <TouchableOpacity
+                                                className="bg-blue-50 px-4 py-2 rounded-xl"
+                                                onPress={() => router.push({ pathname: '/screens/dashboard/utilisateur/reservations/reservationDetail', params: { id: String(res.id) } })}
+                                            >
+                                                <Text style={{ color: '#1e3a8a' }} className="text-xs font-bold">Voir détail</Text>
+                                            </TouchableOpacity>
+                                        </View>
                                     </View>
                                 </View>
                             );
@@ -129,6 +168,42 @@ export default function HistoryScreen() {
                     )}
                 </ScrollView>
             )}
+            {/* QR Code Modal */}
+            <Modal visible={qrModalVisible} transparent animationType="fade" onRequestClose={() => setQrModalVisible(false)}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }}>
+                    <View className="bg-white rounded-[32px] p-8 mx-8 items-center" style={{ minWidth: 300 }}>
+                        {qrLoading ? (
+                            <View className="py-10 items-center">
+                                <ActivityIndicator size="large" color="#1e3a8a" />
+                                <Text className="text-gray-400 mt-4 text-sm">Chargement du QR...</Text>
+                            </View>
+                        ) : qrString ? (
+                            <>
+                                <View className="w-14 h-14 bg-green-100 rounded-full items-center justify-center mb-4">
+                                    <Ionicons name="qr-code" size={28} color="#22c55e" />
+                                </View>
+                                <Text className="text-gray-900 font-bold text-lg mb-1">QR Code</Text>
+                                <Text className="text-gray-400 text-xs mb-5">Ticket N° {qrNumero}</Text>
+                                <View className="bg-white p-4 rounded-2xl border border-gray-100">
+                                    <QRCode value={qrString} size={220} backgroundColor="#ffffff" />
+                                </View>
+                                <Text className="text-gray-400 text-[10px] text-center mt-4">Présentez ce code lors de l'embarquement</Text>
+                            </>
+                        ) : (
+                            <View className="py-10 items-center">
+                                <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
+                                <Text className="text-gray-500 mt-3 text-sm">QR code indisponible</Text>
+                            </View>
+                        )}
+                        <TouchableOpacity
+                            onPress={() => setQrModalVisible(false)}
+                            className="mt-6 bg-gray-100 px-8 py-3 rounded-2xl"
+                        >
+                            <Text className="text-gray-700 font-bold">Fermer</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
