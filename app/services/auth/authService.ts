@@ -10,6 +10,7 @@ interface UtilisateurMoi {
   role: number;
   compagnie_id: number | null;
   statut: number;
+  photo?: string | null;
 }
 
 interface MoiResponse {

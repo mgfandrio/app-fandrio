@@ -15,6 +15,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface SplashScreenAnimatedProps {
   onFinish: () => void;
+  onAnimationReady?: () => void; // Appelé quand l'animation est prête pour la vérification
 }
 
 // Particule lumineuse flottante
@@ -62,7 +63,7 @@ function Particle({ delay, startX, startY, size }: { delay: number; startX: numb
   );
 }
 
-export default function SplashScreenAnimated({ onFinish }: SplashScreenAnimatedProps) {
+export default function SplashScreenAnimated({ onFinish, onAnimationReady }: SplashScreenAnimatedProps) {
   // Valeurs animées
   const logoScale = useRef(new Animated.Value(0.3)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -115,7 +116,10 @@ export default function SplashScreenAnimated({ onFinish }: SplashScreenAnimatedP
 
     // 6. Barre de progression
     Animated.timing(progressOpacity, { toValue: 1, duration: 400, delay: 1100, useNativeDriver: true }).start();
-    Animated.timing(progressWidth, { toValue: 1, duration: 2000, delay: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: false }).start();
+    Animated.timing(progressWidth, { toValue: 1, duration: 2000, delay: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: false }).start(() => {
+      // Signaler que l'animation est prête — la vérification du token peut commencer
+      onAnimationReady?.();
+    });
 
     // 7. Icônes
     Animated.timing(iconsOpacity, { toValue: 0.5, duration: 600, delay: 1400, useNativeDriver: true }).start();
