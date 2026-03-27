@@ -4,6 +4,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Animated,
   Dimensions,
   Image,
@@ -13,6 +15,7 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { useConfirmDialog } from '../../../components/common/ConfirmDialog';
 import { DashboardStats } from '../../../components/dashboard/DashboardStats';
 import { RenderChauffers } from '../../../components/renders/chauffeurs/RenderChauffers';
@@ -23,6 +26,7 @@ import { RenderReservations } from '../../../components/renders/reservations/Ren
 import { RenderFactures } from '../../../components/renders/factures/RenderFactures';
 import { RenderVoyages } from '../../../components/RenderVoyages';
 import { useNotifications } from '../../../hooks/useNotifications';
+import { logoService } from '../../../services/compagnies/logoService';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.78;
 
@@ -35,6 +39,8 @@ export default function DashboardCompagnie() {
   const [activeTab, setActiveTab] = useState(tab || 'dashboard');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
+  const [compagnieLogo, setCompagnieLogo] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
   const drawerAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const { unreadCount: notificationCount } = useNotifications();
 
@@ -47,12 +53,111 @@ export default function DashboardCompagnie() {
     (async () => {
       try {
         const userJson = await SecureStore.getItemAsync('fandrioUser');
-        if (userJson) setUser(JSON.parse(userJson));
+        if (userJson) {
+          const userData = JSON.parse(userJson);
+          setUser(userData);
+          if (userData?.compagnie?.logo) {
+            setCompagnieLogo(userData.compagnie.logo);
+          }
+        }
       } catch (e) {
         console.warn('SecureStore read error', e);
       }
     })();
   }, []);
+
+  const pickAndUploadLogo = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert('Permission requise', 'L\'accès à la galerie est nécessaire pour choisir un logo.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets?.[0]) return;
+
+      const selectedImage = result.assets[0];
+
+      // Vérifier la taille (5 Mo max)
+      if (selectedImage.fileSize && selectedImage.fileSize > 5 * 1024 * 1024) {
+        Alert.alert('Fichier trop volumineux', 'La taille maximale est de 5 Mo.');
+        return;
+      }
+
+      setLogoUploading(true);
+
+      const response = await logoService.uploadLogo(selectedImage.uri);
+
+      if (response.statut) {
+        const newLogoUrl = response.data.logo_url;
+        setCompagnieLogo(newLogoUrl);
+
+        // Mettre à jour le user en cache
+        const userJson = await SecureStore.getItemAsync('fandrioUser');
+        if (userJson) {
+          const userData = JSON.parse(userJson);
+          if (userData.compagnie) {
+            userData.compagnie.logo = newLogoUrl;
+          }
+          await SecureStore.setItemAsync('fandrioUser', JSON.stringify(userData));
+          setUser(userData);
+        }
+
+        Alert.alert('Succès', 'Logo mis à jour avec succès !');
+      } else {
+        Alert.alert('Erreur', response.message || 'Échec de la mise à jour du logo.');
+      }
+    } catch (error: any) {
+      const msg = error.response?.data?.message || 'Erreur lors de l\'upload du logo.';
+      Alert.alert('Erreur', msg);
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const handleDeleteLogo = () => {
+    showDialog({
+      title: 'Supprimer le logo',
+      message: 'Voulez-vous vraiment supprimer le logo de la compagnie ?',
+      type: 'danger',
+      confirmText: 'Supprimer',
+      cancelText: 'Annuler',
+      onConfirm: async () => {
+        try {
+          setLogoUploading(true);
+          const response = await logoService.deleteLogo();
+          if (response.statut) {
+            setCompagnieLogo(null);
+
+            // Mettre à jour le user en cache
+            const userJson = await SecureStore.getItemAsync('fandrioUser');
+            if (userJson) {
+              const userData = JSON.parse(userJson);
+              if (userData.compagnie) {
+                userData.compagnie.logo = null;
+              }
+              await SecureStore.setItemAsync('fandrioUser', JSON.stringify(userData));
+              setUser(userData);
+            }
+
+            Alert.alert('Succès', 'Logo supprimé avec succès.');
+          }
+        } catch (error: any) {
+          Alert.alert('Erreur', 'Erreur lors de la suppression du logo.');
+        } finally {
+          setLogoUploading(false);
+        }
+      },
+      onCancel: () => {},
+    });
+  };
 
   const handleLogout = () => {
     showDialog({
@@ -137,14 +242,22 @@ export default function DashboardCompagnie() {
 
             {/* Avatar + infos */}
             <View className="flex-row items-center">
-              <LinearGradient
-                colors={['#3b82f6', '#1d4ed8']}
-                style={{ width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}
-              >
-                <Text className="text-white text-xl font-bold">
-                  {user?.prenom?.[0]?.toUpperCase() || ''}{user?.nom?.[0]?.toUpperCase() || 'C'}
-                </Text>
-              </LinearGradient>
+              {compagnieLogo ? (
+                <Image
+                  source={{ uri: compagnieLogo }}
+                  style={{ width: 56, height: 56, borderRadius: 16 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <LinearGradient
+                  colors={['#3b82f6', '#1d4ed8']}
+                  style={{ width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Text className="text-white text-xl font-bold">
+                    {user?.compagnie?.nom?.[0]?.toUpperCase() || user?.prenom?.[0]?.toUpperCase() || 'C'}
+                  </Text>
+                </LinearGradient>
+              )}
               <View className="ml-4 flex-1">
                 <Text className="text-white font-bold text-lg" numberOfLines={1}>
                   {user ? `${user.prenom} ${user.nom}` : 'Compagnie'}
@@ -281,9 +394,22 @@ export default function DashboardCompagnie() {
               </View>
             )}
           </View>
-          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="business" size={30} color="#ffffff" />
-          </View>
+          <TouchableOpacity
+            onPress={pickAndUploadLogo}
+            activeOpacity={0.8}
+            style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+          >
+            {logoUploading ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : compagnieLogo ? (
+              <Image source={{ uri: compagnieLogo }} style={{ width: 64, height: 64, borderRadius: 32 }} resizeMode="cover" />
+            ) : (
+              <>
+                <Ionicons name="camera-outline" size={28} color="#ffffff" />
+                <Text className="text-white text-[8px] mt-0.5">Logo</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
       </LinearGradient>
 
@@ -330,14 +456,22 @@ export default function DashboardCompagnie() {
         style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
       >
         <View className="flex-row items-center">
-          <LinearGradient
-            colors={['#3b82f6', '#1d4ed8']}
-            style={{ width: 60, height: 60, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Text className="text-white text-2xl font-bold">
-              {user?.prenom?.[0]?.toUpperCase() || 'C'}
-            </Text>
-          </LinearGradient>
+          {compagnieLogo ? (
+            <Image
+              source={{ uri: compagnieLogo }}
+              style={{ width: 60, height: 60, borderRadius: 18 }}
+              resizeMode="cover"
+            />
+          ) : (
+            <LinearGradient
+              colors={['#3b82f6', '#1d4ed8']}
+              style={{ width: 60, height: 60, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Text className="text-white text-2xl font-bold">
+                {user?.compagnie?.nom?.[0]?.toUpperCase() || 'C'}
+              </Text>
+            </LinearGradient>
+          )}
           <View className="ml-4 flex-1">
             <Text className="text-gray-900 font-bold text-lg">
               {user ? `${user.prenom} ${user.nom}` : 'Compagnie'}
@@ -345,6 +479,56 @@ export default function DashboardCompagnie() {
             <Text className="text-gray-400 text-sm mt-0.5">Admin Compagnie</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+        </View>
+      </View>
+
+      {/* Logo de la compagnie */}
+      <View
+        className="bg-white rounded-2xl p-5 mb-5"
+        style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
+      >
+        <Text className="text-gray-900 font-bold text-base mb-4">Logo de la compagnie</Text>
+        <View className="items-center">
+          {logoUploading ? (
+            <View style={{ width: 100, height: 100, borderRadius: 24, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator size="large" color="#3b82f6" />
+            </View>
+          ) : compagnieLogo ? (
+            <Image
+              source={{ uri: compagnieLogo }}
+              style={{ width: 100, height: 100, borderRadius: 24, borderWidth: 2, borderColor: '#e2e8f0' }}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={{ width: 100, height: 100, borderRadius: 24, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#e2e8f0', borderStyle: 'dashed' }}>
+              <Ionicons name="image-outline" size={36} color="#94a3b8" />
+              <Text className="text-gray-400 text-[10px] mt-1">Aucun logo</Text>
+            </View>
+          )}
+          <View className="flex-row mt-4" style={{ gap: 12 }}>
+            <TouchableOpacity
+              onPress={pickAndUploadLogo}
+              className="bg-blue-900 px-5 py-2.5 rounded-xl flex-row items-center"
+              disabled={logoUploading}
+              activeOpacity={0.7}
+            >
+              <Ionicons name={compagnieLogo ? 'swap-horizontal' : 'cloud-upload-outline'} size={16} color="#ffffff" />
+              <Text className="text-white font-bold text-sm ml-2">
+                {compagnieLogo ? 'Changer' : 'Ajouter un logo'}
+              </Text>
+            </TouchableOpacity>
+            {compagnieLogo && (
+              <TouchableOpacity
+                onPress={handleDeleteLogo}
+                className="bg-red-50 px-4 py-2.5 rounded-xl flex-row items-center"
+                disabled={logoUploading}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                <Text className="text-red-500 font-bold text-sm ml-1">Supprimer</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
 
