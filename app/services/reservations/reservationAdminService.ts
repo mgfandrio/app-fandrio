@@ -148,4 +148,27 @@ export const reservationAdminService = {
       return error.response?.data || { statut: false, message: 'Erreur réseau' };
     }
   },
+
+  /**
+   * Portefeuille : solde, commission, historique transactions
+   */
+  obtenirPortefeuille: async (params?: {
+    page?: number;
+    per_page?: number;
+    date_debut?: string;
+    date_fin?: string;
+    type_paie_id?: number;
+  }) => {
+    try {
+      const response = await apiClient.get('/api/adminCompagnie/reservations/portefeuille', { params });
+      return { statut: true, data: response.data?.data };
+    } catch (error: any) {
+      console.error('Erreur obtenirPortefeuille:', error.message);
+      return {
+        statut: false,
+        message: error.response?.data?.message || 'Erreur',
+        data: null,
+      };
+    }
+  },
 };

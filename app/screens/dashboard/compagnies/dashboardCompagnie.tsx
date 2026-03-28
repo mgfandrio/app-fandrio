@@ -24,6 +24,7 @@ import { RenderVoitures } from '../../../components/renders/voitures/RenderVoitu
 import { RenderPaiements } from '../../../components/renders/paiements/RenderPaiements';
 import { RenderReservations } from '../../../components/renders/reservations/RenderReservations';
 import { RenderFactures } from '../../../components/renders/factures/RenderFactures';
+import { RenderPortefeuille } from '../../../components/renders/portefeuille/RenderPortefeuille';
 import { RenderVoyages } from '../../../components/RenderVoyages';
 import { useNotifications } from '../../../hooks/useNotifications';
 import { logoService } from '../../../services/compagnies/logoService';
@@ -203,7 +204,14 @@ export default function DashboardCompagnie() {
         { key: 'dashboard', label: 'Dashboard', icon: 'grid', activeIcon: 'grid' },
         { key: 'voyages', label: 'Voyages', icon: 'navigate-outline', activeIcon: 'navigate' },
         { key: 'reservations', label: 'Réservations', icon: 'ticket-outline', activeIcon: 'ticket' },
+      ],
+    },
+    {
+      title: 'FINANCES',
+      items: [
+        { key: 'portefeuille', label: 'Portefeuille', icon: 'wallet-outline', activeIcon: 'wallet' },
         { key: 'factures', label: 'Factures', icon: 'receipt-outline', activeIcon: 'receipt' },
+        { key: 'paiements', label: 'Paiements', icon: 'card-outline', activeIcon: 'card' },
       ],
     },
     {
@@ -212,7 +220,6 @@ export default function DashboardCompagnie() {
         { key: 'chauffeurs', label: 'Chauffeurs', icon: 'people-outline', activeIcon: 'people' },
         { key: 'voitures', label: 'Voitures', icon: 'car-outline', activeIcon: 'car' },
         { key: 'trajets', label: 'Trajets', icon: 'map-outline', activeIcon: 'map' },
-        { key: 'paiements', label: 'Paiements', icon: 'card-outline', activeIcon: 'card' },
       ],
     },
     {
@@ -420,10 +427,10 @@ export default function DashboardCompagnie() {
           {[
             { key: 'voyages', label: 'Voyages', icon: 'navigate', color: '#8b5cf6', bg: '#ede9fe' },
             { key: 'reservations', label: 'Réservations', icon: 'ticket', color: '#3b82f6', bg: '#dbeafe' },
+            { key: 'portefeuille', label: 'Portefeuille', icon: 'wallet', color: '#0d9488', bg: '#ccfbf1' },
             { key: 'factures', label: 'Factures', icon: 'receipt', color: '#10b981', bg: '#d1fae5' },
             { key: 'scanner', label: 'Scanner QR', icon: 'qr-code', color: '#f59e0b', bg: '#fef3c7' },
             { key: 'chauffeurs', label: 'Chauffeurs', icon: 'people', color: '#6366f1', bg: '#e0e7ff' },
-            { key: 'voitures', label: 'Voitures', icon: 'car', color: '#ec4899', bg: '#fce7f3' },
           ].map((item) => (
             <TouchableOpacity
               key={item.key}
@@ -597,6 +604,7 @@ export default function DashboardCompagnie() {
              activeTab === 'reservations' ? 'Réservations' :
              activeTab === 'factures' ? 'Factures' :
              activeTab === 'paiements' ? 'Paiements' :
+             activeTab === 'portefeuille' ? 'Portefeuille' :
              activeTab === 'settings' ? 'Paramètres' : ''}
           </Text>
         </View>
@@ -641,6 +649,7 @@ export default function DashboardCompagnie() {
           {activeTab === 'reservations' && <RenderReservations />}
           {activeTab === 'factures' && <RenderFactures />}
           {activeTab === 'paiements' && <RenderPaiements />}
+          {activeTab === 'portefeuille' && <RenderPortefeuille />}
           {activeTab === 'settings' && renderSettings()}
         </View>
 
