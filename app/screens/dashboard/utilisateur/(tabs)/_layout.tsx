@@ -3,9 +3,11 @@ import React from 'react';
 import { View, Platform } from 'react-native';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { UserProvider } from '@/app/hooks/useUser';
 
 export default function TabsLayout() {
   return (
+    <UserProvider>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -95,5 +97,6 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+    </UserProvider>
   );
 }

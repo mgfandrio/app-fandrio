@@ -7,6 +7,7 @@ import { DashboardHeader } from '@/app/components/dashboard/DashboardHeader';
 import { SideMenu } from '@/app/components/dashboard/SideMenu';
 import { compagnieService } from '@/app/services/compagnies/compagnieService';
 import { useNotifications } from '@/app/hooks/useNotifications';
+import { useUser } from '@/app/hooks/useUser';
 import { Ionicons } from '@expo/vector-icons';
 import RechercheFilterModal from '@/app/components/modals/recherche/RechercheFilterModal';
 import { useRouter } from 'expo-router';
@@ -19,7 +20,7 @@ const MENU_ITEMS = [
 ];
 
 export default function CompagnieScreen() {
-  const [user, setUser] = useState<any | null>(null);
+  const { user } = useUser();
   const [menuVisible, setMenuVisible] = useState(false);
   const [compagnies, setCompagnies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,14 +32,6 @@ export default function CompagnieScreen() {
   const { unreadCount } = useNotifications();
 
   useEffect(() => {
-    (async () => {
-      try {
-        const userJson = await SecureStore.getItemAsync('fandrioUser');
-        if (userJson) setUser(JSON.parse(userJson));
-      } catch (e) {
-        console.warn('SecureStore read error', e);
-      }
-    })();
     fetchCompagnies();
   }, []);
 

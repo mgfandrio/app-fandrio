@@ -12,6 +12,7 @@ import RechercheFilterModal from '@/app/components/modals/recherche/RechercheFil
 import { DashboardHeader } from '@/app/components/dashboard/DashboardHeader';
 import { SideMenu } from '@/app/components/dashboard/SideMenu';
 import { useNotifications } from '@/app/hooks/useNotifications';
+import { useUser } from '@/app/hooks/useUser';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
@@ -32,7 +33,7 @@ const MENU_ITEMS = [
 
 export default function AccueilScreen() {
   const router = useRouter();
-  const [user, setUser] = useState<any | null>(null);
+  const { user } = useUser();
   const [menuVisible, setMenuVisible] = useState(false);
   const [compagnies, setCompagnies] = useState<any[]>([]);
   const [voyages, setVoyages] = useState<any[]>([]);
@@ -91,14 +92,6 @@ export default function AccueilScreen() {
   };
 
   useEffect(() => {
-    (async () => {
-      try {
-        const userJson = await SecureStore.getItemAsync('fandrioUser');
-        if (userJson) setUser(JSON.parse(userJson));
-      } catch (e) {
-        console.warn('SecureStore read error', e);
-      }
-    })();
     fetchData();
   }, []);
 

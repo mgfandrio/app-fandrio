@@ -9,6 +9,7 @@ import { DashboardHeader } from '@/app/components/dashboard/DashboardHeader';
 import { SideMenu } from '@/app/components/dashboard/SideMenu';
 import { reservationService } from '@/app/services/reservations/reservationService';
 import { useNotifications } from '@/app/hooks/useNotifications';
+import { useUser } from '@/app/hooks/useUser';
 
 export default function ReservationScreen() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function ReservationScreen() {
     { label: 'Paramètre', icon: 'settings-outline' },
   ];
 
-  const [user, setUser] = useState<any | null>(null);
+  const { user } = useUser();
   const [menuVisible, setMenuVisible] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [loading, setLoading] = useState(true);
@@ -37,18 +38,7 @@ export default function ReservationScreen() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [userJson, dashResp] = await Promise.all([
-        SecureStore.getItemAsync('fandrioUser'),
-        reservationService.obtenirDashboard()
-      ]);
-
-      if (userJson) {
-        try {
-          setUser(JSON.parse(userJson));
-        } catch (parseErr) {
-          console.warn('Error parsing user JSON:', parseErr);
-        }
-      }
+      const dashResp = await reservationService.obtenirDashboard();
 
       if (dashResp && dashResp.statut) {
         setDashboardData(dashResp.data);

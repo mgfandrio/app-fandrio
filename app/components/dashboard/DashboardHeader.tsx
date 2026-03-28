@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, TextInput, Pressable } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Pressable, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EdgeInsets } from 'react-native-safe-area-context';
@@ -63,18 +63,27 @@ export const DashboardHeader = ({
                             {/* Avatar with gradient ring */}
                             <View className="rounded-full p-0.5 mr-3" style={{ backgroundColor: 'rgba(255,255,255,0.3)' }}>
                                 <View className="w-13 h-13 rounded-full overflow-hidden" style={{ width: 50, height: 50 }}>
+                                    {user?.photo ? (
+                                        <Image
+                                            source={{ uri: user.photo }}
+                                            style={{ width: 50, height: 50 }}
+                                            className="rounded-full"
+                                            resizeMode="cover"
+                                        />
+                                    ) : (
                                     <LinearGradient
                                         colors={['#3b82f6', '#60a5fa']}
                                         className="w-full h-full items-center justify-center"
                                     >
                                         <Text className="text-white font-bold text-lg">{initials}</Text>
                                     </LinearGradient>
+                                    )}
                                 </View>
                             </View>
                             <View className="flex-1">
                                 <Text className="text-blue-200 text-sm">{greeting} 👋</Text>
                                 <Text className="text-white font-bold text-lg" numberOfLines={1}>
-                                    {user?.prenom || ''} {user?.nom?.toUpperCase() || ''}
+                                    {user?.prenom || ''}
                                 </Text>
                             </View>
                         </View>

@@ -25,7 +25,7 @@ class AuthService {
    */
   async getMoi(): Promise<{ statut: boolean; data?: UtilisateurMoi; message?: string }> {
     try {
-      const response = await apiClient.get<MoiResponse>('/moi');
+      const response = await apiClient.get<MoiResponse>('/api/moi');
       
       if (response.data.statut && response.data.utilisateur) {
         return {
@@ -51,7 +51,7 @@ class AuthService {
    */
   async deconnexion(): Promise<ApiResponse<null> | ApiError> {
     try {
-      const response = await apiClient.post<ApiResponse<null>>('/deconnexion');
+      const response = await apiClient.post<ApiResponse<null>>('/api/deconnexion');
       return response.data;
     } catch (error: any) {
       return {
@@ -66,7 +66,7 @@ class AuthService {
    */
   async rafraichirToken(): Promise<ApiResponse<{ token: string }> | ApiError> {
     try {
-      const response = await apiClient.post<ApiResponse<{ token: string }>>('/rafraichir-token');
+      const response = await apiClient.post<ApiResponse<{ token: string }>>('/api/rafraichir-token');
       return response.data;
     } catch (error: any) {
       return {

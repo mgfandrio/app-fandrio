@@ -21,9 +21,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import authService, { UtilisateurMoi } from '@/app/services/auth/authService';
 import { profilService } from '@/app/services/profil/profilService';
+import { useUser } from '@/app/hooks/useUser';
 
 export default function CompteScreen() {
   const router = useRouter();
+  const { setUser: setContextUser, updateUser: updateContextUser } = useUser();
   const [utilisateur, setUtilisateur] = useState<(UtilisateurMoi & { photo?: string | null }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -58,10 +60,22 @@ export default function CompteScreen() {
       const response = await authService.getMoi();
       if (response.statut && response.data) {
         setUtilisateur(response.data as any);
-        await SecureStore.setItemAsync('fandrioUser', JSON.stringify(response.data));
+        setContextUser(response.data as any);
+        setLoading(false);
+        return;
       }
     } catch (e) {
       console.error('Erreur chargement profil:', e);
+    }
+
+    // Fallback : charger depuis le cache local si l'API est injoignable
+    try {
+      const cached = await SecureStore.getItemAsync('fandrioUser');
+      if (cached) {
+        setUtilisateur(JSON.parse(cached));
+      }
+    } catch (e) {
+      console.error('Erreur lecture cache profil:', e);
     } finally {
       setLoading(false);
     }
@@ -102,13 +116,7 @@ export default function CompteScreen() {
 
       if (response.statut) {
         setUtilisateur(prev => prev ? { ...prev, photo: response.data.photo_url } : prev);
-        // Mettre à jour le cache
-        const cached = await SecureStore.getItemAsync('fandrioUser');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          parsed.photo = response.data.photo_url;
-          await SecureStore.setItemAsync('fandrioUser', JSON.stringify(parsed));
-        }
+        updateContextUser({ photo: response.data.photo_url });
         Alert.alert('Succès', 'Photo de profil mise à jour !');
       }
     } catch (e: any) {
@@ -128,12 +136,7 @@ export default function CompteScreen() {
             const response = await profilService.deletePhoto();
             if (response.statut) {
               setUtilisateur(prev => prev ? { ...prev, photo: null } : prev);
-              const cached = await SecureStore.getItemAsync('fandrioUser');
-              if (cached) {
-                const parsed = JSON.parse(cached);
-                parsed.photo = null;
-                await SecureStore.setItemAsync('fandrioUser', JSON.stringify(parsed));
-              }
+              updateContextUser({ photo: null });
             }
           } catch (e: any) {
             Alert.alert('Erreur', e?.message || 'Impossible de supprimer la photo.');
@@ -173,14 +176,16 @@ export default function CompteScreen() {
       const response = await profilService.updateProfil(data);
       if (response.statut && response.utilisateur) {
         setUtilisateur(response.utilisateur);
-        await SecureStore.setItemAsync('fandrioUser', JSON.stringify(response.utilisateur));
+        setContextUser(response.utilisateur as any);
         Alert.alert('Succès', 'Informations mises à jour !');
         setEditModalVisible(false);
       } else {
         Alert.alert('Erreur', response.message || 'Erreur de mise à jour');
       }
     } catch (e: any) {
-      const msg = e?.erreurs ? Object.values(e.erreurs).flat().join('\n') : (e?.message || 'Erreur');
+      const msg = e?.erreurs && Object.keys(e.erreurs).length > 0
+        ? Object.values(e.erreurs).flat().join('\n')
+        : (e?.message || 'Erreur de mise à jour');
       Alert.alert('Erreur', msg);
     } finally {
       setEditLoading(false);

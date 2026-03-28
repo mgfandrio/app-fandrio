@@ -18,7 +18,7 @@ export const profilService = {
      * Met à jour les informations du profil
      */
     updateProfil: async (data: UpdateProfilData) => {
-        const response = await apiClient.put('/profil', data);
+        const response = await apiClient.put('/api/profil', data);
         return response.data;
     },
 
@@ -26,7 +26,7 @@ export const profilService = {
      * Change le mot de passe
      */
     changerMotDePasse: async (data: ChangePasswordData) => {
-        const response = await apiClient.put('/profil/mot-de-passe', data);
+        const response = await apiClient.put('/api/profil/mot-de-passe', data);
         return response.data;
     },
 
@@ -45,7 +45,7 @@ export const profilService = {
             type,
         } as any);
 
-        const response = await apiClient.post('/profil/photo', formData, {
+        const response = await apiClient.post('/api/profil/photo', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
             timeout: 60000,
         });
@@ -56,7 +56,7 @@ export const profilService = {
      * Supprime la photo de profil
      */
     deletePhoto: async () => {
-        const response = await apiClient.delete('/profil/photo');
+        const response = await apiClient.delete('/api/profil/photo');
         return response.data;
     },
 };
