@@ -15,6 +15,7 @@ import { RenderCompagnies } from '../../../components/renders/compagnies/RenderC
 import { RenderDashboard } from '../../../components/renders/dashboard/RenderDashbord';
 import { RenderProvinces } from '../../../components/renders/provinces/RenderProvinces';
 import { RenderUsers } from '../../../components/renders/utilisateurs/RenderUsers';
+import { RenderCommissions } from '../../../components/renders/commissions/RenderCommissions';
 
 export default function DashboardSys() {
   const router = useRouter();
@@ -140,120 +141,45 @@ export default function DashboardSys() {
       <DialogComponent />
       {/* Content */}
       <View className="flex-1">
-        {activeTab === 'dashboard' && <RenderDashboard />}
+        {activeTab === 'dashboard' && <RenderDashboard onNavigate={setActiveTab} />}
         {activeTab === 'users' && <RenderUsers />}
         {activeTab === 'companies' && <RenderCompagnies />}
+        {activeTab === 'commissions' && <RenderCommissions />}
         {activeTab === 'provinces' && <RenderProvinces />}
         {activeTab === 'settings' && renderSettings()}
       </View>
 
       {/* Bottom Navigation */}
       <SafeAreaView edges={['bottom']} className="bg-white border-t border-gray-200 shadow-lg">
-        <View className="flex-row justify-around items-center px-4 py-2">
-          {/* Dashboard */}
-          <TouchableOpacity
-            className={`items-center justify-center py-2 px-6 rounded-xl ${
-              activeTab === 'dashboard' ? 'bg-blue-500' : ''
-            }`}
-            onPress={() => setActiveTab('dashboard')}
-          >
-            <Ionicons
-              name={activeTab === 'dashboard' ? 'home' : 'home-outline'}
-              size={24}
-              color={activeTab === 'dashboard' ? '#fff' : '#9ca3af'}
-            />
-            <Text
-              className={`text-xs mt-1 ${
-                activeTab === 'dashboard' ? 'text-white font-semibold' : 'text-gray-400'
-              }`}
-            >
-              Dashboard
-            </Text>
-          </TouchableOpacity>
-
-          {/* Utilisateurs */}
-          <TouchableOpacity
-            className={`items-center justify-center py-2 px-6 rounded-xl ${
-              activeTab === 'users' ? 'bg-blue-500' : ''
-            }`}
-            onPress={() => setActiveTab('users')}
-          >
-            <Ionicons
-              name={activeTab === 'users' ? 'people' : 'people-outline'}
-              size={24}
-              color={activeTab === 'users' ? '#fff' : '#9ca3af'}
-            />
-            <Text
-              className={`text-xs mt-1 ${
-                activeTab === 'users' ? 'text-white font-semibold' : 'text-gray-400'
-              }`}
-            >
-              Utilisateurs
-            </Text>
-          </TouchableOpacity>
-
-          {/* Compagnies */}
-          <TouchableOpacity
-            className={`items-center justify-center py-2 px-3 rounded-xl ${
-              activeTab === 'companies' ? 'bg-blue-500' : ''
-            }`}
-            onPress={() => setActiveTab('companies')}
-          >
-            <Ionicons
-              name={activeTab === 'companies' ? 'business' : 'business-outline'}
-              size={24}
-              color={activeTab === 'companies' ? '#fff' : '#9ca3af'}
-            />
-            <Text
-              className={`text-xs mt-1 ${
-                activeTab === 'companies' ? 'text-white font-semibold' : 'text-gray-400'
-              }`}
-            >
-              Compagnies
-            </Text>
-          </TouchableOpacity>
-
-          {/* Provinces */}
-          <TouchableOpacity
-            className={`items-center justify-center py-2 px-3 rounded-xl ${
-              activeTab === 'provinces' ? 'bg-blue-500' : ''
-            }`}
-            onPress={() => setActiveTab('provinces')}
-          >
-            <Ionicons
-              name={activeTab === 'provinces' ? 'map' : 'map-outline'}
-              size={24}
-              color={activeTab === 'provinces' ? '#fff' : '#9ca3af'}
-            />
-            <Text
-              className={`text-xs mt-1 ${
-                activeTab === 'provinces' ? 'text-white font-semibold' : 'text-gray-400'
-              }`}
-            >
-              Provinces
-            </Text>
-          </TouchableOpacity>
-
-          {/* Paramètres */}
-          <TouchableOpacity
-            className={`items-center justify-center py-2 px-4 rounded-xl ${
-              activeTab === 'settings' ? 'bg-blue-500' : ''
-            }`}
-            onPress={() => setActiveTab('settings')}
-          >
-            <Ionicons
-              name={activeTab === 'settings' ? 'settings' : 'settings-outline'}
-              size={24}
-              color={activeTab === 'settings' ? '#fff' : '#9ca3af'}
-            />
-            <Text
-              className={`text-xs mt-1 ${
-                activeTab === 'settings' ? 'text-white font-semibold' : 'text-gray-400'
-              }`}
-            >
-              Paramètres
-            </Text>
-          </TouchableOpacity>
+        <View className="flex-row items-center px-2 py-2">
+          {[
+            { key: 'dashboard', label: 'Dashboard', icon: 'home' },
+            { key: 'users', label: 'Utilisateurs', icon: 'people' },
+            { key: 'companies', label: 'Compagnies', icon: 'business' },
+            { key: 'provinces', label: 'Provinces', icon: 'map' },
+            { key: 'settings', label: 'Paramètres', icon: 'settings' },
+          ].map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                className={`flex-1 items-center justify-center py-2 rounded-xl ${isActive ? 'bg-blue-500' : ''}`}
+                onPress={() => setActiveTab(tab.key)}
+              >
+                <Ionicons
+                  name={(isActive ? tab.icon : `${tab.icon}-outline`) as any}
+                  size={22}
+                  color={isActive ? '#fff' : '#9ca3af'}
+                />
+                <Text
+                  className={`text-xs mt-0.5 ${isActive ? 'text-white font-semibold' : 'text-gray-400'}`}
+                  numberOfLines={1}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </SafeAreaView>
     </SafeAreaView>

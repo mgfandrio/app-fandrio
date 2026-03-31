@@ -85,6 +85,8 @@ export const CompagnieFormModal: React.FC<Props> = ({
       admin_mot_de_passe: '',
       comp_localisation: undefined,
       modes_paiement: [],
+      comm_frequence_collecte: 'mensuelle',
+      comm_jour_collecte: '',
     });
     setSelectedProvinces([]);
   };
@@ -173,6 +175,8 @@ export const CompagnieFormModal: React.FC<Props> = ({
         comp_email: compagnie.email,
         comp_adresse: compagnie.adresse,
         comp_localisation: compagnie.localisation?.id,
+        comm_frequence_collecte: compagnie.frequence_collecte || 'mensuelle',
+        comm_jour_collecte: compagnie.jour_collecte || '',
         modes_paiement: [], // Will be updated below
       });
       // Charger les provinces déjà sélectionnées
@@ -257,6 +261,8 @@ export const CompagnieFormModal: React.FC<Props> = ({
         comp_localisation: formData.comp_localisation!,
         provinces_desservies: selectedProvinces.length > 0 ? selectedProvinces : undefined,
         modes_paiement: formData.modes_paiement,
+        comm_frequence_collecte: formData.comm_frequence_collecte,
+        comm_jour_collecte: formData.comm_jour_collecte,
       };
 
       const response = await compagnieService.mettreAJourCompagnie(compagnieId, updateData);
@@ -593,6 +599,104 @@ export const CompagnieFormModal: React.FC<Props> = ({
                     </View>
                   );
                 })}
+              </View>
+            </View>
+
+            {/* Fréquence de collecte des commissions */}
+            <View className="mb-4">
+              <Text className="text-gray-900 font-bold text-base mb-3">
+                Fréquence de collecte des commissions
+              </Text>
+              <View className="bg-gray-50 border border-gray-300 rounded-xl p-3">
+                <Text className="text-gray-500 text-xs mb-3">
+                  Définit la périodicité de calcul des commissions pour cette compagnie
+                </Text>
+                <View className="flex-row gap-3">
+                  {[
+                    { value: 'mensuelle', label: 'Mensuelle', icon: 'calendar' as const },
+                    { value: 'hebdomadaire', label: 'Hebdomadaire', icon: 'time' as const },
+                  ].map((option) => {
+                    const isSelected = formData.comm_frequence_collecte === option.value;
+                    return (
+                      <TouchableOpacity
+                        key={option.value}
+                        className={`flex-1 flex-row items-center justify-center py-3 rounded-xl border ${
+                          isSelected
+                            ? 'bg-blue-500 border-blue-500'
+                            : 'bg-white border-gray-300'
+                        }`}
+                        onPress={() =>
+                          setFormData({ ...formData, comm_frequence_collecte: option.value })
+                        }
+                        disabled={loading}
+                      >
+                        <Ionicons
+                          name={option.icon}
+                          size={18}
+                          color={isSelected ? '#fff' : '#6b7280'}
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text
+                          className={`text-sm font-semibold ${
+                            isSelected ? 'text-white' : 'text-gray-700'
+                          }`}
+                        >
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Jour de collecte */}
+                <View className="mt-3">
+                  <Text className="text-gray-500 text-xs mb-2">
+                    {formData.comm_frequence_collecte === 'hebdomadaire'
+                      ? 'Jour de collecte chaque semaine'
+                      : 'Date de collecte chaque mois (1-28)'}
+                  </Text>
+                  {formData.comm_frequence_collecte === 'hebdomadaire' ? (
+                    <View className="flex-row flex-wrap gap-1.5">
+                      {['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'].map((jour) => {
+                        const isJourSelected = formData.comm_jour_collecte === jour;
+                        return (
+                          <TouchableOpacity
+                            key={jour}
+                            className={`px-3 py-2 rounded-lg border ${
+                              isJourSelected ? 'bg-green-600 border-green-600' : 'bg-white border-gray-300'
+                            }`}
+                            onPress={() => setFormData({ ...formData, comm_jour_collecte: jour })}
+                            disabled={loading}
+                          >
+                            <Text className={`text-xs font-semibold capitalize ${isJourSelected ? 'text-white' : 'text-gray-600'}`}>
+                              {jour.slice(0, 3)}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  ) : (
+                    <View className="flex-row flex-wrap gap-1.5">
+                      {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => {
+                        const isDateSelected = formData.comm_jour_collecte === String(d);
+                        return (
+                          <TouchableOpacity
+                            key={d}
+                            className={`w-9 h-9 rounded-lg items-center justify-center border ${
+                              isDateSelected ? 'bg-green-600 border-green-600' : 'bg-white border-gray-200'
+                            }`}
+                            onPress={() => setFormData({ ...formData, comm_jour_collecte: String(d) })}
+                            disabled={loading}
+                          >
+                            <Text className={`text-xs font-semibold ${isDateSelected ? 'text-white' : 'text-gray-600'}`}>
+                              {d}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
               </View>
             </View>
 

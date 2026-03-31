@@ -6,13 +6,18 @@ import {
   RefreshControl,
   ScrollView,
   Text,
+  TouchableOpacity,
   View
 } from 'react-native';
 import compagnieService from '../../../services/compagnies/compagnieService';
 import provinceService from '../../../services/provinces/provinceService';
 import utilisateurService from '../../../services/utilisateurs/utilisateurService';
 
-export const RenderDashboard = () => {
+interface RenderDashboardProps {
+  onNavigate?: (tab: string) => void;
+}
+
+export const RenderDashboard = ({ onNavigate }: RenderDashboardProps) => {
     const [user, setUser] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -259,6 +264,24 @@ export const RenderDashboard = () => {
           </View>
         </View>
       </View>
+
+      {/* Accès rapide Commissions */}
+      <TouchableOpacity
+        className="mx-4 mb-6 bg-gradient-to-r rounded-2xl overflow-hidden"
+        onPress={() => onNavigate?.('commissions')}
+        activeOpacity={0.7}
+      >
+        <View className="bg-green-600 rounded-2xl p-5 flex-row items-center">
+          <View className="bg-white/20 rounded-xl p-3 mr-4">
+            <Ionicons name="cash" size={28} color="#fff" />
+          </View>
+          <View className="flex-1">
+            <Text className="text-white text-lg font-bold">Commissions</Text>
+            <Text className="text-green-100 text-sm mt-0.5">Gérer les commissions des compagnies</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color="#fff" />
+        </View>
+      </TouchableOpacity>
       </ScrollView>
     );
   }

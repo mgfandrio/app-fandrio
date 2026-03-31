@@ -89,6 +89,8 @@ export interface CompagnieFormData {
   comp_localisation: number;
   provinces_desservies?: number[];
   modes_paiement?: (number | ModePaiementDetail)[];
+  comm_frequence_collecte?: string;
+  comm_jour_collecte?: string;
   admin_nom: string;
   admin_prenom: string;
   admin_email: string;
@@ -107,5 +109,7 @@ export interface CompagnieUpdateData {
   comp_localisation: number;
   provinces_desservies?: number[];
   modes_paiement?: (number | ModePaiementDetail)[];
+  comm_frequence_collecte?: string;
+  comm_jour_collecte?: string;
 }
 
