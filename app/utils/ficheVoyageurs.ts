@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system/next';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as SecureStore from 'expo-secure-store';
@@ -183,8 +183,11 @@ export const genererFicheVoyageurs = async (voyage: any): Promise<void> => {
     });
 
     // Renommer le fichier avec le bon nom
-    const finalUri = `${FileSystem.cacheDirectory}${fileName}`;
-    await FileSystem.moveAsync({ from: tempUri, to: finalUri });
+    const tempFile = new File(tempUri);
+    const parentDir = tempFile.parentDirectory;
+    const finalFile = new File(parentDir, fileName);
+    tempFile.move(finalFile);
+    const finalUri = finalFile.uri;
 
     // 4. Partager le fichier
     if (Platform.OS === 'web') {

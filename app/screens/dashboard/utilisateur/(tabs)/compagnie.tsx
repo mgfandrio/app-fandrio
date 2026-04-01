@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Image, TouchableOpacity, RefreshControl, TextInput } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, Image, TouchableOpacity, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,7 +9,6 @@ import { compagnieService } from '@/app/services/compagnies/compagnieService';
 import { useNotifications } from '@/app/hooks/useNotifications';
 import { useUser } from '@/app/hooks/useUser';
 import { Ionicons } from '@expo/vector-icons';
-import RechercheFilterModal from '@/app/components/modals/recherche/RechercheFilterModal';
 import { useRouter } from 'expo-router';
 
 const MENU_ITEMS = [
@@ -25,7 +24,6 @@ export default function CompagnieScreen() {
   const [compagnies, setCompagnies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -69,8 +67,11 @@ export default function CompagnieScreen() {
         user={user}
         insets={insets}
         onMenuPress={() => setMenuVisible(true)}
-        onFilterPress={() => setShowSearchModal(true)}
+        onFilterPress={() => setSearchQuery('')}
         searchPlaceholder="Rechercher une compagnie..."
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        onResetPress={searchQuery ? () => setSearchQuery('') : undefined}
         notificationCount={unreadCount}
       />
 
@@ -97,25 +98,6 @@ export default function CompagnieScreen() {
               </View>
             </View>
           </LinearGradient>
-        </View>
-
-        {/* Search bar */}
-        <View className="mx-5 mb-4">
-          <View className="flex-row items-center bg-white rounded-xl px-4 py-3" style={{ elevation: 2 }}>
-            <Ionicons name="search" size={18} color="#94a3b8" />
-            <TextInput
-              className="flex-1 ml-3 text-slate-700 text-sm"
-              placeholder="Rechercher par nom ou localisation..."
-              placeholderTextColor="#94a3b8"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={18} color="#94a3b8" />
-              </TouchableOpacity>
-            )}
-          </View>
         </View>
 
         {/* Company list */}
@@ -212,13 +194,6 @@ export default function CompagnieScreen() {
         visible={menuVisible}
         onClose={() => setMenuVisible(false)}
         items={MENU_ITEMS}
-      />
-
-      <RechercheFilterModal
-        visible={showSearchModal}
-        onClose={() => setShowSearchModal(false)}
-        onApply={() => { }}
-        setLoading={setLoading}
       />
     </View>
   );

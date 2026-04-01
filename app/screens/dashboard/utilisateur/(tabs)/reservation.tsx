@@ -112,13 +112,23 @@ export default function ReservationScreen() {
   const stats = dashboardData?.stats || {};
   const historique = Array.isArray(dashboardData?.historique) ? dashboardData.historique : [];
 
+  // Filtrer l'historique par date sélectionnée
+  const filteredHistorique = searchValue.trim()
+    ? historique.filter((res: any) => {
+        if (!res?.date) return false;
+        // searchValue = "DD-MM-YYYY", res.date = "DD/MM/YYYY"
+        const normalized = searchValue.replace(/-/g, '/');
+        return res.date === normalized;
+      })
+    : historique;
+
   return (
     <View className="flex-1 bg-gray-50">
       <DashboardHeader
         user={user}
         insets={insets}
         onMenuPress={() => setMenuVisible(true)}
-        onFilterPress={() => { }}
+        onFilterPress={handleDateSelect}
         searchPlaceholder="Sélectionner une date"
         searchValue={searchValue}
         onSearchChange={setSearchValue}
@@ -211,12 +221,12 @@ export default function ReservationScreen() {
               </TouchableOpacity>
             </View>
 
-            {historique.length === 0 ? (
+            {filteredHistorique.length === 0 ? (
               <View className="bg-white rounded-3xl p-8 items-center justify-center border border-dashed border-gray-200">
-                <Text className="text-gray-400 text-sm">Aucune réservation récente</Text>
+                <Text className="text-gray-400 text-sm">{searchValue ? 'Aucune réservation pour cette date' : 'Aucune réservation récente'}</Text>
               </View>
             ) : (
-              historique.map((res: any, index: number) => (
+              filteredHistorique.map((res: any, index: number) => (
                 <View key={res?.id || index} className="bg-white rounded-3xl p-5 mb-4 shadow-sm border border-gray-100">
                   <View className="flex-row justify-between items-start mb-3">
                     <View className="flex-1">

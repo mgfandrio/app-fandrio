@@ -83,8 +83,11 @@ export default function RechercheFilterModal({ visible, onClose, onApply, setLoa
             });
 
             const res = await voyageService.rechercherVoyages(criteres);
-            if (res && 'statut' in res && res.statut) {
-                onApply((res as any).data);
+            if (res && res.statut) {
+                const data = res.data;
+                // Extraire le tableau de voyages depuis la réponse
+                const voyages = data?.voyages || (Array.isArray(data) ? data : []);
+                onApply(voyages);
             }
         } catch (error) {
             console.error('Search error:', error);

@@ -9,6 +9,7 @@ import { compagnieService } from '@/app/services/compagnies/compagnieService';
 import { voyageService } from '@/app/services/voyages/voyageService';
 import { provinceService } from '@/app/services/provinces/provinceService';
 import RechercheFilterModal from '@/app/components/modals/recherche/RechercheFilterModal';
+import DestinationSearchModal from '@/app/components/modals/recherche/DestinationSearchModal';
 import { DashboardHeader } from '@/app/components/dashboard/DashboardHeader';
 import { SideMenu } from '@/app/components/dashboard/SideMenu';
 import { useNotifications } from '@/app/hooks/useNotifications';
@@ -42,6 +43,8 @@ export default function AccueilScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [provinces, setProvinces] = useState<any[]>([]);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [isSearchMode, setIsSearchMode] = useState(false);
+  const [showDestinationModal, setShowDestinationModal] = useState(false);
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { unreadCount } = useNotifications();
@@ -97,6 +100,7 @@ export default function AccueilScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    setIsSearchMode(false);
     await fetchData();
     setRefreshing(false);
   };
@@ -126,6 +130,7 @@ export default function AccueilScreen() {
         insets={insets}
         onMenuPress={() => setMenuVisible(true)}
         onFilterPress={() => setShowSearchModal(true)}
+        onSearchPress={() => setShowDestinationModal(true)}
         notificationCount={unreadCount}
       />
 
@@ -136,28 +141,71 @@ export default function AccueilScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />}
       >
         {/* Quick Actions */}
-        <View className="px-5 mt-6 mb-2">
-          <View className="flex-row justify-between">
-            {QUICK_ACTIONS.map((action) => (
-              <TouchableOpacity
-                key={action.label}
-                className="items-center"
-                onPress={() => handleQuickAction(action.label)}
-                activeOpacity={0.7}
-                style={{ width: (width - 40) / 4 }}
-              >
-                <View className="rounded-2xl overflow-hidden mb-2" style={{ elevation: 3 }}>
-                  <LinearGradient colors={action.colors} className="p-3.5">
-                    <Ionicons name={action.icon as any} size={24} color="#fff" />
-                  </LinearGradient>
-                </View>
-                <Text className="text-slate-600 text-xs font-medium text-center">{action.label}</Text>
-              </TouchableOpacity>
-            ))}
+        {!isSearchMode && (
+          <View className="px-5 mt-6 mb-2">
+            <View className="flex-row justify-between">
+              {QUICK_ACTIONS.map((action) => (
+                <TouchableOpacity
+                  key={action.label}
+                  className="items-center"
+                  onPress={() => handleQuickAction(action.label)}
+                  activeOpacity={0.7}
+                  style={{ width: (width - 40) / 4 }}
+                >
+                  <View className="rounded-2xl overflow-hidden mb-2" style={{ elevation: 3 }}>
+                    <LinearGradient colors={action.colors} className="p-3.5">
+                      <Ionicons name={action.icon as any} size={24} color="#fff" />
+                    </LinearGradient>
+                  </View>
+                  <Text className="text-slate-600 text-xs font-medium text-center">{action.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
+
+        {/* Search Results Banner */}
+        {isSearchMode && (
+          <View className="px-5 mt-4 mb-2">
+            <View className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex-row items-center justify-between">
+              <View className="flex-row items-center flex-1">
+                <View className="bg-blue-100 rounded-full p-2 mr-3">
+                  <Ionicons name="search" size={18} color="#2563eb" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-blue-800 font-bold text-sm">Résultats de recherche</Text>
+                  <Text className="text-blue-500 text-xs mt-0.5">{voyages.length} voyage{voyages.length !== 1 ? 's' : ''} trouvé{voyages.length !== 1 ? 's' : ''}</Text>
+                </View>
+              </View>
+              <View className="flex-row items-center">
+                <TouchableOpacity
+                  className="mr-2"
+                  onPress={() => setShowSearchModal(true)}
+                  activeOpacity={0.7}
+                >
+                  <View className="bg-blue-100 rounded-xl px-3 py-2 flex-row items-center">
+                    <Ionicons name="options-outline" size={14} color="#2563eb" />
+                    <Text className="text-blue-700 text-xs font-semibold ml-1">Modifier</Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsSearchMode(false);
+                    fetchData();
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View className="bg-slate-100 rounded-xl p-2">
+                    <Ionicons name="close" size={16} color="#64748b" />
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Compagnies Section */}
+        {!isSearchMode && (
         <View className="mt-6 mb-2">
           <View className="flex-row justify-between items-center px-5 mb-4">
             <View>
@@ -255,18 +303,25 @@ export default function AccueilScreen() {
             )}
           </ScrollView>
         </View>
+        )}
 
         {/* Voyages à venir Section */}
         <View className="px-5 mt-6 mb-4">
           <View className="flex-row justify-between items-center mb-4">
             <View>
-              <Text className="text-slate-800 text-xl font-bold">Voyages à venir</Text>
-              <Text className="text-slate-400 text-xs mt-0.5">Prochains départs disponibles</Text>
+              <Text className="text-slate-800 text-xl font-bold">
+                {isSearchMode ? 'Voyages trouvés' : 'Voyages à venir'}
+              </Text>
+              <Text className="text-slate-400 text-xs mt-0.5">
+                {isSearchMode ? `${voyages.length} résultat${voyages.length !== 1 ? 's' : ''}` : 'Prochains départs disponibles'}
+              </Text>
             </View>
-            <TouchableOpacity className="flex-row items-center">
-              <Text className="text-blue-600 font-semibold text-sm mr-1">Voir tout</Text>
-              <Ionicons name="chevron-forward" size={16} color="#2563eb" />
-            </TouchableOpacity>
+            {!isSearchMode && (
+              <TouchableOpacity className="flex-row items-center">
+                <Text className="text-blue-600 font-semibold text-sm mr-1">Voir tout</Text>
+                <Ionicons name="chevron-forward" size={16} color="#2563eb" />
+              </TouchableOpacity>
+            )}
           </View>
 
           {loadingVoyages ? (
@@ -405,11 +460,24 @@ export default function AccueilScreen() {
         <View className="h-24" />
       </ScrollView>
 
+      {/* Destination Search Modal */}
+      <DestinationSearchModal
+        visible={showDestinationModal}
+        onClose={() => setShowDestinationModal(false)}
+        onResults={(results) => {
+          setVoyages(results);
+          setIsSearchMode(true);
+        }}
+      />
+
       {/* Advanced Search Modal */}
       <RechercheFilterModal
         visible={showSearchModal}
         onClose={() => setShowSearchModal(false)}
-        onApply={(results) => setVoyages(results)}
+        onApply={(results) => {
+          setVoyages(results);
+          setIsSearchMode(true);
+        }}
         setLoading={(loading) => setLoadingVoyages(loading)}
       />
 
