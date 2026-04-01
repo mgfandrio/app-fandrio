@@ -18,6 +18,7 @@ import {
   View
 } from 'react-native';
 import { useConfirmDialog } from '../../components/common/ConfirmDialog';
+import PostLoginSplash from '../../components/PostLoginSplash';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -26,6 +27,9 @@ export default function LoginScreen() {
   const [motDePasse, setMotDePasse] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showPostLoginSplash, setShowPostLoginSplash] = useState(false);
+  const [pendingRole, setPendingRole] = useState<number | null>(null);
+  const [loggedUserName, setLoggedUserName] = useState('');
   const [errors, setErrors] = useState({
     identifiant: '',
     motDePasse: '',
@@ -53,7 +57,9 @@ export default function LoginScreen() {
           const user = JSON.parse(userJson);
           const role = user?.role ?? null;
           if (role != null) {
-            redirectByRole(role);
+            setLoggedUserName(user?.prenom || '');
+            setPendingRole(Number(role));
+            setShowPostLoginSplash(true);
           }
         }
       } catch (e) {
@@ -144,7 +150,9 @@ export default function LoginScreen() {
 
         const role = utilisateur?.role ?? null;
         if (role != null) {
-          redirectByRole(role);
+          setLoggedUserName(utilisateur?.prenom || '');
+          setPendingRole(Number(role));
+          setShowPostLoginSplash(true);
         }
       } catch (e) {
         console.warn('SecureStore write error', e);
@@ -221,6 +229,18 @@ export default function LoginScreen() {
       setErrors(prev => ({ ...prev, motDePasse: '' }));
     }
   };
+
+  if (showPostLoginSplash && pendingRole != null) {
+    return (
+      <PostLoginSplash
+        userName={loggedUserName}
+        onFinish={() => {
+          setShowPostLoginSplash(false);
+          redirectByRole(pendingRole);
+        }}
+      />
+    );
+  }
 
   return (
     <LinearGradient
