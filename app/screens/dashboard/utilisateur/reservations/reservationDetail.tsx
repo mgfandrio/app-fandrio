@@ -142,7 +142,7 @@ export default function ReservationDetailScreen() {
                                 <Text className="text-white font-bold text-base">{voyage.depart}</Text>
                             </View>
                             <View className="mx-3 items-center">
-                                <Ionicons name="airplane-outline" size={20} color="#93c5fd" />
+                                <Ionicons name="arrow-forward" size={20} color="#93c5fd" />
                                 <View className="w-16 h-0.5 bg-blue-300/30 mt-1" />
                             </View>
                             <View className="flex-1 items-end">
