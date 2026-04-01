@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, Platform, TouchableOpacity, RefreshControl, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as SecureStore from 'expo-secure-store';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
@@ -27,8 +27,13 @@ export default function ReservationScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [dashboardData, setDashboardData] = useState<any>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [date, setDate] = useState(new Date());
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [showNativePicker, setShowNativePicker] = useState(false);
+  const [pickerTarget, setPickerTarget] = useState<'exact' | 'debut' | 'fin'>('exact');
+  const [dateMode, setDateMode] = useState<'exact' | 'range'>('exact');
+  const [dateExacte, setDateExacte] = useState<Date | null>(null);
+  const [dateDebut, setDateDebut] = useState<Date | null>(null);
+  const [dateFin, setDateFin] = useState<Date | null>(null);
   const [qrModalVisible, setQrModalVisible] = useState(false);
   const [qrLoading, setQrLoading] = useState(false);
   const [qrString, setQrString] = useState('');
@@ -56,7 +61,7 @@ export default function ReservationScreen() {
   }, [fetchData]);
 
   const handleDateSelect = useCallback(() => {
-    setShowDatePicker(true);
+    setShowDateModal(true);
   }, []);
 
   const openQrModal = async (resId: number) => {
@@ -81,16 +86,56 @@ export default function ReservationScreen() {
     }
   };
 
-  const handleDateChange = useCallback((event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      setDate(selectedDate);
-      const day = String(selectedDate.getDate()).padStart(2, '0');
-      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-      const year = selectedDate.getFullYear();
-      setSearchValue(`${day}-${month}-${year}`);
+  const formatDateDisplay = (d: Date) => {
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const handleNativeDateChange = useCallback((event: any, selectedDate?: Date) => {
+    setShowNativePicker(false);
+    if (!selectedDate) return;
+
+    if (pickerTarget === 'exact') {
+      setDateExacte(selectedDate);
+    } else if (pickerTarget === 'debut') {
+      setDateDebut(selectedDate);
+      // Si la date fin est avant la date début, la corriger
+      if (dateFin && selectedDate > dateFin) setDateFin(null);
+    } else if (pickerTarget === 'fin') {
+      setDateFin(selectedDate);
+      // Si la date début est après la date fin, la corriger
+      if (dateDebut && selectedDate < dateDebut) setDateDebut(null);
     }
-  }, []);
+  }, [pickerTarget, dateDebut, dateFin]);
+
+  const openNativePicker = (target: 'exact' | 'debut' | 'fin') => {
+    setPickerTarget(target);
+    setShowNativePicker(true);
+  };
+
+  const applyDateFilter = () => {
+    if (dateMode === 'exact' && dateExacte) {
+      setSearchValue(formatDateDisplay(dateExacte));
+    } else if (dateMode === 'range' && dateDebut && dateFin) {
+      setSearchValue(`${formatDateDisplay(dateDebut)} → ${formatDateDisplay(dateFin)}`);
+    } else if (dateMode === 'range' && dateDebut) {
+      setSearchValue(`À partir du ${formatDateDisplay(dateDebut)}`);
+    } else if (dateMode === 'range' && dateFin) {
+      setSearchValue(`Jusqu'au ${formatDateDisplay(dateFin)}`);
+    }
+    setShowDateModal(false);
+  };
+
+  const clearDateFilter = () => {
+    setSearchValue('');
+    setDateExacte(null);
+    setDateDebut(null);
+    setDateFin(null);
+    setDateMode('exact');
+    setShowDateModal(false);
+  };
 
   const formatMontant = (montant: any) => {
     try {
@@ -112,15 +157,35 @@ export default function ReservationScreen() {
   const stats = dashboardData?.stats || {};
   const historique = Array.isArray(dashboardData?.historique) ? dashboardData.historique : [];
 
-  // Filtrer l'historique par date sélectionnée
-  const filteredHistorique = searchValue.trim()
-    ? historique.filter((res: any) => {
+  // Filtrer l'historique par date sélectionnée (exacte ou plage)
+  const filteredHistorique = (() => {
+    if (!searchValue.trim()) return historique;
+
+    // Parser une date DD/MM/YYYY en objet comparable
+    const parseDate = (str: string) => {
+      const parts = str.split('/');
+      if (parts.length !== 3) return null;
+      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    };
+
+    if (dateMode === 'exact' && dateExacte) {
+      const target = formatDateDisplay(dateExacte);
+      return historique.filter((res: any) => res?.date === target);
+    }
+
+    if (dateMode === 'range') {
+      return historique.filter((res: any) => {
         if (!res?.date) return false;
-        // searchValue = "DD-MM-YYYY", res.date = "DD/MM/YYYY"
-        const normalized = searchValue.replace(/-/g, '/');
-        return res.date === normalized;
-      })
-    : historique;
+        const resDate = parseDate(res.date);
+        if (!resDate) return false;
+        if (dateDebut && resDate < new Date(dateDebut.getFullYear(), dateDebut.getMonth(), dateDebut.getDate())) return false;
+        if (dateFin && resDate > new Date(dateFin.getFullYear(), dateFin.getMonth(), dateFin.getDate())) return false;
+        return true;
+      });
+    }
+
+    return historique;
+  })();
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -129,29 +194,30 @@ export default function ReservationScreen() {
         insets={insets}
         onMenuPress={() => setMenuVisible(true)}
         onFilterPress={handleDateSelect}
-        searchPlaceholder="Sélectionner une date"
+        searchPlaceholder="Filtrer par date..."
         searchValue={searchValue}
-        onSearchChange={setSearchValue}
         onSearchPress={handleDateSelect}
-        onResetPress={() => {
-          setSearchValue('');
-          setDate(new Date());
-        }}
+        onResetPress={searchValue ? () => clearDateFilter() : undefined}
         searchIcon="calendar-outline"
         notificationCount={unreadCount}
       />
 
-      {showDatePicker && (() => {
+      {showNativePicker && (() => {
         try {
           const DateTimePicker = require('@react-native-community/datetimepicker').default;
+          const currentValue = pickerTarget === 'exact'
+            ? (dateExacte || new Date())
+            : pickerTarget === 'debut'
+              ? (dateDebut || new Date())
+              : (dateFin || new Date());
           return (
             <DateTimePicker
               testID="dateTimePicker"
-              value={date}
+              value={currentValue}
               mode="date"
               is24Hour={true}
               display="default"
-              onChange={handleDateChange}
+              onChange={handleNativeDateChange}
             />
           );
         } catch (e) {
@@ -159,6 +225,147 @@ export default function ReservationScreen() {
           return null;
         }
       })()}
+
+      {/* Modal de sélection de date */}
+      <Modal visible={showDateModal} transparent animationType="slide" onRequestClose={() => setShowDateModal(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingTop: 20, paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
+            {/* Header */}
+            <View className="flex-row justify-between items-center mb-5">
+              <Text style={{ color: '#1e3a8a', fontSize: 20, fontWeight: 'bold' }}>Filtrer par date</Text>
+              <TouchableOpacity onPress={() => setShowDateModal(false)} style={{ backgroundColor: '#f3f4f6', padding: 8, borderRadius: 20 }}>
+                <Ionicons name="close" size={22} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Mode switcher */}
+            <View className="flex-row bg-slate-100 rounded-2xl p-1 mb-6">
+              <TouchableOpacity
+                onPress={() => setDateMode('exact')}
+                className="flex-1 items-center rounded-xl py-3"
+                style={{ backgroundColor: dateMode === 'exact' ? '#ffffff' : 'transparent', elevation: dateMode === 'exact' ? 2 : 0 }}
+              >
+                <View className="flex-row items-center">
+                  <Ionicons name="calendar" size={16} color={dateMode === 'exact' ? '#1e3a8a' : '#94a3b8'} />
+                  <Text className="ml-1.5 font-semibold text-sm" style={{ color: dateMode === 'exact' ? '#1e3a8a' : '#94a3b8' }}>Date précise</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setDateMode('range')}
+                className="flex-1 items-center rounded-xl py-3"
+                style={{ backgroundColor: dateMode === 'range' ? '#ffffff' : 'transparent', elevation: dateMode === 'range' ? 2 : 0 }}
+              >
+                <View className="flex-row items-center">
+                  <Ionicons name="calendar-outline" size={16} color={dateMode === 'range' ? '#1e3a8a' : '#94a3b8'} />
+                  <Text className="ml-1.5 font-semibold text-sm" style={{ color: dateMode === 'range' ? '#1e3a8a' : '#94a3b8' }}>Plage de dates</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {/* Contenu selon le mode */}
+            {dateMode === 'exact' ? (
+              <View className="mb-6">
+                <Text className="text-slate-600 font-semibold text-sm mb-3 ml-1">Sélectionner la date</Text>
+                <TouchableOpacity
+                  onPress={() => openNativePicker('exact')}
+                  className="flex-row items-center bg-slate-50 rounded-2xl px-4 py-4"
+                  style={{ borderWidth: 1, borderColor: dateExacte ? '#3b82f6' : '#e2e8f0' }}
+                  activeOpacity={0.7}
+                >
+                  <View className="bg-blue-100 rounded-full p-2 mr-3">
+                    <Ionicons name="calendar" size={20} color="#2563eb" />
+                  </View>
+                  <Text className={`flex-1 text-base ${dateExacte ? 'text-slate-800 font-medium' : 'text-slate-400'}`}>
+                    {dateExacte ? formatDateDisplay(dateExacte) : 'Choisir une date'}
+                  </Text>
+                  {dateExacte && (
+                    <TouchableOpacity onPress={() => setDateExacte(null)} className="p-1">
+                      <Ionicons name="close-circle" size={18} color="#94a3b8" />
+                    </TouchableOpacity>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View className="mb-6">
+                <Text className="text-slate-600 font-semibold text-sm mb-3 ml-1">Date de début</Text>
+                <TouchableOpacity
+                  onPress={() => openNativePicker('debut')}
+                  className="flex-row items-center bg-slate-50 rounded-2xl px-4 py-4 mb-4"
+                  style={{ borderWidth: 1, borderColor: dateDebut ? '#3b82f6' : '#e2e8f0' }}
+                  activeOpacity={0.7}
+                >
+                  <View className="bg-blue-100 rounded-full p-2 mr-3">
+                    <Ionicons name="arrow-forward-circle" size={20} color="#2563eb" />
+                  </View>
+                  <Text className={`flex-1 text-base ${dateDebut ? 'text-slate-800 font-medium' : 'text-slate-400'}`}>
+                    {dateDebut ? formatDateDisplay(dateDebut) : 'Date de début'}
+                  </Text>
+                  {dateDebut && (
+                    <TouchableOpacity onPress={() => setDateDebut(null)} className="p-1">
+                      <Ionicons name="close-circle" size={18} color="#94a3b8" />
+                    </TouchableOpacity>
+                  )}
+                </TouchableOpacity>
+
+                {/* Séparateur visuel */}
+                <View className="flex-row items-center justify-center mb-4">
+                  <View className="bg-slate-200 h-px flex-1" />
+                  <View className="bg-slate-100 rounded-full px-3 py-1 mx-3">
+                    <Ionicons name="arrow-down" size={14} color="#94a3b8" />
+                  </View>
+                  <View className="bg-slate-200 h-px flex-1" />
+                </View>
+
+                <Text className="text-slate-600 font-semibold text-sm mb-3 ml-1">Date de fin</Text>
+                <TouchableOpacity
+                  onPress={() => openNativePicker('fin')}
+                  className="flex-row items-center bg-slate-50 rounded-2xl px-4 py-4"
+                  style={{ borderWidth: 1, borderColor: dateFin ? '#10b981' : '#e2e8f0' }}
+                  activeOpacity={0.7}
+                >
+                  <View className="bg-emerald-100 rounded-full p-2 mr-3">
+                    <Ionicons name="flag" size={20} color="#10b981" />
+                  </View>
+                  <Text className={`flex-1 text-base ${dateFin ? 'text-slate-800 font-medium' : 'text-slate-400'}`}>
+                    {dateFin ? formatDateDisplay(dateFin) : 'Date de fin'}
+                  </Text>
+                  {dateFin && (
+                    <TouchableOpacity onPress={() => setDateFin(null)} className="p-1">
+                      <Ionicons name="close-circle" size={18} color="#94a3b8" />
+                    </TouchableOpacity>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Boutons */}
+            <View className="flex-row">
+              <TouchableOpacity
+                onPress={clearDateFilter}
+                className="flex-1 items-center py-4 bg-slate-100 rounded-2xl mr-3"
+              >
+                <Text className="text-slate-500 font-bold">Réinitialiser</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={applyDateFilter}
+                disabled={dateMode === 'exact' ? !dateExacte : (!dateDebut && !dateFin)}
+                className="flex-[2] rounded-2xl overflow-hidden"
+                style={{ opacity: (dateMode === 'exact' ? !!dateExacte : (!!dateDebut || !!dateFin)) ? 1 : 0.5 }}
+              >
+                <LinearGradient
+                  colors={['#1e40af', '#3b82f6']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  className="py-4 items-center flex-row justify-center"
+                >
+                  <Ionicons name="search" size={18} color="#fff" style={{ marginRight: 6 }} />
+                  <Text className="text-white font-bold text-base">Appliquer</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <SideMenu
         visible={menuVisible}
