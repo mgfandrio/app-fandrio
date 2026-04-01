@@ -5,6 +5,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { reservationAdminService } from '@/app/services/reservations/reservationAdminService';
+import { genererFicheVoyageurs } from '@/app/utils/ficheVoyageurs';
 import { VoyageReservationDetail } from './VoyageReservationDetail';
 
 const formatMontant = (montant: number) => {
@@ -17,6 +18,7 @@ export const RenderReservations = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedVoyage, setSelectedVoyage] = useState<any>(null);
+  const [generatingPdfFor, setGeneratingPdfFor] = useState<number | null>(null);
 
   const fetchVoyages = useCallback(async () => {
     try {
@@ -196,16 +198,62 @@ export const RenderReservations = () => {
 
                     {/* Revenue row */}
                     {voyage.revenu_total > 0 && (
-                      <View className="mt-2 pt-2 border-t border-slate-100 flex-row items-center">
-                        <View className="bg-amber-50 rounded-lg px-3 py-1.5 flex-row items-center">
-                          <Ionicons name="cash-outline" size={13} color="#d97706" />
-                          <Text className="text-amber-700 text-xs font-bold ml-1.5">
-                            {formatMontant(voyage.revenu_total)}
+                      <View className="mt-2 pt-2 border-t border-slate-100 flex-row items-center justify-between">
+                        <View className="flex-row items-center flex-1">
+                          <View className="bg-amber-50 rounded-lg px-3 py-1.5 flex-row items-center">
+                            <Ionicons name="cash-outline" size={13} color="#d97706" />
+                            <Text className="text-amber-700 text-xs font-bold ml-1.5">
+                              {formatMontant(voyage.revenu_total)}
+                            </Text>
+                          </View>
+                          <Text className="text-slate-300 text-[10px] ml-2">
+                            {voyage.trajet?.tarif ? `Tarif: ${formatMontant(voyage.trajet.tarif)}/pers.` : ''}
                           </Text>
                         </View>
-                        <Text className="text-slate-300 text-[10px] ml-2">
-                          {voyage.trajet?.tarif ? `Tarif: ${formatMontant(voyage.trajet.tarif)}/pers.` : ''}
-                        </Text>
+                        {voyage.statut === 3 && (
+                          <TouchableOpacity
+                            className="bg-emerald-50 rounded-lg px-3 py-1.5 flex-row items-center"
+                            activeOpacity={0.7}
+                            disabled={generatingPdfFor === voyage.voyage_id}
+                            onPress={async (e) => {
+                              e.stopPropagation();
+                              setGeneratingPdfFor(voyage.voyage_id);
+                              await genererFicheVoyageurs(voyage);
+                              setGeneratingPdfFor(null);
+                            }}
+                          >
+                            {generatingPdfFor === voyage.voyage_id ? (
+                              <ActivityIndicator size={12} color="#059669" />
+                            ) : (
+                              <Ionicons name="download-outline" size={13} color="#059669" />
+                            )}
+                            <Text className="text-emerald-700 text-[10px] font-bold ml-1">Fiche</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
+
+                    {/* Bouton fiche voyageurs pour les voyages terminés sans revenu affiché */}
+                    {voyage.statut === 3 && !(voyage.revenu_total > 0) && (
+                      <View className="mt-2 pt-2 border-t border-slate-100 flex-row items-center justify-end">
+                        <TouchableOpacity
+                          className="bg-emerald-50 rounded-lg px-3 py-1.5 flex-row items-center"
+                          activeOpacity={0.7}
+                          disabled={generatingPdfFor === voyage.voyage_id}
+                          onPress={async (e) => {
+                            e.stopPropagation();
+                            setGeneratingPdfFor(voyage.voyage_id);
+                            await genererFicheVoyageurs(voyage);
+                            setGeneratingPdfFor(null);
+                          }}
+                        >
+                          {generatingPdfFor === voyage.voyage_id ? (
+                            <ActivityIndicator size={12} color="#059669" />
+                          ) : (
+                            <Ionicons name="download-outline" size={13} color="#059669" />
+                          )}
+                          <Text className="text-emerald-700 text-[10px] font-bold ml-1">Fiche voyageurs</Text>
+                        </TouchableOpacity>
                       </View>
                     )}
                   </View>

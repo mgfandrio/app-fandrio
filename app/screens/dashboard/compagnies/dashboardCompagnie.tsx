@@ -28,6 +28,7 @@ import { RenderPortefeuille } from '../../../components/renders/portefeuille/Ren
 import { RenderVoyages } from '../../../components/RenderVoyages';
 import { useNotifications } from '../../../hooks/useNotifications';
 import { logoService } from '../../../services/compagnies/logoService';
+import { profilService } from '../../../services/profil/profilService';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.78;
 
@@ -42,6 +43,8 @@ export default function DashboardCompagnie() {
   const [messageCount, setMessageCount] = useState(0);
   const [compagnieLogo, setCompagnieLogo] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [adminPhoto, setAdminPhoto] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const drawerAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const { unreadCount: notificationCount } = useNotifications();
 
@@ -60,12 +63,95 @@ export default function DashboardCompagnie() {
           if (userData?.compagnie?.logo) {
             setCompagnieLogo(userData.compagnie.logo);
           }
+          if (userData?.photo) {
+            setAdminPhoto(userData.photo);
+          }
         }
       } catch (e) {
         console.warn('SecureStore read error', e);
       }
     })();
   }, []);
+
+  const pickAndUploadPhoto = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert('Permission requise', 'L\'accès à la galerie est nécessaire pour choisir une photo.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets?.[0]) return;
+
+      const selectedImage = result.assets[0];
+      if (selectedImage.fileSize && selectedImage.fileSize > 5 * 1024 * 1024) {
+        Alert.alert('Fichier trop volumineux', 'La taille maximale est de 5 Mo.');
+        return;
+      }
+
+      setPhotoUploading(true);
+      const response = await profilService.uploadPhoto(selectedImage.uri);
+
+      if (response.statut) {
+        const newPhotoUrl = response.data.photo_url;
+        setAdminPhoto(newPhotoUrl);
+
+        const userJson = await SecureStore.getItemAsync('fandrioUser');
+        if (userJson) {
+          const userData = JSON.parse(userJson);
+          userData.photo = newPhotoUrl;
+          await SecureStore.setItemAsync('fandrioUser', JSON.stringify(userData));
+          setUser(userData);
+        }
+        Alert.alert('Succès', 'Photo de profil mise à jour !');
+      } else {
+        Alert.alert('Erreur', response.message || 'Échec de la mise à jour.');
+      }
+    } catch (error: any) {
+      Alert.alert('Erreur', error.response?.data?.message || 'Erreur lors de l\'upload.');
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
+  const handleDeletePhoto = () => {
+    showDialog({
+      title: 'Supprimer la photo',
+      message: 'Voulez-vous vraiment supprimer votre photo de profil ?',
+      type: 'danger',
+      confirmText: 'Supprimer',
+      cancelText: 'Annuler',
+      onConfirm: async () => {
+        try {
+          setPhotoUploading(true);
+          const response = await profilService.deletePhoto();
+          if (response.statut) {
+            setAdminPhoto(null);
+            const userJson = await SecureStore.getItemAsync('fandrioUser');
+            if (userJson) {
+              const userData = JSON.parse(userJson);
+              userData.photo = null;
+              await SecureStore.setItemAsync('fandrioUser', JSON.stringify(userData));
+              setUser(userData);
+            }
+            Alert.alert('Succès', 'Photo supprimée avec succès.');
+          }
+        } catch (error: any) {
+          Alert.alert('Erreur', 'Erreur lors de la suppression.');
+        } finally {
+          setPhotoUploading(false);
+        }
+      },
+      onCancel: () => {},
+    });
+  };
 
   const pickAndUploadLogo = async () => {
     try {
@@ -249,19 +335,19 @@ export default function DashboardCompagnie() {
 
             {/* Avatar + infos */}
             <View className="flex-row items-center">
-              {compagnieLogo ? (
+              {adminPhoto ? (
                 <Image
-                  source={{ uri: compagnieLogo }}
-                  style={{ width: 56, height: 56, borderRadius: 16 }}
+                  source={{ uri: adminPhoto }}
+                  style={{ width: 56, height: 56, borderRadius: 28 }}
                   resizeMode="cover"
                 />
               ) : (
                 <LinearGradient
                   colors={['#3b82f6', '#1d4ed8']}
-                  style={{ width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}
+                  style={{ width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }}
                 >
                   <Text className="text-white text-xl font-bold">
-                    {user?.compagnie?.nom?.[0]?.toUpperCase() || user?.prenom?.[0]?.toUpperCase() || 'C'}
+                    {user?.prenom?.[0]?.toUpperCase() || 'A'}
                   </Text>
                 </LinearGradient>
               )}
@@ -457,35 +543,61 @@ export default function DashboardCompagnie() {
 
   const renderSettings = () => (
     <ScrollView className="flex-1 bg-gray-50 px-4 pt-6" showsVerticalScrollIndicator={false}>
-      {/* Profil card */}
+      {/* Photo de profil */}
       <View
         className="bg-white rounded-2xl p-5 mb-5"
         style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
       >
+        <Text className="text-gray-900 font-bold text-base mb-4">Photo de profil</Text>
         <View className="flex-row items-center">
-          {compagnieLogo ? (
-            <Image
-              source={{ uri: compagnieLogo }}
-              style={{ width: 60, height: 60, borderRadius: 18 }}
-              resizeMode="cover"
-            />
-          ) : (
-            <LinearGradient
-              colors={['#3b82f6', '#1d4ed8']}
-              style={{ width: 60, height: 60, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Text className="text-white text-2xl font-bold">
-                {user?.compagnie?.nom?.[0]?.toUpperCase() || 'C'}
-              </Text>
-            </LinearGradient>
-          )}
+          <TouchableOpacity onPress={pickAndUploadPhoto} activeOpacity={0.8}>
+            {photoUploading ? (
+              <View style={{ width: 70, height: 70, borderRadius: 35, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center' }}>
+                <ActivityIndicator size="small" color="#3b82f6" />
+              </View>
+            ) : adminPhoto ? (
+              <Image
+                source={{ uri: adminPhoto }}
+                style={{ width: 70, height: 70, borderRadius: 35, borderWidth: 2, borderColor: '#e2e8f0' }}
+                resizeMode="cover"
+              />
+            ) : (
+              <LinearGradient
+                colors={['#3b82f6', '#1d4ed8']}
+                style={{ width: 70, height: 70, borderRadius: 35, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Ionicons name="person" size={30} color="#fff" />
+              </LinearGradient>
+            )}
+          </TouchableOpacity>
           <View className="ml-4 flex-1">
             <Text className="text-gray-900 font-bold text-lg">
-              {user ? `${user.prenom} ${user.nom}` : 'Compagnie'}
+              {user ? `${user.prenom} ${user.nom}` : 'Administrateur'}
             </Text>
             <Text className="text-gray-400 text-sm mt-0.5">Admin Compagnie</Text>
+            <View className="flex-row mt-2" style={{ gap: 8 }}>
+              <TouchableOpacity
+                onPress={pickAndUploadPhoto}
+                className="bg-blue-900 px-3 py-1.5 rounded-lg flex-row items-center"
+                disabled={photoUploading}
+              >
+                <Ionicons name={adminPhoto ? 'swap-horizontal' : 'camera-outline'} size={14} color="#fff" />
+                <Text className="text-white font-semibold text-xs ml-1">
+                  {adminPhoto ? 'Changer' : 'Ajouter'}
+                </Text>
+              </TouchableOpacity>
+              {adminPhoto && (
+                <TouchableOpacity
+                  onPress={handleDeletePhoto}
+                  className="bg-red-50 px-3 py-1.5 rounded-lg flex-row items-center"
+                  disabled={photoUploading}
+                >
+                  <Ionicons name="trash-outline" size={14} color="#ef4444" />
+                  <Text className="text-red-500 font-semibold text-xs ml-1">Supprimer</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
         </View>
       </View>
 

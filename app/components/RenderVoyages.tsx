@@ -15,6 +15,7 @@ import { Voyage } from '../types/voyage';
 import { useConfirmDialog } from './common/ConfirmDialog';
 import { VoyageDetailModal } from './modals/VoyageDetailModal';
 import { VoyageFormModal } from './modals/VoyageFormModal';
+import { VoyageMultipleModal } from './modals/VoyageMultipleModal';
 
 type TabKey = 'tous' | 'actifs' | 'inactifs' | 'annules';
 
@@ -34,6 +35,7 @@ export const RenderVoyages: React.FC = () => {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [selectedVoyage, setSelectedVoyage] = useState<Voyage | null>(null);
+  const [multiModalVisible, setMultiModalVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('actifs');
 
   useEffect(() => {
@@ -156,14 +158,23 @@ export const RenderVoyages: React.FC = () => {
                   <Text className="text-orange-100 text-sm mt-0.5">{voyages.length} voyage(s) programmé(s)</Text>
                 </View>
               </View>
-              <TouchableOpacity
-                className="bg-white rounded-2xl p-3"
-                onPress={() => handleOpenForm()}
-                activeOpacity={0.8}
-                style={{ elevation: 2 }}
-              >
-                <Ionicons name="add" size={24} color="#c2410c" />
-              </TouchableOpacity>
+              <View className="flex-row items-center" style={{ gap: 8 }}>
+                <TouchableOpacity
+                  className="bg-white/20 rounded-2xl p-3"
+                  onPress={() => setMultiModalVisible(true)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="layers" size={22} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="bg-white rounded-2xl p-3"
+                  onPress={() => handleOpenForm()}
+                  activeOpacity={0.8}
+                  style={{ elevation: 2 }}
+                >
+                  <Ionicons name="add" size={24} color="#c2410c" />
+                </TouchableOpacity>
+              </View>
             </View>
           </LinearGradient>
         </View>
@@ -332,6 +343,12 @@ export const RenderVoyages: React.FC = () => {
         visible={formModalVisible}
         voyageId={selectedVoyage?.id || selectedVoyage?.id_voyage || selectedVoyage?.voyage_id || null}
         onClose={() => setFormModalVisible(false)}
+        onSuccess={chargerVoyages}
+      />
+
+      <VoyageMultipleModal
+        visible={multiModalVisible}
+        onClose={() => setMultiModalVisible(false)}
         onSuccess={chargerVoyages}
       />
     </View>

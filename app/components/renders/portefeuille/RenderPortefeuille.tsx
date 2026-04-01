@@ -72,6 +72,43 @@ interface PortefeuilleData {
   pagination: { total: number; current_page: number; last_page: number; per_page: number };
 }
 
+interface CollecteConfig {
+  frequence: string;
+  jour_collecte: string | null;
+  commission_active: boolean;
+  taux: number;
+}
+
+interface CollecteItem {
+  coll_id: number;
+  periode_debut: string;
+  periode_fin: string;
+  montant_brut: number;
+  montant_commission: number;
+  taux: number;
+  nb_reservations: number;
+  nb_billets: number;
+  statut: number;
+  statut_label: string;
+  date_prevue: string;
+  date_confirmation: string | null;
+}
+
+interface CollecteData {
+  config: CollecteConfig;
+  prochaine_collecte: {
+    date_prevue: string;
+    montant: number;
+    periode: string;
+  } | null;
+  totaux: {
+    total_collecte: number;
+    total_en_attente: number;
+    nb_collectes: number;
+  };
+  collectes: CollecteItem[];
+}
+
 // --- Utils ---
 const formatMontant = (n: number) => {
   return n.toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' Ar';
@@ -94,6 +131,8 @@ const MOIS_LABELS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû',
 
 export function RenderPortefeuille() {
   const [data, setData] = useState<PortefeuilleData | null>(null);
+  const [collecteData, setCollecteData] = useState<CollecteData | null>(null);
+  const [showCollectes, setShowCollectes] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPeriode, setSelectedPeriode] = useState<string>('ce_mois');
@@ -104,15 +143,21 @@ export function RenderPortefeuille() {
   const charger = useCallback(async (resetPage = true) => {
     try {
       const p = resetPage ? 1 : page;
-      const response = await reservationAdminService.obtenirPortefeuille({ page: p, per_page: 15 });
-      if (response.statut && response.data) {
-        setData(response.data);
+      const [portefeuilleRes, collecteRes] = await Promise.all([
+        reservationAdminService.obtenirPortefeuille({ page: p, per_page: 15 }),
+        reservationAdminService.obtenirMaCollecte(),
+      ]);
+      if (portefeuilleRes.statut && portefeuilleRes.data) {
+        setData(portefeuilleRes.data);
         if (resetPage) {
-          setAllTransactions(response.data.transactions);
+          setAllTransactions(portefeuilleRes.data.transactions);
           setPage(1);
         } else {
-          setAllTransactions(prev => [...prev, ...response.data.transactions]);
+          setAllTransactions(prev => [...prev, ...portefeuilleRes.data.transactions]);
         }
+      }
+      if (collecteRes.statut && collecteRes.data) {
+        setCollecteData(collecteRes.data);
       }
     } catch { } finally {
       setLoading(false);
@@ -216,6 +261,140 @@ export function RenderPortefeuille() {
           </View>
         </View>
       </LinearGradient>
+
+      {/* ====== CONFIGURATION DE COLLECTE ====== */}
+      {collecteData && (
+        <View className="mx-4 mt-4">
+          <TouchableOpacity
+            className="bg-white rounded-2xl p-4"
+            style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4 }}
+            onPress={() => setShowCollectes(!showCollectes)}
+            activeOpacity={0.7}
+          >
+            {/* En-tête */}
+            <View className="flex-row items-center justify-between mb-3">
+              <View className="flex-row items-center">
+                <View className="bg-blue-50 rounded-xl p-2 mr-3">
+                  <Ionicons name="calendar" size={20} color="#2563eb" />
+                </View>
+                <View>
+                  <Text className="text-gray-900 font-bold text-sm">Collecte de commission</Text>
+                  <Text className="text-gray-400 text-xs mt-0.5">
+                    {collecteData.config.commission_active ? 'Active' : 'Inactive'} · {collecteData.config.taux}%
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name={showCollectes ? 'chevron-up' : 'chevron-down'} size={20} color="#9ca3af" />
+            </View>
+
+            {/* Configuration */}
+            <View className="flex-row gap-2 mb-3">
+              <View className="flex-1 bg-blue-50 rounded-xl p-3">
+                <Text className="text-blue-500 text-xs">Fréquence</Text>
+                <Text className="text-blue-700 font-bold text-sm mt-0.5 capitalize">
+                  {collecteData.config.frequence}
+                </Text>
+              </View>
+              <View className="flex-1 bg-purple-50 rounded-xl p-3">
+                <Text className="text-purple-500 text-xs">
+                  {collecteData.config.frequence === 'hebdomadaire' ? 'Jour' : 'Date'}
+                </Text>
+                <Text className="text-purple-700 font-bold text-sm mt-0.5 capitalize">
+                  {collecteData.config.jour_collecte
+                    ? (collecteData.config.frequence === 'mensuelle'
+                        ? `Le ${collecteData.config.jour_collecte}`
+                        : collecteData.config.jour_collecte)
+                    : 'Non défini'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Prochaine collecte */}
+            {collecteData.prochaine_collecte && (
+              <View className="bg-orange-50 border border-orange-200 rounded-xl p-3 mb-3">
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center">
+                    <Ionicons name="time" size={16} color="#ea580c" />
+                    <Text className="text-orange-700 font-semibold text-xs ml-1.5">Prochaine collecte</Text>
+                  </View>
+                  <Text className="text-orange-800 font-bold text-sm">
+                    {formatMontant(collecteData.prochaine_collecte.montant)}
+                  </Text>
+                </View>
+                <Text className="text-orange-600 text-xs mt-1">
+                  Prévue le {collecteData.prochaine_collecte.date_prevue} · {collecteData.prochaine_collecte.periode}
+                </Text>
+              </View>
+            )}
+
+            {/* Totaux */}
+            <View className="flex-row gap-2">
+              <View className="flex-1 bg-green-50 rounded-xl p-2.5 items-center">
+                <Text className="text-green-500 text-[10px]">Collectées</Text>
+                <Text className="text-green-700 font-bold text-xs mt-0.5">
+                  {formatMontant(collecteData.totaux.total_collecte)}
+                </Text>
+              </View>
+              <View className="flex-1 bg-yellow-50 rounded-xl p-2.5 items-center">
+                <Text className="text-yellow-500 text-[10px]">En attente</Text>
+                <Text className="text-yellow-700 font-bold text-xs mt-0.5">
+                  {formatMontant(collecteData.totaux.total_en_attente)}
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          {/* Historique des collectes (dépliable) */}
+          {showCollectes && collecteData.collectes.length > 0 && (
+            <View className="mt-2">
+              <Text className="text-gray-700 font-bold text-sm mb-2 px-1">Historique des collectes</Text>
+              {collecteData.collectes.map((coll) => (
+                <View
+                  key={coll.coll_id}
+                  className="bg-white rounded-xl p-3 mb-1.5"
+                  style={{ elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 3 }}
+                >
+                  <View className="flex-row items-center justify-between mb-1.5">
+                    <View className="flex-1">
+                      <Text className="text-gray-900 font-semibold text-xs">
+                        {coll.periode_debut} → {coll.periode_fin}
+                      </Text>
+                      <Text className="text-gray-400 text-[10px] mt-0.5">
+                        {coll.nb_reservations} rés. · {coll.nb_billets} billets · Prévue: {coll.date_prevue}
+                      </Text>
+                    </View>
+                    <View className={`rounded-full px-2 py-0.5 ${coll.statut === 2 ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                      <Text className={`text-[10px] font-semibold ${coll.statut === 2 ? 'text-green-700' : 'text-yellow-700'}`}>
+                        {coll.statut_label}
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-gray-400 text-[10px]">
+                      Brut: {formatMontant(coll.montant_brut)} · {coll.taux}%
+                    </Text>
+                    <Text className="text-red-500 font-bold text-xs">
+                      -{formatMontant(coll.montant_commission)}
+                    </Text>
+                  </View>
+                  {coll.date_confirmation && (
+                    <Text className="text-green-600 text-[10px] mt-1">
+                      Confirmée le {coll.date_confirmation}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+
+          {showCollectes && collecteData.collectes.length === 0 && (
+            <View className="mt-2 bg-white rounded-xl p-4 items-center" style={{ elevation: 1 }}>
+              <Ionicons name="receipt-outline" size={32} color="#d1d5db" />
+              <Text className="text-gray-400 text-xs mt-2">Aucune collecte enregistrée</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       {/* ====== SOLDE PAR PÉRIODE ====== */}
       <View className="mx-4 mt-4">

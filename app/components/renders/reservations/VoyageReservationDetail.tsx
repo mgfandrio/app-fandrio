@@ -5,6 +5,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { reservationAdminService } from '@/app/services/reservations/reservationAdminService';
+import { genererFicheVoyageurs } from '@/app/utils/ficheVoyageurs';
 import echo from '@/app/services/echo/echoConfig';
 
 type TabType = 'plan' | 'voyageurs' | 'billets';
@@ -28,6 +29,7 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
   const [loadingVoyageurs, setLoadingVoyageurs] = useState(false);
   const [loadingBillets, setLoadingBillets] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const fetchPlan = useCallback(async () => {
     try {
@@ -312,8 +314,29 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
             </View>
             <Text className="text-slate-700 font-bold text-sm">Total voyageurs</Text>
           </View>
-          <View className="bg-blue-50 rounded-lg px-3 py-1.5">
-            <Text className="text-blue-700 font-bold text-base">{voyageurs.length}</Text>
+          <View className="flex-row items-center" style={{ gap: 8 }}>
+            {voyage.statut === 3 && (
+              <TouchableOpacity
+                className="bg-emerald-50 rounded-lg px-3 py-2 flex-row items-center"
+                activeOpacity={0.7}
+                disabled={generatingPdf}
+                onPress={async () => {
+                  setGeneratingPdf(true);
+                  await genererFicheVoyageurs(voyage);
+                  setGeneratingPdf(false);
+                }}
+              >
+                {generatingPdf ? (
+                  <ActivityIndicator size={14} color="#059669" />
+                ) : (
+                  <Ionicons name="download-outline" size={14} color="#059669" />
+                )}
+                <Text className="text-emerald-700 text-xs font-bold ml-1.5">Fiche</Text>
+              </TouchableOpacity>
+            )}
+            <View className="bg-blue-50 rounded-lg px-3 py-1.5">
+              <Text className="text-blue-700 font-bold text-base">{voyageurs.length}</Text>
+            </View>
           </View>
         </View>
 

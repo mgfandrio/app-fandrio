@@ -171,4 +171,21 @@ export const reservationAdminService = {
       };
     }
   },
+
+  /**
+   * Informations de collecte de commission pour la compagnie
+   */
+  obtenirMaCollecte: async () => {
+    try {
+      const response = await apiClient.get('/api/adminCompagnie/reservations/ma-collecte');
+      return { statut: true, data: response.data?.data };
+    } catch (error: any) {
+      console.error('Erreur obtenirMaCollecte:', error.message);
+      return {
+        statut: false,
+        message: error.response?.data?.message || 'Erreur',
+        data: null,
+      };
+    }
+  },
 };

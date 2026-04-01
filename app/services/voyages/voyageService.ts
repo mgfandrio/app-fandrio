@@ -1,6 +1,31 @@
 import apiClient from '../api/axiosConfig';
 
 export const voyageService = {
+  // Créer plusieurs voyages en une seule opération
+  ajouterVoyagesMultiples: async (voyages: any[]) => {
+    try {
+      console.log('Envoi création voyages multiples:', JSON.stringify({ voyages }, null, 2));
+      const response = await apiClient.post('/api/adminCompagnie/voyage/programmerVoyagesMultiples', { voyages });
+      console.log('Réponse création voyages multiples:', response.data);
+      return {
+        statut: true,
+        message: response.data?.message || response.data?.data?.message || 'Voyages programmés avec succès',
+        data: response.data?.data || response.data,
+      };
+    } catch (error: any) {
+      console.error('Erreur création voyages multiples:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+      return {
+        statut: false,
+        message: error.response?.data?.message || 'Erreur lors de la création des voyages',
+        data: null,
+      };
+    }
+  },
+
   // Récupérer la liste des voyages
   obtenirVoyages: async (filtres?: any) => {
     try {
