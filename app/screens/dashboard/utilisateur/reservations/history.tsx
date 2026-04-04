@@ -124,7 +124,8 @@ export default function HistoryScreen() {
                                     <View className="flex-row justify-between items-start mb-3">
                                         <View className="flex-1">
                                             <Text className="text-gray-900 font-bold text-base">{res.trajet}</Text>
-                                            <Text className="text-gray-500 text-xs mt-0.5">{res.date} • {res.heure}</Text>
+                                            <Text className="text-gray-500 text-xs mt-0.5">Voyage: {res.date} • {res.heure}</Text>
+                                            <Text className="text-gray-400 text-[10px] mt-0.5">Réservé le {res.date_reservation}</Text>
                                             <Text className="text-gray-400 text-[10px] mt-1 italic">N° {res.numero}</Text>
                                         </View>
                                         <View className={`px-2.5 py-1 rounded-full ${status.bg}`}>

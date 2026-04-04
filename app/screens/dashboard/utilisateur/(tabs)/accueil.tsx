@@ -1,12 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Dimensions, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as SecureStore from 'expo-secure-store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { compagnieService } from '@/app/services/compagnies/compagnieService';
-import { voyageService } from '@/app/services/voyages/voyageService';
+import * as Location from 'expo-location';
+import { accueilService } from '@/app/services/accueil/accueilService';
 import { provinceService } from '@/app/services/provinces/provinceService';
 import RechercheFilterModal from '@/app/components/modals/recherche/RechercheFilterModal';
 import DestinationSearchModal from '@/app/components/modals/recherche/DestinationSearchModal';
@@ -45,6 +44,8 @@ export default function AccueilScreen() {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [showDestinationModal, setShowDestinationModal] = useState(false);
+  const [provinceDetectee, setProvinceDetectee] = useState<string | null>(null);
+  const locationRef = useRef<{ lat: number; lng: number } | null>(null);
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { unreadCount } = useNotifications();
@@ -60,23 +61,33 @@ export default function AccueilScreen() {
       setLoadingCompagnies(true);
       setLoadingVoyages(true);
 
-      const [compResp, voyResp, provResp] = await Promise.allSettled([
-        compagnieService.listerCompagniesGenerique(),
-        voyageService.obtenirVoyagesAVenir(),
-        provinceService.listerProvinces()
-      ]);
-
-      if (compResp.status === 'fulfilled') {
-        const resp = compResp.value;
-        if (resp && 'statut' in resp && resp.statut !== false) {
-          setCompagnies((resp as any).data?.compagnies || []);
+      // Récupérer la position GPS si pas encore fait
+      if (!locationRef.current) {
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status === 'granted') {
+            const loc = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Low, // Rapide, suffisant pour 7 provinces
+            });
+            locationRef.current = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+          }
+        } catch (e) {
+          console.warn('GPS indisponible:', e);
         }
       }
 
-      if (voyResp.status === 'fulfilled') {
-        const resp = voyResp.value;
-        if (resp && 'statut' in resp && resp.statut !== false) {
-          setVoyages(resp.data || []);
+      // Appel unifié /api/accueil avec géolocalisation
+      const [accueilResp, provResp] = await Promise.allSettled([
+        accueilService.getDonneesAccueil(locationRef.current?.lat, locationRef.current?.lng),
+        provinceService.listerProvinces()
+      ]);
+
+      if (accueilResp.status === 'fulfilled') {
+        const resp = accueilResp.value;
+        if (resp && resp.statut && resp.data) {
+          setCompagnies(resp.data.compagnies || []);
+          setVoyages(resp.data.voyages || []);
+          setProvinceDetectee(resp.data.province_detectee?.nom || null);
         }
       }
 

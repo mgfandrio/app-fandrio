@@ -168,15 +168,18 @@ export default function ReservationScreen() {
       return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
     };
 
+    // Extraire la partie date (DD/MM/YYYY) de date_reservation (DD/MM/YYYY HH:mm)
+    const getDatePart = (dateRes: string) => dateRes ? dateRes.split(' ')[0] : '';
+
     if (dateMode === 'exact' && dateExacte) {
       const target = formatDateDisplay(dateExacte);
-      return historique.filter((res: any) => res?.date === target);
+      return historique.filter((res: any) => getDatePart(res?.date_reservation) === target);
     }
 
     if (dateMode === 'range') {
       return historique.filter((res: any) => {
-        if (!res?.date) return false;
-        const resDate = parseDate(res.date);
+        if (!res?.date_reservation) return false;
+        const resDate = parseDate(getDatePart(res.date_reservation));
         if (!resDate) return false;
         if (dateDebut && resDate < new Date(dateDebut.getFullYear(), dateDebut.getMonth(), dateDebut.getDate())) return false;
         if (dateFin && resDate > new Date(dateFin.getFullYear(), dateFin.getMonth(), dateFin.getDate())) return false;
@@ -438,7 +441,8 @@ export default function ReservationScreen() {
                   <View className="flex-row justify-between items-start mb-3">
                     <View className="flex-1">
                       <Text className="text-gray-900 font-bold text-base">{res?.trajet || 'Trajet inconnu'}</Text>
-                      <Text className="text-gray-500 text-xs mt-0.5">{res?.date || 'N/A'} • {res?.heure || 'N/A'}</Text>
+                      <Text className="text-gray-500 text-xs mt-0.5">Voyage: {res?.date || 'N/A'} • {res?.heure || 'N/A'}</Text>
+                      <Text className="text-gray-400 text-[10px] mt-0.5">Réservé le {res?.date_reservation || 'N/A'}</Text>
                       <View className="flex-row items-center mt-1">
                         <Text className="text-gray-400 text-[10px] italic">N° {res?.numero || 'N/A'}</Text>
                       </View>
