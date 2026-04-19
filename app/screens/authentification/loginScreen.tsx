@@ -252,12 +252,14 @@ export default function LoginScreen() {
       <StatusBar barStyle="light-content" />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
         className="flex-1"
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
           className="flex-1"
         >
           {/* Logo zone (dans la partie bleue) */}
@@ -431,7 +433,7 @@ export default function LoginScreen() {
             </View>
 
             {/* Footer */}
-            <View className="items-center mb-2">
+            <View className="items-center mb-8">
               <View className="flex-row items-center">
                 <Text className="text-gray-500 text-base">
                   Pas encore de compte ?{' '}

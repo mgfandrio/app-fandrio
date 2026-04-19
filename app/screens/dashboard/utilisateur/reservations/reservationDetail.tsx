@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, SafeAreaView, Share, Alert } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Share, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
 import { reservationService } from '@/app/services/reservations/reservationService';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const STATUS_MAP: Record<number, { label: string; color: string; bg: string; icon: string }> = {
     1: { label: 'En attente', color: '#f97316', bg: 'bg-orange-100', icon: 'time-outline' },

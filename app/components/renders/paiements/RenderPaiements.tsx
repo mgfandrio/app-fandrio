@@ -3,6 +3,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
     ScrollView,
     Text,
     TextInput,
@@ -100,7 +102,12 @@ export const RenderPaiements = () => {
     return (
         <View className="flex-1 bg-slate-50">
             <DialogComponent />
-            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+                className="flex-1"
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            >
+            <ScrollView className="flex-1" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 {/* Hero Header */}
                 <View className="mx-4 mt-5 rounded-3xl overflow-hidden" style={{ elevation: 4 }}>
                     <LinearGradient colors={['#059669', '#10b981', '#34d399']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} className="p-5">
@@ -167,7 +174,7 @@ export const RenderPaiements = () => {
                 </View>
 
                 {/* Payment form cards */}
-                <View className="px-4 mt-4 pb-28">
+                <View className="px-4 mt-4 pb-4">
                     {modesPaiement.length > 0 ? (
                         modesPaiement.map((mode) => {
                             const methodConfig = PAYMENT_METHODS.find(m => m.id === mode.id);
@@ -263,9 +270,10 @@ export const RenderPaiements = () => {
                     )}
                 </View>
             </ScrollView>
+            </KeyboardAvoidingView>
 
-            {/* Floating save button with gradient */}
-            <View className="absolute bottom-6 left-4 right-4">
+            {/* Save button */}
+            <View className="px-4 pb-8 pt-3 bg-slate-50">
                 <TouchableOpacity
                     onPress={handleSave}
                     disabled={saving}

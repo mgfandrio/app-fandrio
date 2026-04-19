@@ -661,7 +661,7 @@ export default function RegisterScreen() {
             </View>
 
             {/* Footer Link */}
-            <View className="items-center mb-2">
+            <View className="items-center mb-8">
               <View className="flex-row items-center">
                 <Text className="text-gray-500 text-base">
                   Vous avez déjà un compte ?{' '}

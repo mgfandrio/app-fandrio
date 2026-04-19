@@ -299,6 +299,8 @@ export const VoitureFormModal: React.FC<Props> = ({
                   value={formData.voit_matricule}
                   onChangeText={(text) => setFormData({ ...formData, voit_matricule: text })}
                   placeholder="Entrez la matricule"
+                  placeholderTextColor="#9ca3af"
+                  style={{ color: '#111827' }}
                   editable={!submitting}
                 />
 
@@ -308,6 +310,8 @@ export const VoitureFormModal: React.FC<Props> = ({
                   value={formData.voit_marque}
                   onChangeText={(text) => setFormData({ ...formData, voit_marque: text })}
                   placeholder="Entrez la marque"
+                  placeholderTextColor="#9ca3af"
+                  style={{ color: '#111827' }}
                   editable={!submitting}
                 />
 
@@ -317,6 +321,8 @@ export const VoitureFormModal: React.FC<Props> = ({
                   value={formData.voit_modele}
                   onChangeText={(text) => setFormData({ ...formData, voit_modele: text })}
                   placeholder="Entrez le modèle"
+                  placeholderTextColor="#9ca3af"
+                  style={{ color: '#111827' }}
                   editable={!submitting}
                 />
 
@@ -326,6 +332,8 @@ export const VoitureFormModal: React.FC<Props> = ({
                   value={formData.voit_places}
                   onChangeText={(text) => setFormData({ ...formData, voit_places: text })}
                   placeholder="Entrez le nombre de places"
+                  placeholderTextColor="#9ca3af"
+                  style={{ color: '#111827' }}
                   keyboardType="numeric"
                   editable={!submitting}
                 />
@@ -344,13 +352,15 @@ export const VoitureFormModal: React.FC<Props> = ({
                       selectedValue={formData.chauff_id}
                       onValueChange={(value) => setFormData({ ...formData, chauff_id: value })}
                       enabled={!submitting && !loadingChauffeurs}
+                      style={{ color: '#111827' }}
                     >
-                      <Picker.Item label="Sélectionner un chauffeur" value="" />
+                      <Picker.Item label="Sélectionner un chauffeur" value="" color="#9ca3af" />
                       {chauffeurs.map((chauffeur) => (
                         <Picker.Item
                           key={chauffeur.chauff_id}
                           label={`${chauffeur.chauff_nom} ${chauffeur.chauff_prenom}`}
                           value={chauffeur.chauff_id.toString()}
+                          color="#111827"
                         />
                       ))}
                     </Picker>
@@ -366,9 +376,10 @@ export const VoitureFormModal: React.FC<Props> = ({
                     selectedValue={formData.voit_statut}
                     onValueChange={(value) => setFormData({ ...formData, voit_statut: value })}
                     enabled={!submitting}
+                    style={{ color: '#111827' }}
                   >
-                    <Picker.Item label="Disponible" value="1" />
-                    <Picker.Item label="Indisponible" value="0" />
+                    <Picker.Item label="Disponible" value="1" color="#111827" />
+                    <Picker.Item label="Indisponible" value="0" color="#111827" />
                   </Picker>
                 </View>
               </View>
