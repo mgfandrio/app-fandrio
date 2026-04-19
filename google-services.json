@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "324125099567",
+    "project_id": "fandrio-app",
+    "storage_bucket": "fandrio-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:324125099567:android:ccee5282ff6649e9d228da",
+        "android_client_info": {
+          "package_name": "com.fandrio.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAN4CKG5bNKcdus_ZOKQo4kw5CgBEjycDg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
