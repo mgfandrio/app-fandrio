@@ -4,7 +4,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   Text,
@@ -190,6 +192,8 @@ export const RenderChauffeurAdmin = () => {
         <TextInput
           className="bg-gray-100 border border-gray-200 rounded-lg px-4 py-2 text-gray-900"
           placeholder="Rechercher..."
+          placeholderTextColor="#9ca3af"
+          style={{ color: '#111827' }}
           value={searchText}
           onChangeText={setSearchText}
         />
@@ -268,9 +272,14 @@ export const RenderChauffeurAdmin = () => {
         transparent={true}
         onRequestClose={closeFormModal}
       >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+          className="flex-1"
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
         <View className="flex-1 bg-black/50">
           <View className="flex-1 mt-20 bg-white rounded-t-3xl">
-            <ScrollView className="flex-1 p-6">
+            <ScrollView className="flex-1 p-6" keyboardShouldPersistTaps="handled">
               <View className="flex-row justify-between items-center mb-6">
                 <Text className="text-2xl font-bold text-gray-900">
                   {editingChauffeurId ? 'Modifier' : 'Ajouter'} un chauffeur
@@ -286,6 +295,8 @@ export const RenderChauffeurAdmin = () => {
                 <TextInput
                   className="bg-gray-100 border border-gray-200 rounded-lg px-4 py-3"
                   placeholder="Nom"
+                  placeholderTextColor="#9ca3af"
+                  style={{ color: '#111827' }}
                   value={formData.chauff_nom}
                   onChangeText={(text) => setFormData({ ...formData, chauff_nom: text })}
                 />
@@ -296,6 +307,8 @@ export const RenderChauffeurAdmin = () => {
                 <TextInput
                   className="bg-gray-100 border border-gray-200 rounded-lg px-4 py-3"
                   placeholder="Prénom"
+                  placeholderTextColor="#9ca3af"
+                  style={{ color: '#111827' }}
                   value={formData.chauff_prenom}
                   onChangeText={(text) => setFormData({ ...formData, chauff_prenom: text })}
                 />
@@ -306,6 +319,8 @@ export const RenderChauffeurAdmin = () => {
                 <TextInput
                   className="bg-gray-100 border border-gray-200 rounded-lg px-4 py-3"
                   placeholder="Âge"
+                  placeholderTextColor="#9ca3af"
+                  style={{ color: '#111827' }}
                   keyboardType="numeric"
                   value={formData.chauff_age}
                   onChangeText={(text) => setFormData({ ...formData, chauff_age: text })}
@@ -317,6 +332,8 @@ export const RenderChauffeurAdmin = () => {
                 <TextInput
                   className="bg-gray-100 border border-gray-200 rounded-lg px-4 py-3"
                   placeholder="CIN"
+                  placeholderTextColor="#9ca3af"
+                  style={{ color: '#111827' }}
                   value={formData.chauff_cin}
                   onChangeText={(text) => setFormData({ ...formData, chauff_cin: text })}
                 />
@@ -328,11 +345,12 @@ export const RenderChauffeurAdmin = () => {
                   <Picker
                     selectedValue={formData.chauff_permis}
                     onValueChange={(value) => setFormData({ ...formData, chauff_permis: value })}
+                    style={{ color: '#111827' }}
                   >
-                    <Picker.Item label="Catégorie A" value="A" />
-                    <Picker.Item label="Catégorie B" value="B" />
-                    <Picker.Item label="Catégorie C" value="C" />
-                    <Picker.Item label="Catégorie D" value="D" />
+                    <Picker.Item label="Catégorie A" value="A" color="#111827" />
+                    <Picker.Item label="Catégorie B" value="B" color="#111827" />
+                    <Picker.Item label="Catégorie C" value="C" color="#111827" />
+                    <Picker.Item label="Catégorie D" value="D" color="#111827" />
                   </Picker>
                 </View>
               </View>
@@ -342,6 +360,8 @@ export const RenderChauffeurAdmin = () => {
                 <TextInput
                   className="bg-gray-100 border border-gray-200 rounded-lg px-4 py-3"
                   placeholder="Téléphone"
+                  placeholderTextColor="#9ca3af"
+                  style={{ color: '#111827' }}
                   keyboardType="phone-pad"
                   value={formData.chauff_phone}
                   onChangeText={(text) => setFormData({ ...formData, chauff_phone: text })}
@@ -354,15 +374,16 @@ export const RenderChauffeurAdmin = () => {
                   <Picker
                     selectedValue={formData.chauff_statut}
                     onValueChange={(value) => setFormData({ ...formData, chauff_statut: value })}
+                    style={{ color: '#111827' }}
                   >
-                    <Picker.Item label="Actif" value="1" />
-                    <Picker.Item label="Inactif" value="0" />
+                    <Picker.Item label="Actif" value="1" color="#111827" />
+                    <Picker.Item label="Inactif" value="0" color="#111827" />
                   </Picker>
                 </View>
               </View>
 
               {/* Buttons */}
-              <View className="flex-row gap-3">
+              <View className="flex-row gap-3 mb-8">
                 <TouchableOpacity
                   className="flex-1 bg-gray-300 rounded-lg py-3 items-center"
                   onPress={closeFormModal}
@@ -389,6 +410,7 @@ export const RenderChauffeurAdmin = () => {
             </ScrollView>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

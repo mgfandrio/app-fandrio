@@ -2,7 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   Text,
   TextInput,
@@ -360,6 +362,8 @@ export const TrajetFormModal: React.FC<Props> = ({
             <TextInput
               className="flex-1 ml-2 text-gray-900"
               placeholder="Rechercher une province..."
+              placeholderTextColor="#9ca3af"
+              style={{ color: '#111827' }}
               value={searchText}
               onChangeText={onSearchChange}
               autoFocus
@@ -434,6 +438,11 @@ export const TrajetFormModal: React.FC<Props> = ({
       onRequestClose={onClose}
     >
       <DialogComponent />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        className="flex-1"
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
       <View className="flex-1 bg-black/50 justify-end">
         <View className="bg-white rounded-t-3xl h-5/6">
           {/* Header */}
@@ -472,7 +481,7 @@ export const TrajetFormModal: React.FC<Props> = ({
               <ActivityIndicator size="large" color="#3b82f6" />
             </View>
           ) : (
-            <ScrollView className="flex-1 p-4">
+            <ScrollView className="flex-1 p-4" keyboardShouldPersistTaps="handled">
               {/* Nom du trajet */}
               <View className="mb-5">
                 <Text className="text-gray-700 font-semibold mb-2">
@@ -481,6 +490,8 @@ export const TrajetFormModal: React.FC<Props> = ({
                 <TextInput
                   className="bg-gray-50 border border-gray-300 rounded-xl px-4 py-3.5 text-gray-900"
                   placeholder="Ex: Kinshasa-Lumumbashi"
+                  placeholderTextColor="#9ca3af"
+                  style={{ color: '#111827' }}
                   value={formData.traj_nom}
                   onChangeText={(text) =>
                     setFormData({ ...formData, traj_nom: text })
@@ -589,6 +600,8 @@ export const TrajetFormModal: React.FC<Props> = ({
                   <TextInput
                     className="flex-1 ml-3 text-gray-900"
                     placeholder="Entrez la distance"
+                    placeholderTextColor="#9ca3af"
+                    style={{ color: '#111827' }}
                     keyboardType="numeric"
                     value={formData.traj_km}
                     onChangeText={(text) =>
@@ -690,6 +703,8 @@ export const TrajetFormModal: React.FC<Props> = ({
                   <TextInput
                     className="flex-1 ml-3 text-gray-900"
                     placeholder="Entrez le tarif"
+                    placeholderTextColor="#9ca3af"
+                    style={{ color: '#111827' }}
                     keyboardType="numeric"
                     value={formData.traj_tarif}
                     onChangeText={(text) =>
@@ -701,7 +716,7 @@ export const TrajetFormModal: React.FC<Props> = ({
               </View>
 
               {/* Boutons */}
-              <View className="flex-row gap-3 mb-4">
+              <View className="flex-row gap-3 mb-8">
                 <TouchableOpacity
                   className="flex-1 items-center py-4 rounded-xl bg-gray-100 border border-gray-300"
                   onPress={onClose}
@@ -730,6 +745,7 @@ export const TrajetFormModal: React.FC<Props> = ({
           )}
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

@@ -437,7 +437,7 @@ export default function CompteScreen() {
       <Modal visible={editModalVisible} animationType="slide" transparent>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
           <View className="flex-1 bg-black/50 justify-end">
-            <View className="bg-white rounded-t-3xl px-5 pt-6 pb-8" style={{ maxHeight: '85%' }}>
+            <View className="bg-white rounded-t-3xl px-5 pt-6 pb-10" style={{ maxHeight: '85%' }}>
               {/* Header */}
               <View className="flex-row items-center justify-between mb-6">
                 <Text className="text-gray-900 text-lg font-bold">Modifier mes informations</Text>
@@ -473,7 +473,7 @@ export default function CompteScreen() {
       <Modal visible={pwdModalVisible} animationType="slide" transparent>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
           <View className="flex-1 bg-black/50 justify-end">
-            <View className="bg-white rounded-t-3xl px-5 pt-6 pb-8" style={{ maxHeight: '85%' }}>
+            <View className="bg-white rounded-t-3xl px-5 pt-6 pb-10" style={{ maxHeight: '85%' }}>
               {/* Header */}
               <View className="flex-row items-center justify-between mb-6">
                 <Text className="text-gray-900 text-lg font-bold">Changer le mot de passe</Text>

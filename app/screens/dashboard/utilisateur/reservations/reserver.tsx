@@ -9,7 +9,7 @@ import { reservationService } from '../../../../services/reservations/reservatio
 import { siegeService } from '../../../../services/sieges/siegeService';
 import { SearchableDropdown } from '../../../../components/common/SearchableDropdown';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Platform } from 'react-native';
+import { Platform, KeyboardAvoidingView } from 'react-native';
 import echo from '../../../../services/echo/echoConfig';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
@@ -242,7 +242,7 @@ export default function ReserverScreen() {
                 setNoResults((response.data.voyages || []).length === 0);
 
                 if ((response.data.voyages || []).length === 0) {
-                    // Message inline, pas d'Alert
+                    // Reste à l'étape 1, message inline affiché
                 } else if (currentStep === 1) {
                     setCurrentStep(2);
                 }
@@ -472,7 +472,7 @@ export default function ReserverScreen() {
                     label="Départ"
                     data={provinces.filter(p => p.id !== proArriveeId)}
                     selectedId={proDepartId}
-                    onSelect={(id: any) => setProDepartId(id)}
+                    onSelect={(id: any) => { setProDepartId(id); setNoResults(false); }}
                     placeholder="Ville de départ"
                     displayKey="nom"
                     valueKey="id"
@@ -484,13 +484,24 @@ export default function ReserverScreen() {
                     label="Destination"
                     data={provinces.filter(p => p.id !== proDepartId)}
                     selectedId={proArriveeId}
-                    onSelect={(id: any) => setProArriveeId(id)}
+                    onSelect={(id: any) => { setProArriveeId(id); setNoResults(false); }}
                     placeholder="Ville d'arrivée"
                     displayKey="nom"
                     valueKey="id"
                     showAllOption={false}
                 />
             </View>
+
+            {/* Message aucun voyage trouvé */}
+            {noResults && availableVoyages.length === 0 && (
+                <View className="bg-orange-50 border border-orange-200 rounded-2xl p-5 items-center">
+                    <Ionicons name="alert-circle-outline" size={40} color="#f97316" />
+                    <Text className="text-orange-800 font-bold text-base mt-3">Aucun voyage disponible</Text>
+                    <Text className="text-orange-600 text-sm text-center mt-1">
+                        Aucun voyage n'a été trouvé pour cet itinéraire. Veuillez essayer un autre trajet.
+                    </Text>
+                </View>
+            )}
         </View>
     );
 
@@ -1238,7 +1249,12 @@ export default function ReserverScreen() {
         <SafeAreaView className="flex-1 bg-gray-50">
             <Stack.Screen options={{ headerShown: false }} />
             {renderHeader()}
-            <ScrollView className="flex-1 p-6" showsVerticalScrollIndicator={false}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+                className="flex-1"
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            >
+            <ScrollView className="flex-1 p-6" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 {loading && (
                     <View className="items-center justify-center py-20">
                         <ActivityIndicator size="large" color="#1e3a8a" />
@@ -1252,8 +1268,9 @@ export default function ReserverScreen() {
                 {!loading && currentStep === 5 && renderStep5()}
                 {!loading && currentStep === 6 && renderStep6()}
             </ScrollView>
+            </KeyboardAvoidingView>
             {currentStep < 5 && (
-                <View className="p-6 bg-white border-t border-gray-100 flex-row" style={{ gap: 12 }}>
+                <View className="px-6 pt-4 pb-8 bg-white border-t border-gray-100 flex-row" style={{ gap: 12 }}>
                     <TouchableOpacity
                         className="flex-1 py-4 rounded-2xl items-center border border-red-200 bg-red-50"
                         onPress={handleCancelProcess}
@@ -1275,7 +1292,7 @@ export default function ReserverScreen() {
             )}
 
             {currentStep === 5 && (
-                <View className="p-6 bg-white border-t border-gray-100">
+                <View className="px-6 pt-4 pb-8 bg-white border-t border-gray-100">
                     <TouchableOpacity
                         className={`py-4 rounded-2xl items-center shadow-md ${(!paymentMode || loading) ? 'bg-gray-300' : 'bg-blue-900'}`}
                         onPress={confirmPayment}

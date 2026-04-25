@@ -265,7 +265,7 @@ export const TrajetDetailModal: React.FC<Props> = ({
                 </View>
               </View>
 
-              <View className="pb-4" />
+              <View className="pb-8" />
             </ScrollView>
           ) : (
             <View className="flex-1 items-center justify-center">
