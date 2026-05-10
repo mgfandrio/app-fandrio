@@ -194,6 +194,60 @@ export const voyageService = {
     }
   },
 
+  // Bascule la visibilité du voyage (mise en pause / reprise des réservations)
+  togglerActivationVoyage: async (id: number) => {
+    try {
+      const response = await apiClient.patch(`/api/adminCompagnie/voyage/${id}/toggler-activation`);
+      return {
+        statut: true,
+        message: response.data?.message || 'Activation modifiée',
+        data: response.data?.data || response.data,
+      };
+    } catch (error: any) {
+      console.error('Erreur togglerActivationVoyage:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+      return {
+        statut: false,
+        message: error.response?.data?.message || 'Erreur lors de la modification de l\'activation',
+        data: null,
+      };
+    }
+  },
+
+  // Reprogramme un voyage existant en créant un nouveau voyage cloné à une autre date
+  reprogrammerVoyage: async (
+    id: number,
+    payload: {
+      voyage_date: string; // YYYY-MM-DD
+      voyage_heure_depart?: string;
+      voit_id?: number;
+      places_disponibles?: number;
+    }
+  ) => {
+    try {
+      const response = await apiClient.post(`/api/adminCompagnie/voyage/${id}/reprogrammer`, payload);
+      return {
+        statut: true,
+        message: response.data?.message || 'Voyage reprogrammé avec succès',
+        data: response.data?.data || response.data,
+      };
+    } catch (error: any) {
+      console.error('Erreur reprogrammerVoyage:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+      return {
+        statut: false,
+        message: error.response?.data?.message || 'Erreur lors de la reprogrammation du voyage',
+        data: null,
+      };
+    }
+  },
+
   // Récupérer les statistiques
   obtenirStatistiques: async () => {
     try {

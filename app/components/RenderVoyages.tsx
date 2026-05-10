@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     RefreshControl,
@@ -38,17 +39,18 @@ export const RenderVoyages: React.FC = () => {
   const [multiModalVisible, setMultiModalVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('actifs');
 
-  useEffect(() => {
-    chargerVoyages();
-  }, []);
+  // Optimisation : cache TTL pour éviter les double-fetch lors de navigations rapides
+  const lastFetchRef = useRef<number>(0);
+  const CACHE_TTL_MS = 10_000; // 10 secondes
 
-  const chargerVoyages = async () => {
-    setLoading(true);
+  const chargerVoyages = useCallback(async (silent = false) => {
+    // Ne pas afficher le spinner si on a déjà des données (refresh silencieux)
+    if (!silent) setLoading(true);
     try {
       const response = await voyageService.obtenirVoyages();
-      
+
       let voyagesList: Voyage[] = [];
-      
+
       if (response.statut === true && response.data) {
         voyagesList = Array.isArray(response.data) ? response.data : [];
       } else if (Array.isArray(response)) {
@@ -56,27 +58,47 @@ export const RenderVoyages: React.FC = () => {
       } else if (response.data && Array.isArray(response.data)) {
         voyagesList = response.data;
       }
-      
+
       setVoyages(voyagesList);
+      lastFetchRef.current = Date.now();
     } catch (error: any) {
       console.error('Erreur chargerVoyages:', error);
-      showDialog({
-        title: 'Erreur',
-        message: error?.message || 'Une erreur est survenue',
-        type: 'danger',
-        confirmText: 'OK',
-        onConfirm: () => {},
-        onCancel: () => {},
-      });
-      setVoyages([]);
+      // Ne pas afficher d'erreur sur un refresh silencieux (UX)
+      if (!silent) {
+        showDialog({
+          title: 'Erreur',
+          message: error?.message || 'Une erreur est survenue',
+          type: 'danger',
+          confirmText: 'OK',
+          onConfirm: () => {},
+          onCancel: () => {},
+        });
+        setVoyages([]);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, [showDialog]);
+
+  // Recharge à chaque focus de l'écran, avec cache TTL pour éviter les requêtes inutiles
+  useFocusEffect(
+    useCallback(() => {
+      const now = Date.now();
+      const isFirstLoad = lastFetchRef.current === 0;
+      const isStale = now - lastFetchRef.current > CACHE_TTL_MS;
+
+      if (isFirstLoad) {
+        chargerVoyages(false); // Premier chargement avec spinner
+      } else if (isStale) {
+        chargerVoyages(true);  // Refresh silencieux en arrière-plan
+      }
+      // Sinon : data fraîche en cache, rien à faire
+    }, [chargerVoyages])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await chargerVoyages();
+    await chargerVoyages(true);
     setRefreshing(false);
   };
 
