@@ -81,16 +81,16 @@ export default function NotificationsScreen() {
                     <TouchableOpacity onPress={() => router.back()} className="mr-3">
                         <Ionicons name="arrow-back" size={24} color="#1e293b" />
                     </TouchableOpacity>
-                    <Text className="text-xl font-bold text-gray-900">Notifications</Text>
+                    <Text className="text-2xl font-bold text-gray-900">Notifications</Text>
                     {unreadCount > 0 && (
-                        <View className="bg-red-500 rounded-full px-2 py-0.5 ml-2">
-                            <Text className="text-white text-[10px] font-bold">{unreadCount}</Text>
+                        <View className="bg-red-500 rounded-full px-2.5 py-1 ml-2">
+                            <Text className="text-white text-xs font-bold">{unreadCount}</Text>
                         </View>
                     )}
                 </View>
                 {unreadCount > 0 && (
-                    <TouchableOpacity onPress={markAllAsRead}>
-                        <Text className="text-blue-600 font-bold text-sm">Tout marquer lu</Text>
+                    <TouchableOpacity onPress={markAllAsRead} className="bg-blue-50 rounded-full px-3 py-1.5">
+                        <Text className="text-blue-700 font-bold text-sm">Tout marquer lu</Text>
                     </TouchableOpacity>
                 )}
             </View>
@@ -108,8 +108,8 @@ export default function NotificationsScreen() {
                         <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
                             <Ionicons name="notifications-off-outline" size={40} color="#9ca3af" />
                         </View>
-                        <Text className="text-gray-400 font-bold text-base">Aucune notification</Text>
-                        <Text className="text-gray-300 text-sm mt-1">Vous serez notifié des mises à jour importantes.</Text>
+                        <Text className="text-gray-700 font-bold text-base">Aucune notification</Text>
+                        <Text className="text-gray-600 text-sm mt-1 text-center px-8 font-medium">Vous serez notifié des mises à jour importantes.</Text>
                     </View>
                 ) : (
                     <View className="p-4" style={{ gap: 8 }}>
@@ -119,31 +119,34 @@ export default function NotificationsScreen() {
                             return (
                                 <TouchableOpacity
                                     key={notif.notif_id}
-                                    className={`bg-white rounded-2xl p-4 flex-row border ${isUnread ? 'border-blue-100 bg-blue-50/30' : 'border-gray-50'}`}
+                                    className={`bg-white rounded-2xl p-4 flex-row border ${isUnread ? 'border-blue-200 bg-blue-50/40' : 'border-gray-100'}`}
                                     onPress={() => handleNotificationPress(notif)}
                                     activeOpacity={0.7}
                                 >
                                     <View
-                                        className="w-10 h-10 rounded-xl items-center justify-center mr-3"
+                                        className="w-12 h-12 rounded-xl items-center justify-center mr-3"
                                         style={{ backgroundColor: icon.bg }}
                                     >
-                                        <Ionicons name={icon.name as any} size={20} color={icon.color} />
+                                        <Ionicons name={icon.name as any} size={24} color={icon.color} />
                                     </View>
                                     <View className="flex-1">
                                         <View className="flex-row items-center justify-between mb-1">
-                                            <Text className={`font-bold text-sm flex-1 mr-2 ${isUnread ? 'text-gray-900' : 'text-gray-600'}`} numberOfLines={1}>
+                                            <Text className={`font-bold text-base flex-1 mr-2 ${isUnread ? 'text-gray-900' : 'text-gray-700'}`} numberOfLines={1}>
                                                 {notif.notif_titre}
                                             </Text>
                                             {isUnread && (
-                                                <View className="w-2 h-2 rounded-full bg-blue-500" />
+                                                <View className="w-2.5 h-2.5 rounded-full bg-blue-500" />
                                             )}
                                         </View>
-                                        <Text className="text-gray-500 text-xs leading-4" numberOfLines={2}>
+                                        <Text className="text-gray-700 text-sm leading-5 font-medium" numberOfLines={3}>
                                             {notif.notif_message}
                                         </Text>
-                                        <Text className="text-gray-300 text-[10px] mt-1.5">
-                                            {formatDate(notif.created_at)}
-                                        </Text>
+                                        <View className="flex-row items-center mt-2">
+                                            <Ionicons name="time-outline" size={12} color="#475569" />
+                                            <Text className="text-gray-700 text-xs ml-1 font-medium">
+                                                {formatDate(notif.created_at)}
+                                            </Text>
+                                        </View>
                                     </View>
                                 </TouchableOpacity>
                             );

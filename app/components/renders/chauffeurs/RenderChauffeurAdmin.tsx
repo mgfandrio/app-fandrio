@@ -211,7 +211,7 @@ export const RenderChauffeurAdmin = () => {
           {chauffeursFiltres.length === 0 ? (
             <View className="flex-1 items-center justify-center py-20">
               <Ionicons name="person-outline" size={64} color="#d1d5db" />
-              <Text className="text-gray-500 text-lg mt-4">Aucun chauffeur trouvé</Text>
+              <Text className="text-gray-700 text-lg mt-4 font-medium">Aucun chauffeur trouvé</Text>
             </View>
           ) : (
             chauffeursFiltres.map(chauffeur => (
@@ -221,7 +221,7 @@ export const RenderChauffeurAdmin = () => {
                     <Text className="text-gray-900 font-bold text-base">
                       {chauffeur.chauff_nom} {chauffeur.chauff_prenom}
                     </Text>
-                    <Text className="text-gray-500 text-sm">CIN: {chauffeur.chauff_cin}</Text>
+                    <Text className="text-gray-700 text-sm font-medium">CIN: {chauffeur.chauff_cin}</Text>
                   </View>
                   <TouchableOpacity
                     className={`px-3 py-1 rounded-full ${

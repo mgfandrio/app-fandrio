@@ -115,7 +115,7 @@ export default function HistoryScreen() {
                     {reservations.length === 0 ? (
                         <View className="items-center justify-center py-20">
                             <Ionicons name="receipt-outline" size={64} color="#d1d5db" />
-                            <Text className="text-gray-400 mt-4 text-base">Aucune réservation trouvée</Text>
+                            <Text className="text-gray-600 mt-4 text-base font-medium">Aucune réservation trouvée</Text>
                         </View>
                     ) : (
                         reservations.map((res: any) => {
@@ -125,12 +125,12 @@ export default function HistoryScreen() {
                                     <View className="flex-row justify-between items-start mb-3">
                                         <View className="flex-1">
                                             <Text className="text-gray-900 font-bold text-base">{res.trajet}</Text>
-                                            <Text className="text-gray-500 text-xs mt-0.5">Voyage: {res.date} • {res.heure}</Text>
-                                            <Text className="text-gray-400 text-[10px] mt-0.5">Réservé le {res.date_reservation}</Text>
-                                            <Text className="text-gray-400 text-[10px] mt-1 italic">N° {res.numero}</Text>
+                                            <Text className="text-gray-700 text-sm font-medium mt-1">Voyage : {res.date} • {res.heure}</Text>
+                                            <Text className="text-gray-600 text-xs mt-1">Réservé le {res.date_reservation}</Text>
+                                            <Text className="text-gray-600 text-xs mt-1 italic">N° {res.numero}</Text>
                                         </View>
-                                        <View className={`px-2.5 py-1 rounded-full ${status.bg}`}>
-                                            <Text className={`text-[10px] font-bold uppercase ${status.text}`}>
+                                        <View className={`px-3 py-1.5 rounded-full ${status.bg}`}>
+                                            <Text className={`text-xs font-bold uppercase ${status.text}`}>
                                                 {status.label}
                                             </Text>
                                         </View>
@@ -154,7 +154,7 @@ export default function HistoryScreen() {
                                                 className="bg-blue-50 px-4 py-2 rounded-xl"
                                                 onPress={() => router.push({ pathname: '/screens/dashboard/utilisateur/reservations/reservationDetail', params: { id: String(res.id) } })}
                                             >
-                                                <Text style={{ color: '#1e3a8a' }} className="text-xs font-bold">Voir détail</Text>
+                                                <Text style={{ color: '#1e3a8a' }} className="text-sm font-bold">Voir détail</Text>
                                             </TouchableOpacity>
                                         </View>
                                     </View>
@@ -177,7 +177,7 @@ export default function HistoryScreen() {
                         {qrLoading ? (
                             <View className="py-10 items-center">
                                 <ActivityIndicator size="large" color="#1e3a8a" />
-                                <Text className="text-gray-400 mt-4 text-sm">Chargement du QR...</Text>
+                                <Text className="text-gray-600 mt-4 text-sm">Chargement du QR...</Text>
                             </View>
                         ) : qrString ? (
                             <>
@@ -185,16 +185,16 @@ export default function HistoryScreen() {
                                     <Ionicons name="qr-code" size={28} color="#22c55e" />
                                 </View>
                                 <Text className="text-gray-900 font-bold text-lg mb-1">QR Code</Text>
-                                <Text className="text-gray-400 text-xs mb-5">Ticket N° {qrNumero}</Text>
+                                <Text className="text-gray-600 text-sm mb-5">Ticket N° {qrNumero}</Text>
                                 <View className="bg-white p-4 rounded-2xl border border-gray-100">
                                     <QRCode value={qrString} size={220} backgroundColor="#ffffff" />
                                 </View>
-                                <Text className="text-gray-400 text-[10px] text-center mt-4">Présentez ce code lors de l'embarquement</Text>
+                                <Text className="text-gray-700 text-xs text-center mt-4">Présentez ce code lors de l'embarquement</Text>
                             </>
                         ) : (
                             <View className="py-10 items-center">
                                 <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
-                                <Text className="text-gray-500 mt-3 text-sm">QR code indisponible</Text>
+                                <Text className="text-gray-700 mt-3 text-sm">QR code indisponible</Text>
                             </View>
                         )}
                         <TouchableOpacity

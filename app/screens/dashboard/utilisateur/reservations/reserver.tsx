@@ -452,10 +452,10 @@ export default function ReserverScreen() {
                             {index + 1 < currentStep ? (
                                 <Ionicons name="checkmark" size={14} color="white" />
                             ) : (
-                                <Text className="text-white text-[10px] font-bold">{index + 1}</Text>
+                                <Text className="text-white text-xs font-bold">{index + 1}</Text>
                             )}
                         </View>
-                        <Text className={`text-[8px] font-bold uppercase text-center ${index + 1 === currentStep ? 'text-blue-900' : 'text-gray-400'}`}>
+                        <Text className={`text-[10px] font-bold uppercase text-center ${index + 1 === currentStep ? 'text-blue-900' : 'text-gray-600'}`}>
                             {step}
                         </Text>
                     </View>
@@ -521,8 +521,8 @@ export default function ReserverScreen() {
                     >
                         <Ionicons name="calendar-outline" size={18} color="#1e3a8a" />
                         <View className="ml-2">
-                            <Text className="text-gray-400 text-[10px]">À partir du</Text>
-                            <Text className="text-gray-700 text-xs font-bold">
+                            <Text className="text-gray-600 text-xs font-medium">À partir du</Text>
+                            <Text className="text-gray-800 text-sm font-bold">
                                 {dateDebut ? dateDebut.toLocaleDateString('fr-FR') : 'Choisir'}
                             </Text>
                         </View>
@@ -540,8 +540,8 @@ export default function ReserverScreen() {
                     >
                         <Ionicons name="calendar-outline" size={18} color="#9ca3af" />
                         <View className="ml-2">
-                            <Text className="text-gray-400 text-[10px]">Jusqu'au (opt.)</Text>
-                            <Text className={`text-xs font-bold ${dateFin ? 'text-gray-700' : 'text-gray-400'}`}>
+                            <Text className="text-gray-600 text-xs font-medium">Jusqu'au (opt.)</Text>
+                            <Text className={`text-sm font-bold ${dateFin ? 'text-gray-800' : 'text-gray-500'}`}>
                                 {dateFin ? dateFin.toLocaleDateString('fr-FR') : 'Choisir'}
                             </Text>
                         </View>
@@ -584,9 +584,9 @@ export default function ReserverScreen() {
             {/* Résultat vide inline */}
             {noResults && availableVoyages.length === 0 && (
                 <View className="items-center py-10">
-                    <Ionicons name="search-outline" size={48} color="#d1d5db" />
-                    <Text className="text-gray-400 font-bold text-lg mt-3">Aucun voyage trouvé</Text>
-                    <Text className="text-gray-300 text-sm text-center mt-1">Essayez une autre date ou un autre trajet.</Text>
+                    <Ionicons name="search-outline" size={48} color="#9ca3af" />
+                    <Text className="text-gray-700 font-bold text-lg mt-3">Aucun voyage trouvé</Text>
+                    <Text className="text-gray-600 text-sm text-center mt-1">Essayez une autre date ou un autre trajet.</Text>
                 </View>
             )}
 
@@ -601,17 +601,17 @@ export default function ReserverScreen() {
                         <View>
                             <Text className="text-gray-900 font-bold text-xl">{voyage.compagnie?.nom || 'Compagnie'}</Text>
                             <View className="flex-row items-center mt-1">
-                                <Ionicons name="calendar-outline" size={14} color="#6b7280" />
-                                <Text className="text-gray-500 text-sm ml-1 mr-3">{voyage.date}</Text>
-                                <Ionicons name="time-outline" size={14} color="#6b7280" />
-                                <Text className="text-gray-500 text-sm ml-1">{voyage.heure_depart}</Text>
+                                <Ionicons name="calendar-outline" size={14} color="#334155" />
+                                <Text className="text-gray-700 text-sm font-medium ml-1 mr-3">{voyage.date}</Text>
+                                <Ionicons name="time-outline" size={14} color="#334155" />
+                                <Text className="text-gray-700 text-sm font-medium ml-1">{voyage.heure_depart}</Text>
                             </View>
                         </View>
                         <Text className="text-blue-900 font-bold text-xl">{new Intl.NumberFormat('fr-FR').format(voyage.trajet?.tarif || 0)} Ar</Text>
                     </View>
                     <View className="flex-row justify-between items-center pt-2 border-t border-gray-50">
-                        <Text className="text-gray-500 text-xs italic">{voyage.trajet?.nom}</Text>
-                        <Text className="text-gray-600 font-bold text-xs">{voyage.places_disponibles} places restantes</Text>
+                        <Text className="text-gray-700 text-sm italic">{voyage.trajet?.nom}</Text>
+                        <Text className="text-gray-800 font-bold text-sm">{voyage.places_disponibles} places restantes</Text>
                     </View>
                 </TouchableOpacity>
             ))}
@@ -628,7 +628,7 @@ export default function ReserverScreen() {
 
                     <View className="mx-6 items-center">
                         <Text className="text-gray-900 font-bold">Page {pagination.currentPage}</Text>
-                        <Text className="text-gray-400 text-[10px]">{pagination.total} voyages trouvés</Text>
+                        <Text className="text-gray-600 text-xs">{pagination.total} voyages trouvés</Text>
                     </View>
 
                     <TouchableOpacity
@@ -680,7 +680,7 @@ export default function ReserverScreen() {
                     <Text className="text-gray-900 font-bold text-lg mt-4 text-center">
                         Plan de siège non disponible
                     </Text>
-                    <Text className="text-gray-500 text-sm mt-2 text-center px-6">
+                    <Text className="text-gray-700 text-sm mt-2 text-center px-6">
                         Désolé, le plan de siège pour un véhicule de {placeCount || '?'} places n'est pas encore configuré. 
                         Veuillez contacter le support.
                     </Text>
@@ -772,7 +772,7 @@ export default function ReserverScreen() {
                             <Text className="text-gray-900 font-bold text-base uppercase">
                                 {selectedVoyage?.voiture?.voit_marque || selectedVoyage?.voiture?.marque || 'VOLKSWAGEN'} - {selectedVoyage?.voiture?.voit_modele || selectedVoyage?.voiture?.modele || 'Crafter'}
                             </Text>
-                            <Text className="text-gray-500 text-xs">{placeCount || '?'} places</Text>
+                            <Text className="text-gray-700 text-sm font-medium">{placeCount || '?'} places</Text>
                         </View>
                     </View>
 
@@ -784,7 +784,7 @@ export default function ReserverScreen() {
                                 <View className="h-14 items-center justify-center">
                                     <Ionicons name="person-circle" size={48} color="#111827" />
                                 </View>
-                                <Text className="text-[8px] text-gray-400 font-bold absolute -bottom-1 text-center" numberOfLines={1}>
+                                <Text className="text-[10px] text-gray-700 font-bold absolute -bottom-1 text-center" numberOfLines={1}>
                                     {chauffeur || 'Chauffeur'}
                                 </Text>
                             </View>
@@ -801,20 +801,20 @@ export default function ReserverScreen() {
                     {/* Legend */}
                     <View className="absolute bottom-0 left-0 right-0 px-4 py-4 border-t border-gray-50 flex-row flex-wrap justify-between bg-white rounded-b-3xl">
                         <View className="flex-row items-center w-[23%]">
-                            <View className="w-5 h-5 rounded-md bg-white border border-gray-200 mr-2" />
-                            <Text className="text-[12px] font-bold text-gray-500">Libre</Text>
+                            <View className="w-5 h-5 rounded-md bg-white border border-gray-300 mr-2" />
+                            <Text className="text-xs font-bold text-gray-800">Libre</Text>
                         </View>
                         <View className="flex-row items-center w-[23%]">
                             <View className="w-5 h-5 rounded-md bg-[#0ea5e9] mr-2" />
-                            <Text className="text-[12px] font-bold text-gray-500">Choisi</Text>
+                            <Text className="text-xs font-bold text-gray-800">Choisi</Text>
                         </View>
                         <View className="flex-row items-center w-[23%]">
                             <View className="w-5 h-5 rounded-md bg-[#FFA500] mr-2" />
-                            <Text className="text-[12px] font-bold text-gray-500">Attente</Text>
+                            <Text className="text-xs font-bold text-gray-800">Attente</Text>
                         </View>
                         <View className="flex-row items-center w-[23%]">
                             <View className="w-5 h-5 rounded-md bg-[#ef4444] mr-2" />
-                            <Text className="text-[12px] font-bold text-gray-500">Occupé</Text>
+                            <Text className="text-xs font-bold text-gray-800">Occupé</Text>
                         </View>
                     </View>
                 </View>

@@ -181,7 +181,7 @@ export function RenderVoitures({ onAddPress, onEditPress }: RenderVoituresProps)
                 <Ionicons name="car-outline" size={48} color="#94a3b8" />
               </View>
               <Text className="text-slate-800 font-bold text-lg">Aucune voiture trouvée</Text>
-              <Text className="text-slate-400 text-sm mt-2 text-center leading-5">
+              <Text className="text-slate-600 text-sm mt-2 text-center leading-5">
                 {searchText.length > 0 
                   ? 'Aucune voiture ne correspond à votre recherche'
                   : 'Appuyez sur + pour ajouter votre premier véhicule'}
@@ -210,17 +210,17 @@ export function RenderVoitures({ onAddPress, onEditPress }: RenderVoituresProps)
                     </View>
                     
                     <View className="flex-1">
-                      <Text className="text-slate-800 font-bold text-base">
+                      <Text className="text-slate-900 font-bold text-base">
                         {voiture.voit_marque} {voiture.voit_modele}
                       </Text>
                       <View className="flex-row items-center mt-1">
-                        <Ionicons name="document-text-outline" size={14} color="#94a3b8" />
-                        <Text className="text-slate-400 text-sm ml-1.5">
+                        <Ionicons name="document-text-outline" size={14} color="#475569" />
+                        <Text className="text-slate-700 text-sm font-medium ml-1.5">
                           {voiture.voit_matricule}
                         </Text>
-                        <Text className="text-slate-300 mx-2">•</Text>
-                        <Ionicons name="people-outline" size={14} color="#94a3b8" />
-                        <Text className="text-slate-400 text-sm ml-1">
+                        <Text className="text-slate-500 mx-2">•</Text>
+                        <Ionicons name="people-outline" size={14} color="#475569" />
+                        <Text className="text-slate-700 text-sm font-medium ml-1">
                           {voiture.voit_places} places
                         </Text>
                       </View>

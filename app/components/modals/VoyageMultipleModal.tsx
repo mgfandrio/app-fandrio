@@ -554,7 +554,7 @@ export const VoyageMultipleModal: React.FC<Props> = ({ visible, onClose, onSucce
               <View className="flex-row justify-between items-center mb-1.5">
                 <Text className="text-gray-700 font-semibold text-sm">Places disponibles *</Text>
                 {capacite > 0 && (
-                  <Text className="text-gray-400 text-xs">Max: {capacite}</Text>
+                  <Text className="text-gray-700 text-xs font-medium">Max: {capacite}</Text>
                 )}
               </View>
               <View className="bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 flex-row items-center">
@@ -644,7 +644,7 @@ export const VoyageMultipleModal: React.FC<Props> = ({ visible, onClose, onSucce
                 </View>
                 <View>
                   <Text className="text-gray-900 font-bold text-base">Trajet commun *</Text>
-                  <Text className="text-gray-400 text-xs mt-0.5">Même trajet pour tous les voyages</Text>
+                  <Text className="text-gray-700 text-xs mt-0.5">Même trajet pour tous les voyages</Text>
                 </View>
               </View>
 
@@ -655,7 +655,7 @@ export const VoyageMultipleModal: React.FC<Props> = ({ visible, onClose, onSucce
                   setSearchTrajet('');
                 }}
               >
-                <Text className={`text-sm flex-1 ${selectedTrajetId ? 'text-gray-900 font-medium' : 'text-gray-400'}`}>
+                <Text className={`text-sm flex-1 ${selectedTrajetId ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>
                   {getTrajetName()}
                 </Text>
                 <Ionicons name={showTrajetDropdown ? 'chevron-up' : 'chevron-down'} size={18} color="#6b7280" />

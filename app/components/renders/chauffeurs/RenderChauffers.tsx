@@ -183,7 +183,7 @@ export function RenderChauffers({ onAddPress, onEditPress }: RenderChauffeursPro
                 <Ionicons name="person-outline" size={48} color="#94a3b8" />
               </View>
               <Text className="text-slate-800 font-bold text-lg">Aucun chauffeur trouvé</Text>
-              <Text className="text-slate-400 text-sm mt-2 text-center leading-5">
+              <Text className="text-slate-600 text-sm mt-2 text-center leading-5">
                 {searchText.length > 0 
                   ? 'Aucun chauffeur ne correspond à votre recherche'
                   : 'Appuyez sur + pour ajouter votre premier chauffeur'}
@@ -213,17 +213,17 @@ export function RenderChauffers({ onAddPress, onEditPress }: RenderChauffeursPro
                     </View>
                     
                     <View className="flex-1">
-                      <Text className="text-slate-800 font-bold text-base">
+                      <Text className="text-slate-900 font-bold text-base">
                         {chauffeur.chauff_nom} {chauffeur.chauff_prenom}
                       </Text>
                       <View className="flex-row items-center mt-1">
-                        <Ionicons name="id-card-outline" size={14} color="#94a3b8" />
-                        <Text className="text-slate-400 text-sm ml-1.5">
+                        <Ionicons name="id-card-outline" size={14} color="#475569" />
+                        <Text className="text-slate-700 text-sm font-medium ml-1.5">
                           {chauffeur.chauff_cin}
                         </Text>
-                        <Text className="text-slate-300 mx-2">•</Text>
-                        <Ionicons name="calendar-outline" size={14} color="#94a3b8" />
-                        <Text className="text-slate-400 text-sm ml-1">
+                        <Text className="text-slate-500 mx-2">•</Text>
+                        <Ionicons name="calendar-outline" size={14} color="#475569" />
+                        <Text className="text-slate-700 text-sm font-medium ml-1">
                           {chauffeur.chauff_age} ans
                         </Text>
                       </View>

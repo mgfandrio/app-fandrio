@@ -82,7 +82,7 @@ export const RenderReservations = () => {
             <View className="flex-row items-center justify-between mb-4">
               <View className="flex-1">
                 <Text className="text-white font-extrabold text-xl">Réservations</Text>
-                <Text className="text-orange-200 text-xs mt-1">Gestion des billets et revenus</Text>
+                <Text className="text-white text-sm font-medium mt-1">Gestion des billets et revenus</Text>
               </View>
               <View className="bg-white/15 rounded-2xl p-3">
                 <Ionicons name="ticket" size={24} color="#fff" />
@@ -93,19 +93,19 @@ export const RenderReservations = () => {
             {!loading && (resume.revenu_total !== undefined) && (
               <View className="flex-row mt-2">
                 <View className="flex-1 bg-white/15 rounded-xl p-3 mr-2">
-                  <Text className="text-orange-200 text-[10px] font-semibold">REVENU TOTAL</Text>
+                  <Text className="text-white text-xs font-bold uppercase opacity-90">Revenu total</Text>
                   <Text className="text-white font-extrabold text-base mt-1">
                     {formatMontant(resume.revenu_total || 0)}
                   </Text>
                 </View>
                 <View className="flex-1 bg-white/15 rounded-xl p-3 mr-2">
-                  <Text className="text-orange-200 text-[10px] font-semibold">RÉSERVATIONS</Text>
+                  <Text className="text-white text-xs font-bold uppercase opacity-90">Réservations</Text>
                   <Text className="text-white font-extrabold text-base mt-1">
                     {resume.total_reservations || 0}
                   </Text>
                 </View>
                 <View className="flex-1 bg-white/15 rounded-xl p-3">
-                  <Text className="text-orange-200 text-[10px] font-semibold">VOYAGES</Text>
+                  <Text className="text-white text-xs font-bold uppercase opacity-90">Voyages</Text>
                   <Text className="text-white font-extrabold text-base mt-1">
                     {resume.total_voyages || 0}
                   </Text>
@@ -124,7 +124,7 @@ export const RenderReservations = () => {
                   <ActivityIndicator color="#fff" size="small" />
                 </LinearGradient>
               </View>
-              <Text className="text-slate-400 mt-3 text-sm">Chargement...</Text>
+              <Text className="text-slate-700 mt-3 text-sm font-medium">Chargement...</Text>
             </View>
           ) : voyages.length > 0 ? (
             voyages.map((voyage) => {
@@ -149,10 +149,10 @@ export const RenderReservations = () => {
                     {/* Trajet + Status */}
                     <View className="flex-row items-center justify-between mb-3">
                       <View className="flex-1 mr-3">
-                        <Text className="text-slate-800 font-bold text-base" numberOfLines={1}>
+                        <Text className="text-slate-900 font-bold text-base" numberOfLines={1}>
                           {voyage.trajet?.province_depart} → {voyage.trajet?.province_arrivee}
                         </Text>
-                        <Text className="text-slate-400 text-xs mt-0.5">{voyage.trajet?.nom}</Text>
+                        <Text className="text-slate-700 text-sm font-medium mt-0.5">{voyage.trajet?.nom}</Text>
                       </View>
                       <View className="rounded-lg px-2.5 py-1" style={{ backgroundColor: statut.bg }}>
                         <Text className="text-xs font-bold" style={{ color: statut.color }}>{statut.label}</Text>
@@ -160,18 +160,18 @@ export const RenderReservations = () => {
                     </View>
 
                     {/* Stats row */}
-                    <View className="flex-row items-center mb-3">
-                      <View className="bg-slate-50 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2">
-                        <Ionicons name="calendar-outline" size={12} color="#64748b" />
-                        <Text className="text-slate-500 text-[10px] font-medium ml-1">{voyage.date}</Text>
+                    <View className="flex-row items-center mb-3 flex-wrap">
+                      <View className="bg-slate-100 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-1">
+                        <Ionicons name="calendar-outline" size={14} color="#334155" />
+                        <Text className="text-slate-800 text-xs font-semibold ml-1">{voyage.date}</Text>
                       </View>
-                      <View className="bg-slate-50 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2">
-                        <Ionicons name="time-outline" size={12} color="#64748b" />
-                        <Text className="text-slate-500 text-[10px] font-medium ml-1">{voyage.heure_depart}</Text>
+                      <View className="bg-slate-100 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-1">
+                        <Ionicons name="time-outline" size={14} color="#334155" />
+                        <Text className="text-slate-800 text-xs font-semibold ml-1">{voyage.heure_depart}</Text>
                       </View>
-                      <View className="bg-slate-50 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2">
-                        <Ionicons name="car-outline" size={12} color="#64748b" />
-                        <Text className="text-slate-500 text-[10px] font-medium ml-1">{voyage.voiture?.matricule}</Text>
+                      <View className="bg-slate-100 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-1">
+                        <Ionicons name="car-outline" size={14} color="#334155" />
+                        <Text className="text-slate-800 text-xs font-semibold ml-1">{voyage.voiture?.matricule}</Text>
                       </View>
                     </View>
 
@@ -193,7 +193,7 @@ export const RenderReservations = () => {
                           </Text>
                         </View>
                       </View>
-                      <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+                      <Ionicons name="chevron-forward" size={20} color="#64748b" />
                     </View>
 
                     {/* Revenue row */}
@@ -206,7 +206,7 @@ export const RenderReservations = () => {
                               {formatMontant(voyage.revenu_total)}
                             </Text>
                           </View>
-                          <Text className="text-slate-300 text-[10px] ml-2">
+                          <Text className="text-slate-700 text-xs font-medium ml-2">
                             {voyage.trajet?.tarif ? `Tarif: ${formatMontant(voyage.trajet.tarif)}/pers.` : ''}
                           </Text>
                         </View>
@@ -227,7 +227,7 @@ export const RenderReservations = () => {
                             ) : (
                               <Ionicons name="download-outline" size={13} color="#059669" />
                             )}
-                            <Text className="text-emerald-700 text-[10px] font-bold ml-1">Fiche</Text>
+                            <Text className="text-emerald-700 text-xs font-bold ml-1">Fiche</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -252,7 +252,7 @@ export const RenderReservations = () => {
                           ) : (
                             <Ionicons name="download-outline" size={13} color="#059669" />
                           )}
-                          <Text className="text-emerald-700 text-[10px] font-bold ml-1">Fiche voyageurs</Text>
+                          <Text className="text-emerald-700 text-xs font-bold ml-1">Fiche voyageurs</Text>
                         </TouchableOpacity>
                       </View>
                     )}
@@ -266,7 +266,7 @@ export const RenderReservations = () => {
                 <Ionicons name="ticket-outline" size={36} color="#94a3b8" />
               </View>
               <Text className="text-slate-800 font-bold text-base">Aucune réservation</Text>
-              <Text className="text-slate-400 text-sm mt-1 text-center">
+              <Text className="text-slate-700 text-sm font-medium mt-1 text-center">
                 Les réservations validées par vos clients apparaîtront ici
               </Text>
             </View>

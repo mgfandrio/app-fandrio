@@ -56,7 +56,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ refreshTrigger =
     return (
       <View className="py-12 items-center">
         <ActivityIndicator size="large" color="#3b82f6" />
-        <Text className="text-gray-400 text-sm mt-3">Chargement du tableau de bord...</Text>
+        <Text className="text-gray-700 text-sm font-medium mt-3">Chargement du tableau de bord...</Text>
       </View>
     );
   }
@@ -87,7 +87,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ refreshTrigger =
     <View>
       {/* CA Summary Cards */}
       <View className="mb-5">
-        <Text className="text-base font-bold text-gray-900 mb-3">Chiffre d'Affaires</Text>
+        <Text className="text-lg font-bold text-gray-900 mb-3">Chiffre d'Affaires</Text>
         <View className="flex-row" style={{ gap: 10 }}>
           <View className="flex-1 bg-white rounded-2xl p-4" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
             <View className="flex-row items-center mb-2">
@@ -95,9 +95,9 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ refreshTrigger =
                 <Ionicons name="today" size={16} color="#3b82f6" />
               </View>
             </View>
-            <Text className="text-gray-400 text-[10px] font-medium">AUJOURD'HUI</Text>
+            <Text className="text-gray-700 text-xs font-bold uppercase">Aujourd'hui</Text>
             <Text className="text-gray-900 text-lg font-bold mt-0.5">{formatMontant(ca.aujourdhui || 0)}</Text>
-            <Text className="text-gray-300 text-[9px]">Ar</Text>
+            <Text className="text-gray-600 text-xs font-medium">Ar</Text>
           </View>
           <View className="flex-1 bg-white rounded-2xl p-4" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
             <View className="flex-row items-center mb-2">
@@ -105,9 +105,9 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ refreshTrigger =
                 <Ionicons name="calendar" size={16} color="#10b981" />
               </View>
             </View>
-            <Text className="text-gray-400 text-[10px] font-medium">CETTE SEMAINE</Text>
+            <Text className="text-gray-700 text-xs font-bold uppercase">Cette semaine</Text>
             <Text className="text-gray-900 text-lg font-bold mt-0.5">{formatMontant(ca.cette_semaine || 0)}</Text>
-            <Text className="text-gray-300 text-[9px]">Ar</Text>
+            <Text className="text-gray-600 text-xs font-medium">Ar</Text>
           </View>
         </View>
         <View className="flex-row mt-2.5" style={{ gap: 10 }}>
@@ -118,14 +118,14 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ refreshTrigger =
               </View>
               {ca.evolution_mois != null && (
                 <View className={`flex-row items-center px-2 py-0.5 rounded-full ${ca.evolution_mois >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-                  <Ionicons name={ca.evolution_mois >= 0 ? 'arrow-up' : 'arrow-down'} size={10} color={ca.evolution_mois >= 0 ? '#10b981' : '#ef4444'} />
-                  <Text className={`text-[9px] font-bold ml-0.5 ${ca.evolution_mois >= 0 ? 'text-green-600' : 'text-red-500'}`}>{Math.abs(ca.evolution_mois)}%</Text>
+                  <Ionicons name={ca.evolution_mois >= 0 ? 'arrow-up' : 'arrow-down'} size={12} color={ca.evolution_mois >= 0 ? '#10b981' : '#ef4444'} />
+                  <Text className={`text-xs font-bold ml-0.5 ${ca.evolution_mois >= 0 ? 'text-green-700' : 'text-red-600'}`}>{Math.abs(ca.evolution_mois)}%</Text>
                 </View>
               )}
             </View>
-            <Text className="text-gray-400 text-[10px] font-medium">CE MOIS</Text>
+            <Text className="text-gray-700 text-xs font-bold uppercase">Ce mois</Text>
             <Text className="text-gray-900 text-lg font-bold mt-0.5">{formatMontant(ca.ce_mois || 0)}</Text>
-            <Text className="text-gray-300 text-[9px]">Ar · vs {formatMontant(ca.mois_dernier || 0)} mois dernier</Text>
+            <Text className="text-gray-600 text-xs font-medium">Ar · vs {formatMontant(ca.mois_dernier || 0)} mois dernier</Text>
           </View>
           <View className="flex-1 bg-white rounded-2xl p-4" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
             <View className="flex-row items-center mb-2">
@@ -133,9 +133,9 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ refreshTrigger =
                 <Ionicons name="stats-chart" size={16} color="#f59e0b" />
               </View>
             </View>
-            <Text className="text-gray-400 text-[10px] font-medium">CETTE ANNÉE</Text>
+            <Text className="text-gray-700 text-xs font-bold uppercase">Cette année</Text>
             <Text className="text-gray-900 text-lg font-bold mt-0.5">{formatMontant(ca.cette_annee || 0)}</Text>
-            <Text className="text-gray-300 text-[9px]">Ar</Text>
+            <Text className="text-gray-600 text-xs font-medium">Ar</Text>
           </View>
         </View>
       </View>
@@ -143,18 +143,18 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ refreshTrigger =
       {/* Evolution Chart */}
       {evolutionMensuelle.length > 0 && (
         <View className="bg-white rounded-2xl p-4 mb-5" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-          <Text className="text-sm font-bold text-gray-900 mb-1">Évolution du CA</Text>
-          <Text className="text-[10px] text-gray-400 mb-4">12 derniers mois</Text>
-          <View style={{ height: 120, flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
+          <Text className="text-base font-bold text-gray-900 mb-1">Évolution du CA</Text>
+          <Text className="text-xs text-gray-700 font-medium mb-4">12 derniers mois</Text>
+          <View style={{ height: 130, flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
             {evolutionMensuelle.map((item: any, i: number) => {
               const maxCa = Math.max(...evolutionMensuelle.map((d: any) => parseFloat(d.ca) || 0), 1);
               const h = Math.max(((parseFloat(item.ca) || 0) / maxCa) * 100, 3);
               const moisNum = parseInt(item.mois?.split('-')[1] || '0') - 1;
               return (
                 <View key={i} style={{ flex: 1, alignItems: 'center' }}>
-                  <Text className="text-[7px] text-gray-400 mb-1">{formatMontant(parseFloat(item.ca) || 0)}</Text>
+                  <Text className="text-[9px] text-gray-700 font-medium mb-1">{formatMontant(parseFloat(item.ca) || 0)}</Text>
                   <LinearGradient colors={['#3b82f6', '#1d4ed8']} style={{ width: '75%', height: h, borderRadius: 4, minHeight: 3 }} />
-                  <Text className="text-[8px] text-gray-400 mt-1">{MOIS_COURTS[moisNum] || ''}</Text>
+                  <Text className="text-[10px] text-gray-700 font-semibold mt-1">{MOIS_COURTS[moisNum] || ''}</Text>
                 </View>
               );
             })}
@@ -164,27 +164,27 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ refreshTrigger =
 
       {/* Key Metrics */}
       <View className="bg-white rounded-2xl p-4 mb-5" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-        <Text className="text-sm font-bold text-gray-900 mb-3">Indicateurs clés</Text>
+        <Text className="text-base font-bold text-gray-900 mb-3">Indicateurs clés</Text>
         <View className="flex-row" style={{ gap: 8 }}>
           <View className="flex-1 items-center bg-blue-50 rounded-xl py-3">
-            <Ionicons name="ticket" size={20} color="#3b82f6" />
-            <Text className="text-blue-700 text-lg font-bold mt-1">{totaux.reservations || 0}</Text>
-            <Text className="text-blue-400 text-[9px]">Réservations</Text>
+            <Ionicons name="ticket" size={22} color="#3b82f6" />
+            <Text className="text-blue-800 text-xl font-bold mt-1">{totaux.reservations || 0}</Text>
+            <Text className="text-blue-700 text-xs font-semibold">Réservations</Text>
           </View>
           <View className="flex-1 items-center bg-green-50 rounded-xl py-3">
-            <Ionicons name="people" size={20} color="#10b981" />
-            <Text className="text-green-700 text-lg font-bold mt-1">{totaux.voyageurs || 0}</Text>
-            <Text className="text-green-400 text-[9px]">Voyageurs</Text>
+            <Ionicons name="people" size={22} color="#10b981" />
+            <Text className="text-green-800 text-xl font-bold mt-1">{totaux.voyageurs || 0}</Text>
+            <Text className="text-green-700 text-xs font-semibold">Voyageurs</Text>
           </View>
           <View className="flex-1 items-center bg-purple-50 rounded-xl py-3">
-            <Ionicons name="speedometer" size={20} color="#8b5cf6" />
-            <Text className="text-purple-700 text-lg font-bold mt-1">{taux}%</Text>
-            <Text className="text-purple-400 text-[9px]">Remplissage</Text>
+            <Ionicons name="pie-chart" size={22} color="#8b5cf6" />
+            <Text className="text-purple-800 text-xl font-bold mt-1">{taux}%</Text>
+            <Text className="text-purple-700 text-xs font-semibold">Remplissage</Text>
           </View>
           <View className="flex-1 items-center bg-orange-50 rounded-xl py-3">
-            <Ionicons name="checkmark-done" size={20} color="#f59e0b" />
-            <Text className="text-orange-700 text-lg font-bold mt-1">{totaux.voyages_complets || 0}</Text>
-            <Text className="text-orange-400 text-[9px]">Complets</Text>
+            <Ionicons name="checkmark-done" size={22} color="#f59e0b" />
+            <Text className="text-orange-800 text-xl font-bold mt-1">{totaux.voyages_complets || 0}</Text>
+            <Text className="text-orange-700 text-xs font-semibold">Complets</Text>
           </View>
         </View>
       </View>
@@ -192,17 +192,17 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ refreshTrigger =
       {/* Payment Breakdown */}
       {repartition.length > 0 && (
         <View className="bg-white rounded-2xl p-4 mb-5" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-          <Text className="text-sm font-bold text-gray-900 mb-3">Répartition des paiements</Text>
+          <Text className="text-base font-bold text-gray-900 mb-3">Répartition des paiements</Text>
           {repartition.map((item: any, i: number) => {
             const pct = ((item.montant / totalPaiements) * 100).toFixed(0);
             const color = paiementColors[item.type] || '#6b7280';
             return (
               <View key={i} className="mb-3">
                 <View className="flex-row items-center justify-between mb-1">
-                  <Text className="text-xs text-gray-700 font-semibold">{item.type}</Text>
+                  <Text className="text-sm text-gray-800 font-semibold">{item.type}</Text>
                   <View className="flex-row items-center">
-                    <Text className="text-[10px] text-gray-400 mr-2">{item.count} résa</Text>
-                    <Text className="text-xs font-bold" style={{ color }}>{formatFull(item.montant)}</Text>
+                    <Text className="text-xs text-gray-700 font-medium mr-2">{item.count} résa</Text>
+                    <Text className="text-sm font-bold" style={{ color }}>{formatFull(item.montant)}</Text>
                   </View>
                 </View>
                 <View className="h-2.5 rounded-full bg-gray-100 overflow-hidden">
@@ -217,25 +217,25 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ refreshTrigger =
       {/* Operational Stats */}
       {stats && (
         <View className="bg-white rounded-2xl p-4 mb-5" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-          <Text className="text-sm font-bold text-gray-900 mb-3">Parc & Équipe</Text>
+          <Text className="text-base font-bold text-gray-900 mb-3">Parc & Équipe</Text>
           <View className="flex-row" style={{ gap: 8 }}>
             <TouchableOpacity className="flex-1 bg-blue-50 rounded-xl p-3 items-center" onPress={() => onNavigate?.('voitures')} activeOpacity={0.7}>
-              <Ionicons name="car" size={22} color="#3b82f6" />
-              <Text className="text-gray-900 font-bold text-base mt-1">{stats.voitures?.total || 0}</Text>
-              <Text className="text-gray-400 text-[9px]">Voitures</Text>
-              <Text className="text-green-500 text-[8px]">{stats.voitures?.disponibles || 0} dispo</Text>
+              <Ionicons name="car" size={24} color="#3b82f6" />
+              <Text className="text-gray-900 font-bold text-lg mt-1">{stats.voitures?.total || 0}</Text>
+              <Text className="text-gray-700 text-xs font-semibold">Voitures</Text>
+              <Text className="text-green-700 text-xs font-medium mt-0.5">{stats.voitures?.disponibles || 0} dispo</Text>
             </TouchableOpacity>
             <TouchableOpacity className="flex-1 bg-purple-50 rounded-xl p-3 items-center" onPress={() => onNavigate?.('voyages')} activeOpacity={0.7}>
-              <Ionicons name="navigate" size={22} color="#8b5cf6" />
-              <Text className="text-gray-900 font-bold text-base mt-1">{stats.voyages?.total || 0}</Text>
-              <Text className="text-gray-400 text-[9px]">Voyages</Text>
-              <Text className="text-green-500 text-[8px]">{stats.voyages?.actifs || 0} actifs</Text>
+              <Ionicons name="navigate" size={24} color="#8b5cf6" />
+              <Text className="text-gray-900 font-bold text-lg mt-1">{stats.voyages?.total || 0}</Text>
+              <Text className="text-gray-700 text-xs font-semibold">Voyages</Text>
+              <Text className="text-green-700 text-xs font-medium mt-0.5">{stats.voyages?.actifs || 0} actifs</Text>
             </TouchableOpacity>
             <TouchableOpacity className="flex-1 bg-green-50 rounded-xl p-3 items-center" onPress={() => onNavigate?.('chauffeurs')} activeOpacity={0.7}>
-              <Ionicons name="people" size={22} color="#10b981" />
-              <Text className="text-gray-900 font-bold text-base mt-1">{stats.chauffeurs?.total || 0}</Text>
-              <Text className="text-gray-400 text-[9px]">Chauffeurs</Text>
-              <Text className="text-green-500 text-[8px]">{stats.chauffeurs?.actifs || 0} actifs</Text>
+              <Ionicons name="people" size={24} color="#10b981" />
+              <Text className="text-gray-900 font-bold text-lg mt-1">{stats.chauffeurs?.total || 0}</Text>
+              <Text className="text-gray-700 text-xs font-semibold">Chauffeurs</Text>
+              <Text className="text-green-700 text-xs font-medium mt-0.5">{stats.chauffeurs?.actifs || 0} actifs</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -245,8 +245,8 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ refreshTrigger =
       {prochains.length > 0 && (
         <View className="bg-white rounded-2xl p-4 mb-5" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-sm font-bold text-gray-900">Prochains voyages</Text>
-            <TouchableOpacity onPress={() => onNavigate?.('voyages')}><Text className="text-blue-600 text-xs font-bold">Voir tout</Text></TouchableOpacity>
+            <Text className="text-base font-bold text-gray-900">Prochains voyages</Text>
+            <TouchableOpacity onPress={() => onNavigate?.('voyages')}><Text className="text-blue-700 text-sm font-bold">Voir tout</Text></TouchableOpacity>
           </View>
           {prochains.map((v: any, i: number) => (
             <View key={i} className={`flex-row items-center py-3 ${i < prochains.length - 1 ? 'border-b border-gray-50' : ''}`}>
@@ -254,12 +254,12 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ refreshTrigger =
                 <Ionicons name={v.statut === 2 ? 'navigate' : 'time'} size={18} color={v.statut === 2 ? '#f59e0b' : '#3b82f6'} />
               </View>
               <View className="flex-1 ml-3">
-                <Text className="text-gray-900 font-bold text-xs" numberOfLines={1}>{v.trajet}</Text>
-                <Text className="text-gray-400 text-[10px] mt-0.5">{v.date} · {v.heure} · {v.voiture}</Text>
+                <Text className="text-gray-900 font-bold text-sm" numberOfLines={1}>{v.trajet}</Text>
+                <Text className="text-gray-700 text-xs font-medium mt-0.5">{v.date} · {v.heure} · {v.voiture}</Text>
               </View>
               <View className="items-end">
-                <Text className="text-blue-600 font-bold text-xs">{v.places_reservees}/{v.places_disponibles}</Text>
-                <Text className="text-gray-300 text-[9px]">places</Text>
+                <Text className="text-blue-700 font-bold text-sm">{v.places_reservees}/{v.places_disponibles}</Text>
+                <Text className="text-gray-600 text-xs">places</Text>
               </View>
             </View>
           ))}
@@ -270,21 +270,21 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ refreshTrigger =
       {recentes.length > 0 && (
         <View className="bg-white rounded-2xl p-4 mb-2" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-sm font-bold text-gray-900">Dernières réservations</Text>
-            <TouchableOpacity onPress={() => onNavigate?.('reservations')}><Text className="text-blue-600 text-xs font-bold">Voir tout</Text></TouchableOpacity>
+            <Text className="text-base font-bold text-gray-900">Dernières réservations</Text>
+            <TouchableOpacity onPress={() => onNavigate?.('reservations')}><Text className="text-blue-700 text-sm font-bold">Voir tout</Text></TouchableOpacity>
           </View>
           {recentes.map((r: any, i: number) => (
             <View key={i} className={`flex-row items-center py-3 ${i < recentes.length - 1 ? 'border-b border-gray-50' : ''}`}>
               <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#dbeafe', alignItems: 'center', justifyContent: 'center' }}>
-                <Text className="text-blue-600 font-bold text-xs">{r.client?.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '?'}</Text>
+                <Text className="text-blue-700 font-bold text-sm">{r.client?.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '?'}</Text>
               </View>
               <View className="flex-1 ml-3">
-                <Text className="text-gray-900 font-bold text-xs" numberOfLines={1}>{r.client || 'Client'}</Text>
-                <Text className="text-gray-400 text-[10px] mt-0.5">{r.trajet} · {r.nb_voyageurs} voy.</Text>
+                <Text className="text-gray-900 font-bold text-sm" numberOfLines={1}>{r.client || 'Client'}</Text>
+                <Text className="text-gray-700 text-xs font-medium mt-0.5">{r.trajet} · {r.nb_voyageurs} voy.</Text>
               </View>
               <View className="items-end">
-                <Text className="text-green-600 font-bold text-xs">{formatFull(r.montant || 0)}</Text>
-                <Text className="text-gray-300 text-[9px]">{r.type_paiement}</Text>
+                <Text className="text-green-700 font-bold text-sm">{formatFull(r.montant || 0)}</Text>
+                <Text className="text-gray-600 text-xs">{r.type_paiement}</Text>
               </View>
             </View>
           ))}

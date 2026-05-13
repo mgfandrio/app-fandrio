@@ -198,7 +198,7 @@ export const RenderPaiements = () => {
                                                 </View>
                                                 <View>
                                                     <Text className="font-bold text-lg text-slate-800">{methodConfig.nom}</Text>
-                                                    <Text className="text-slate-400 text-xs">Préfixes: {methodConfig.prefixes.join(' / ')}</Text>
+                                                    <Text className="text-slate-700 text-xs font-medium">Préfixes: {methodConfig.prefixes.join(' / ')}</Text>
                                                 </View>
                                             </View>
                                             <TouchableOpacity
@@ -263,7 +263,7 @@ export const RenderPaiements = () => {
                                 <Ionicons name="card-outline" size={48} color="#94a3b8" />
                             </View>
                             <Text className="text-slate-800 font-bold text-lg">Aucun mode sélectionné</Text>
-                            <Text className="text-slate-400 text-sm mt-2 text-center leading-5">
+                            <Text className="text-slate-700 text-sm mt-2 text-center leading-5 font-medium">
                                 Choisissez un opérateur ci-dessus pour{"\n"}configurer vos modes de paiement
                             </Text>
                         </View>

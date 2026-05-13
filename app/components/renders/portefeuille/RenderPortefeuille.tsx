@@ -194,7 +194,7 @@ export function RenderPortefeuille() {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50">
         <ActivityIndicator size="large" color="#1e3a8a" />
-        <Text className="text-gray-500 mt-3">Chargement du portefeuille...</Text>
+        <Text className="text-gray-700 mt-3 text-base font-medium">Chargement du portefeuille...</Text>
       </View>
     );
   }
@@ -203,7 +203,7 @@ export function RenderPortefeuille() {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50 px-6">
         <Ionicons name="wallet-outline" size={56} color="#9ca3af" />
-        <Text className="text-gray-500 mt-3 text-center">Impossible de charger le portefeuille</Text>
+        <Text className="text-gray-700 mt-3 text-center text-base font-medium">Impossible de charger le portefeuille</Text>
         <TouchableOpacity className="bg-blue-600 rounded-xl px-6 py-3 mt-4" onPress={() => { setLoading(true); charger(); }}>
           <Text className="text-white font-semibold">Réessayer</Text>
         </TouchableOpacity>
@@ -226,26 +226,26 @@ export function RenderPortefeuille() {
             <View className="bg-white/10 rounded-full p-2 mr-2">
               <Ionicons name="wallet" size={20} color="#fff" />
             </View>
-            <Text className="text-white/80 text-sm font-medium">Portefeuille</Text>
+            <Text className="text-white text-base font-semibold">Portefeuille</Text>
           </View>
-          <View className="bg-yellow-400/20 rounded-full px-3 py-1">
-            <Text className="text-yellow-300 text-xs font-bold">Commission {data.taux_commission}%</Text>
+          <View className="bg-yellow-400/30 rounded-full px-3 py-1.5">
+            <Text className="text-yellow-200 text-sm font-bold">Commission {data.taux_commission}%</Text>
           </View>
         </View>
 
         {/* Solde net */}
         <Text className="text-white text-3xl font-bold">{formatMontant(data.solde.net)}</Text>
-        <Text className="text-white/50 text-xs mt-1">Solde net après commission</Text>
+        <Text className="text-white text-sm mt-1 font-medium opacity-90">Solde net après commission</Text>
 
         {/* Brut / Commission */}
         <View className="flex-row mt-4 gap-4">
           <View className="flex-1 bg-white/10 rounded-xl p-3">
-            <Text className="text-white/60 text-xs">Revenu brut</Text>
-            <Text className="text-white font-bold text-base mt-0.5">{formatMontant(data.solde.brut)}</Text>
+            <Text className="text-white text-xs font-bold uppercase opacity-90">Revenu brut</Text>
+            <Text className="text-white font-bold text-base mt-1">{formatMontant(data.solde.brut)}</Text>
           </View>
-          <View className="flex-1 bg-red-500/20 rounded-xl p-3">
-            <Text className="text-red-300/80 text-xs">Commission FANDRIO</Text>
-            <Text className="text-red-300 font-bold text-base mt-0.5">- {formatMontant(data.solde.commission)}</Text>
+          <View className="flex-1 bg-red-500/30 rounded-xl p-3">
+            <Text className="text-red-100 text-xs font-bold uppercase">Commission FANDRIO</Text>
+            <Text className="text-red-100 font-bold text-base mt-1">- {formatMontant(data.solde.commission)}</Text>
           </View>
         </View>
 
@@ -253,11 +253,11 @@ export function RenderPortefeuille() {
         <View className="flex-row mt-3 gap-4">
           <View className="flex-1 items-center">
             <Text className="text-white font-bold text-lg">{data.solde.total_billets}</Text>
-            <Text className="text-white/50 text-xs">Billets vendus</Text>
+            <Text className="text-white text-xs font-semibold opacity-90">Billets vendus</Text>
           </View>
           <View className="flex-1 items-center">
             <Text className="text-white font-bold text-lg">{data.solde.total_reservations}</Text>
-            <Text className="text-white/50 text-xs">Réservations</Text>
+            <Text className="text-white text-xs font-semibold opacity-90">Réservations</Text>
           </View>
         </View>
       </LinearGradient>
@@ -278,8 +278,8 @@ export function RenderPortefeuille() {
                   <Ionicons name="calendar" size={20} color="#2563eb" />
                 </View>
                 <View>
-                  <Text className="text-gray-900 font-bold text-sm">Collecte de commission</Text>
-                  <Text className="text-gray-400 text-xs mt-0.5">
+                  <Text className="text-gray-900 font-bold text-base">Collecte de commission</Text>
+                  <Text className="text-gray-700 text-sm mt-0.5 font-medium">
                     {collecteData.config.commission_active ? 'Active' : 'Inactive'} · {collecteData.config.taux}%
                   </Text>
                 </View>
@@ -290,16 +290,16 @@ export function RenderPortefeuille() {
             {/* Configuration */}
             <View className="flex-row gap-2 mb-3">
               <View className="flex-1 bg-blue-50 rounded-xl p-3">
-                <Text className="text-blue-500 text-xs">Fréquence</Text>
-                <Text className="text-blue-700 font-bold text-sm mt-0.5 capitalize">
+                <Text className="text-blue-700 text-xs font-semibold">Fréquence</Text>
+                <Text className="text-blue-800 font-bold text-sm mt-0.5 capitalize">
                   {collecteData.config.frequence}
                 </Text>
               </View>
               <View className="flex-1 bg-purple-50 rounded-xl p-3">
-                <Text className="text-purple-500 text-xs">
+                <Text className="text-purple-700 text-xs font-semibold">
                   {collecteData.config.frequence === 'hebdomadaire' ? 'Jour' : 'Date'}
                 </Text>
-                <Text className="text-purple-700 font-bold text-sm mt-0.5 capitalize">
+                <Text className="text-purple-800 font-bold text-sm mt-0.5 capitalize">
                   {collecteData.config.jour_collecte
                     ? (collecteData.config.frequence === 'mensuelle'
                         ? `Le ${collecteData.config.jour_collecte}`
@@ -315,13 +315,13 @@ export function RenderPortefeuille() {
                 <View className="flex-row items-center justify-between">
                   <View className="flex-row items-center">
                     <Ionicons name="time" size={16} color="#ea580c" />
-                    <Text className="text-orange-700 font-semibold text-xs ml-1.5">Prochaine collecte</Text>
+                    <Text className="text-orange-700 font-bold text-sm ml-1.5">Prochaine collecte</Text>
                   </View>
-                  <Text className="text-orange-800 font-bold text-sm">
+                  <Text className="text-orange-800 font-bold text-base">
                     {formatMontant(collecteData.prochaine_collecte.montant)}
                   </Text>
                 </View>
-                <Text className="text-orange-600 text-xs mt-1">
+                <Text className="text-orange-700 text-sm mt-1 font-medium">
                   Prévue le {collecteData.prochaine_collecte.date_prevue} · {collecteData.prochaine_collecte.periode}
                 </Text>
               </View>
@@ -330,14 +330,14 @@ export function RenderPortefeuille() {
             {/* Totaux */}
             <View className="flex-row gap-2">
               <View className="flex-1 bg-green-50 rounded-xl p-2.5 items-center">
-                <Text className="text-green-500 text-[10px]">Collectées</Text>
-                <Text className="text-green-700 font-bold text-xs mt-0.5">
+                <Text className="text-green-700 text-xs font-semibold">Collectées</Text>
+                <Text className="text-green-800 font-bold text-sm mt-0.5">
                   {formatMontant(collecteData.totaux.total_collecte)}
                 </Text>
               </View>
               <View className="flex-1 bg-yellow-50 rounded-xl p-2.5 items-center">
-                <Text className="text-yellow-500 text-[10px]">En attente</Text>
-                <Text className="text-yellow-700 font-bold text-xs mt-0.5">
+                <Text className="text-yellow-700 text-xs font-semibold">En attente</Text>
+                <Text className="text-yellow-800 font-bold text-sm mt-0.5">
                   {formatMontant(collecteData.totaux.total_en_attente)}
                 </Text>
               </View>
@@ -356,29 +356,29 @@ export function RenderPortefeuille() {
                 >
                   <View className="flex-row items-center justify-between mb-1.5">
                     <View className="flex-1">
-                      <Text className="text-gray-900 font-semibold text-xs">
+                      <Text className="text-gray-900 font-semibold text-sm">
                         {coll.periode_debut} → {coll.periode_fin}
                       </Text>
-                      <Text className="text-gray-400 text-[10px] mt-0.5">
+                      <Text className="text-gray-700 text-xs mt-0.5 font-medium">
                         {coll.nb_reservations} rés. · {coll.nb_billets} billets · Prévue: {coll.date_prevue}
                       </Text>
                     </View>
                     <View className={`rounded-full px-2 py-0.5 ${coll.statut === 2 ? 'bg-green-100' : 'bg-yellow-100'}`}>
-                      <Text className={`text-[10px] font-semibold ${coll.statut === 2 ? 'text-green-700' : 'text-yellow-700'}`}>
+                      <Text className={`text-xs font-bold ${coll.statut === 2 ? 'text-green-800' : 'text-yellow-800'}`}>
                         {coll.statut_label}
                       </Text>
                     </View>
                   </View>
                   <View className="flex-row items-center justify-between">
-                    <Text className="text-gray-400 text-[10px]">
+                    <Text className="text-gray-700 text-xs font-medium">
                       Brut: {formatMontant(coll.montant_brut)} · {coll.taux}%
                     </Text>
-                    <Text className="text-red-500 font-bold text-xs">
+                    <Text className="text-red-600 font-bold text-sm">
                       -{formatMontant(coll.montant_commission)}
                     </Text>
                   </View>
                   {coll.date_confirmation && (
-                    <Text className="text-green-600 text-[10px] mt-1">
+                    <Text className="text-green-700 text-xs mt-1 font-medium">
                       Confirmée le {coll.date_confirmation}
                     </Text>
                   )}
@@ -389,8 +389,8 @@ export function RenderPortefeuille() {
 
           {showCollectes && collecteData.collectes.length === 0 && (
             <View className="mt-2 bg-white rounded-xl p-4 items-center" style={{ elevation: 1 }}>
-              <Ionicons name="receipt-outline" size={32} color="#d1d5db" />
-              <Text className="text-gray-400 text-xs mt-2">Aucune collecte enregistrée</Text>
+              <Ionicons name="receipt-outline" size={32} color="#9ca3af" />
+              <Text className="text-gray-700 text-sm mt-2 font-medium">Aucune collecte enregistrée</Text>
             </View>
           )}
         </View>
@@ -408,7 +408,7 @@ export function RenderPortefeuille() {
               className={`flex-1 py-2 rounded-lg ${selectedPeriode === key ? 'bg-blue-600' : 'bg-gray-100'}`}
               onPress={() => setSelectedPeriode(key)}
             >
-              <Text className={`text-center text-xs font-semibold ${selectedPeriode === key ? 'text-white' : 'text-gray-600'}`}>
+              <Text className={`text-center text-sm font-semibold ${selectedPeriode === key ? 'text-white' : 'text-gray-700'}`}>
                 {PERIODE_LABELS[key]}
               </Text>
             </TouchableOpacity>
@@ -420,21 +420,21 @@ export function RenderPortefeuille() {
           <View className="bg-white rounded-2xl p-4" style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4 }}>
             <View className="flex-row justify-between items-center mb-3">
               <View>
-                <Text className="text-gray-500 text-xs">Brut</Text>
+                <Text className="text-gray-700 text-sm font-semibold">Brut</Text>
                 <Text className="text-gray-900 font-bold text-lg">{formatMontant(periodeActuelle.brut)}</Text>
               </View>
               <View className="items-center">
-                <Text className="text-red-400 text-xs">Commission</Text>
-                <Text className="text-red-500 font-bold text-lg">- {formatMontant(periodeActuelle.commission)}</Text>
+                <Text className="text-red-600 text-sm font-semibold">Commission</Text>
+                <Text className="text-red-600 font-bold text-lg">- {formatMontant(periodeActuelle.commission)}</Text>
               </View>
               <View className="items-end">
-                <Text className="text-emerald-500 text-xs">Net</Text>
-                <Text className="text-emerald-600 font-bold text-lg">{formatMontant(periodeActuelle.net)}</Text>
+                <Text className="text-emerald-700 text-sm font-semibold">Net</Text>
+                <Text className="text-emerald-700 font-bold text-lg">{formatMontant(periodeActuelle.net)}</Text>
               </View>
             </View>
             <View className="bg-gray-50 rounded-lg p-2 flex-row items-center justify-center">
-              <Ionicons name="ticket-outline" size={14} color="#6b7280" />
-              <Text className="text-gray-500 text-xs ml-1">{periodeActuelle.billets} billets vendus</Text>
+              <Ionicons name="ticket-outline" size={14} color="#374151" />
+              <Text className="text-gray-700 text-sm ml-1 font-medium">{periodeActuelle.billets} billets vendus</Text>
             </View>
           </View>
         )}
@@ -460,12 +460,12 @@ export function RenderPortefeuille() {
                     </View>
                     <View className="flex-1">
                       <Text className="text-gray-900 font-semibold text-sm">{op.operateur}</Text>
-                      <Text className="text-gray-400 text-xs">{op.nb_transactions} transactions • {op.billets} billets</Text>
+                      <Text className="text-gray-700 text-xs font-medium">{op.nb_transactions} transactions • {op.billets} billets</Text>
                     </View>
                   </View>
                   <View className="items-end">
                     <Text className="text-gray-900 font-bold text-sm">{formatMontant(op.net)}</Text>
-                    <Text className="text-gray-400 text-xs">{pourcentage}%</Text>
+                    <Text className="text-gray-700 text-xs font-semibold">{pourcentage}%</Text>
                   </View>
                 </View>
                 {/* Barre de progression */}
@@ -489,8 +489,8 @@ export function RenderPortefeuille() {
               const maxBrut = Math.max(...data.evolution_mensuelle.map(e => e.brut), 1);
               const barWidth = Math.max((m.brut / maxBrut) * 100, 2);
               return (
-                <View key={i} className={`flex-row items-center py-2.5 ${i < data.evolution_mensuelle.slice(-6).length - 1 ? 'border-b border-gray-50' : ''}`}>
-                  <Text className="text-gray-500 text-xs font-medium w-12">{moisLabel} {annee.slice(2)}</Text>
+                <View key={i} className={`flex-row items-center py-2.5 ${i < data.evolution_mensuelle.slice(-6).length - 1 ? 'border-b border-gray-100' : ''}`}>
+                  <Text className="text-gray-700 text-xs font-semibold w-12">{moisLabel} {annee.slice(2)}</Text>
                   <View className="flex-1 mx-3">
                     <View className="bg-gray-100 h-5 rounded-full overflow-hidden flex-row">
                       <LinearGradient
@@ -502,8 +502,8 @@ export function RenderPortefeuille() {
                     </View>
                   </View>
                   <View className="items-end w-24">
-                    <Text className="text-gray-900 font-bold text-xs">{formatMontant(m.net)}</Text>
-                    <Text className="text-red-400 text-[10px]">-{formatMontant(m.commission)}</Text>
+                    <Text className="text-gray-900 font-bold text-sm">{formatMontant(m.net)}</Text>
+                    <Text className="text-red-600 text-xs font-medium">-{formatMontant(m.commission)}</Text>
                   </View>
                 </View>
               );
@@ -515,8 +515,8 @@ export function RenderPortefeuille() {
       {/* ====== EN-TÊTE TRANSACTIONS ====== */}
       <View className="mx-4 mt-5 mb-2 flex-row items-center justify-between">
         <Text className="text-gray-900 text-base font-bold">Historique des transactions</Text>
-        <View className="bg-blue-50 rounded-lg px-2.5 py-1">
-          <Text className="text-blue-600 text-xs font-semibold">{data.pagination.total} au total</Text>
+        <View className="bg-blue-50 rounded-lg px-3 py-1.5">
+          <Text className="text-blue-700 text-sm font-bold">{data.pagination.total} au total</Text>
         </View>
       </View>
     </View>
@@ -532,22 +532,22 @@ export function RenderPortefeuille() {
           <View className="flex-row items-center mb-1">
             <Text className="text-gray-900 font-bold text-sm">{item.res_numero}</Text>
             <View className="bg-gray-100 rounded px-1.5 py-0.5 ml-2">
-              <Text className="text-gray-500 text-[10px]">{item.nb_voyageurs} billet{item.nb_voyageurs > 1 ? 's' : ''}</Text>
+              <Text className="text-gray-700 text-xs font-semibold">{item.nb_voyageurs} billet{item.nb_voyageurs > 1 ? 's' : ''}</Text>
             </View>
           </View>
-          {item.client && <Text className="text-gray-500 text-xs">{item.client}</Text>}
-          {item.trajet && <Text className="text-gray-400 text-xs mt-0.5">{item.trajet}</Text>}
+          {item.client && <Text className="text-gray-800 text-sm font-medium">{item.client}</Text>}
+          {item.trajet && <Text className="text-gray-700 text-xs mt-0.5 font-medium">{item.trajet}</Text>}
           <View className="flex-row items-center mt-1.5">
-            <Ionicons name="time-outline" size={11} color="#9ca3af" />
-            <Text className="text-gray-400 text-[10px] ml-1">{item.date}</Text>
-            <Text className="text-gray-300 mx-1.5">•</Text>
-            <Text className="text-gray-500 text-[10px] font-medium">{item.operateur}</Text>
+            <Ionicons name="time-outline" size={12} color="#475569" />
+            <Text className="text-gray-700 text-xs ml-1 font-medium">{item.date}</Text>
+            <Text className="text-gray-500 mx-1.5">•</Text>
+            <Text className="text-gray-800 text-xs font-semibold">{item.operateur}</Text>
           </View>
         </View>
         <View className="items-end">
-          <Text className="text-emerald-600 font-bold text-sm">+{formatMontant(item.net)}</Text>
-          <Text className="text-red-400 text-[10px] mt-0.5">-{formatMontant(item.commission)}</Text>
-          <Text className="text-gray-400 text-[10px]">sur {formatMontant(item.brut)}</Text>
+          <Text className="text-emerald-700 font-bold text-sm">+{formatMontant(item.net)}</Text>
+          <Text className="text-red-600 text-xs mt-0.5 font-medium">-{formatMontant(item.commission)}</Text>
+          <Text className="text-gray-700 text-xs font-medium">sur {formatMontant(item.brut)}</Text>
         </View>
       </View>
     </View>
@@ -567,14 +567,14 @@ export function RenderPortefeuille() {
             </View>
           )}
           {!loadingMore && allTransactions.length > 0 && page >= (data.pagination.last_page) && (
-            <Text className="text-gray-400 text-xs text-center py-4">Toutes les transactions sont affichées</Text>
+            <Text className="text-gray-700 text-sm text-center py-4 font-medium">Toutes les transactions sont affichées</Text>
           )}
         </View>
       }
       ListEmptyComponent={
         <View className="items-center py-10">
-          <Ionicons name="receipt-outline" size={48} color="#d1d5db" />
-          <Text className="text-gray-400 mt-3 text-center">Aucune transaction pour le moment</Text>
+          <Ionicons name="receipt-outline" size={48} color="#9ca3af" />
+          <Text className="text-gray-700 mt-3 text-center font-medium">Aucune transaction pour le moment</Text>
         </View>
       }
       onEndReached={loadMore}

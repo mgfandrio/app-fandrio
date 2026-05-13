@@ -562,7 +562,7 @@ export const VoyageDetailModal: React.FC<Props> = ({
             </ScrollView>
           ) : (
             <View className="flex-1 items-center justify-center">
-              <Text className="text-gray-500">Voyage introuvable</Text>
+              <Text className="text-gray-700 font-medium">Voyage introuvable</Text>
             </View>
           )}
         </View>

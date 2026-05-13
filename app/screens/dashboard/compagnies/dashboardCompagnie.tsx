@@ -357,7 +357,7 @@ export default function DashboardCompagnie() {
                 </Text>
                 <View className="flex-row items-center mt-1">
                   <View className="w-2 h-2 rounded-full bg-green-400 mr-2" />
-                  <Text className="text-slate-400 text-sm">Admin Compagnie</Text>
+                  <Text className="text-slate-200 text-sm">Admin Compagnie</Text>
                 </View>
               </View>
             </View>
@@ -476,14 +476,14 @@ export default function DashboardCompagnie() {
       >
         <View className="flex-row items-center justify-between">
           <View className="flex-1">
-            <Text className="text-blue-200 text-sm font-medium">Bienvenue</Text>
+            <Text className="text-blue-100 text-base font-medium">Bienvenue</Text>
             <Text className="text-white text-2xl font-bold mt-1">
               {user ? `${user.prenom} ${user.nom}` : 'Compagnie'}
             </Text>
             {user?.compagnie && (
               <View className="flex-row items-center mt-2 bg-white/15 self-start rounded-full px-3 py-1.5">
                 <Ionicons name="business" size={14} color="#bfdbfe" />
-                <Text className="text-blue-100 text-xs font-medium ml-2">{user.compagnie.nom}</Text>
+                <Text className="text-white text-sm font-semibold ml-2">{user.compagnie.nom}</Text>
               </View>
             )}
           </View>
@@ -499,7 +499,7 @@ export default function DashboardCompagnie() {
             ) : (
               <>
                 <Ionicons name="camera-outline" size={28} color="#ffffff" />
-                <Text className="text-white text-[8px] mt-0.5">Logo</Text>
+                <Text className="text-white text-[10px] font-semibold mt-0.5">Logo</Text>
               </>
             )}
           </TouchableOpacity>
@@ -574,7 +574,7 @@ export default function DashboardCompagnie() {
             <Text className="text-gray-900 font-bold text-lg">
               {user ? `${user.prenom} ${user.nom}` : 'Administrateur'}
             </Text>
-            <Text className="text-gray-400 text-sm mt-0.5">Admin Compagnie</Text>
+              <Text className="text-gray-700 text-sm font-medium mt-0.5">Admin Compagnie</Text>
             <View className="flex-row mt-2" style={{ gap: 8 }}>
               <TouchableOpacity
                 onPress={pickAndUploadPhoto}
@@ -621,7 +621,7 @@ export default function DashboardCompagnie() {
           ) : (
             <View style={{ width: 100, height: 100, borderRadius: 24, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#e2e8f0', borderStyle: 'dashed' }}>
               <Ionicons name="image-outline" size={36} color="#94a3b8" />
-              <Text className="text-gray-400 text-[10px] mt-1">Aucun logo</Text>
+              <Text className="text-gray-600 text-xs font-medium mt-1">Aucun logo</Text>
             </View>
           )}
           <View className="flex-row mt-4" style={{ gap: 12 }}>

@@ -165,7 +165,7 @@ export const RenderTrajets: React.FC = () => {
                 <Ionicons name="map-outline" size={48} color="#94a3b8" />
               </View>
               <Text className="text-slate-800 font-bold text-lg">Aucun trajet trouvé</Text>
-              <Text className="text-slate-400 text-sm mt-2 text-center leading-5">
+              <Text className="text-slate-600 text-sm mt-2 text-center leading-5">
                 {searchText.length > 0 
                   ? 'Aucun trajet ne correspond à votre recherche'
                   : 'Appuyez sur + pour créer votre premier trajet'}
@@ -199,9 +199,9 @@ export const RenderTrajets: React.FC = () => {
                           <View className="bg-orange-500 rounded-full w-3 h-3" />
                         </View>
                         <View className="flex-1">
-                          <Text className="text-slate-600 text-sm font-medium">{depart}</Text>
-                          <Text className="text-slate-400 text-xs my-0.5">vers</Text>
-                          <Text className="text-slate-600 text-sm font-medium">{arrivee}</Text>
+                          <Text className="text-slate-900 text-base font-semibold">{depart}</Text>
+                          <Text className="text-slate-600 text-xs my-0.5 font-medium">vers</Text>
+                          <Text className="text-slate-900 text-base font-semibold">{arrivee}</Text>
                         </View>
                       </View>
                     </View>
@@ -220,7 +220,7 @@ export const RenderTrajets: React.FC = () => {
                   <View className="flex-row items-center justify-between pt-3 border-t border-slate-100">
                     <View className="flex-row items-center">
                       <View className="bg-teal-50 rounded-lg px-3 py-1.5 flex-row items-center mr-2">
-                        <Ionicons name="speedometer-outline" size={14} color="#0d9488" />
+                        <Ionicons name="trail-sign-outline" size={14} color="#0d9488" />
                         <Text className="text-teal-700 text-xs font-semibold ml-1.5">{trajet.distance_km || trajet.trajet_distance || '?'} km</Text>
                       </View>
                       <View className="bg-blue-50 rounded-lg px-3 py-1.5 flex-row items-center mr-2">

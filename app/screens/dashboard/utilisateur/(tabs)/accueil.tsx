@@ -7,6 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { accueilService } from '@/app/services/accueil/accueilService';
 import { provinceService } from '@/app/services/provinces/provinceService';
+import { PlacesBadge } from '@/app/components/common/PlacesBadge';
 import RechercheFilterModal from '@/app/components/modals/recherche/RechercheFilterModal';
 import DestinationSearchModal from '@/app/components/modals/recherche/DestinationSearchModal';
 import { DashboardHeader } from '@/app/components/dashboard/DashboardHeader';
@@ -387,7 +388,7 @@ export default function AccueilScreen() {
                   <View className="flex-row items-center justify-between mb-3">
                     <View className="flex-1 mr-3">
                       <Text className="text-slate-900 font-extrabold text-lg" numberOfLines={1}>{voyage.compagnie?.nom || 'Compagnie'}</Text>
-                      <Text className="text-slate-400 text-xs mt-0.5" numberOfLines={1}>{voyage.trajet?.nom || 'Trajet'}</Text>
+                      <Text className="text-slate-600 text-sm font-medium mt-0.5" numberOfLines={1}>{voyage.trajet?.nom || 'Trajet'}</Text>
                     </View>
                     {/* Price tag */}
                     <View className="rounded-xl overflow-hidden">
@@ -409,31 +410,36 @@ export default function AccueilScreen() {
                       <View className="bg-emerald-500 rounded-full w-3 h-3" />
                     </View>
                     <View className="flex-1">
-                      <Text className="text-slate-700 text-sm font-medium">{typeof voyage.trajet?.province_depart === 'object' ? voyage.trajet.province_depart?.nom : voyage.trajet?.province_depart || 'Départ'}</Text>
+                      <Text className="text-slate-900 text-base font-semibold">{typeof voyage.trajet?.province_depart === 'object' ? voyage.trajet.province_depart?.nom : voyage.trajet?.province_depart || 'Départ'}</Text>
                       <View className="flex-row items-center my-1">
-                        <Ionicons name="swap-vertical-outline" size={12} color="#cbd5e1" />
-                        <Text className="text-slate-300 text-xs ml-1">{voyage.trajet?.distance_km || '?'} km • {voyage.trajet?.duree || ''}</Text>
+                        <Ionicons name="swap-vertical-outline" size={14} color="#64748b" />
+                        <Text className="text-slate-600 text-sm ml-1">{voyage.trajet?.distance_km || '?'} km • {voyage.trajet?.duree || ''}</Text>
                       </View>
-                      <Text className="text-slate-700 text-sm font-medium">{typeof voyage.trajet?.province_arrivee === 'object' ? voyage.trajet.province_arrivee?.nom : voyage.trajet?.province_arrivee || 'Arrivée'}</Text>
+                      <Text className="text-slate-900 text-base font-semibold">{typeof voyage.trajet?.province_arrivee === 'object' ? voyage.trajet.province_arrivee?.nom : voyage.trajet?.province_arrivee || 'Arrivée'}</Text>
                     </View>
                   </View>
 
-                  {/* Info badges + Reserve button */}
-                  <View className="flex-row items-center justify-between pt-3 border-t border-slate-100">
-                    <View className="flex-row items-center flex-1">
-                      <View className="bg-slate-50 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2">
-                        <Ionicons name="calendar-outline" size={13} color="#64748b" />
-                        <Text className="text-slate-600 text-xs font-medium ml-1">{voyage.date || '-'}</Text>
+                  {/* Info badges */}
+                  <View className="pt-3 border-t border-slate-100">
+                    <View className="flex-row items-center flex-wrap">
+                      <View className="bg-slate-100 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-2">
+                        <Ionicons name="calendar-outline" size={15} color="#334155" />
+                        <Text className="text-slate-800 text-sm font-semibold ml-1">{voyage.date || '-'}</Text>
                       </View>
-                      <View className="bg-slate-50 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2">
-                        <Ionicons name="time-outline" size={13} color="#64748b" />
-                        <Text className="text-slate-600 text-xs font-medium ml-1">{voyage.heure_depart || '-'}</Text>
+                      <View className="bg-slate-100 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-2">
+                        <Ionicons name="time-outline" size={15} color="#334155" />
+                        <Text className="text-slate-800 text-sm font-semibold ml-1">{voyage.heure_depart || '-'}</Text>
                       </View>
-                      <View className="bg-emerald-50 rounded-lg px-2.5 py-1.5 flex-row items-center">
-                        <Ionicons name="people-outline" size={13} color="#059669" />
-                        <Text className="text-emerald-700 text-xs font-semibold ml-1">{voyage.places_disponibles}</Text>
+                      <View className="mb-2">
+                        <PlacesBadge
+                          places={voyage.places_disponibles ?? voyage.places_disponibles_restantes}
+                          estComplet={voyage.est_complet}
+                          size="md"
+                        />
                       </View>
                     </View>
+
+                    {/* Reserve button (full width) */}
                     <TouchableOpacity activeOpacity={0.8} onPress={(e) => {
                       e.stopPropagation();
                       router.push({
@@ -441,15 +447,15 @@ export default function AccueilScreen() {
                         params: { voyageData: JSON.stringify(voyage) }
                       });
                     }}>
-                      <View className="rounded-xl overflow-hidden">
+                      <View className="rounded-xl overflow-hidden mt-1">
                         <LinearGradient
                           colors={['#1e40af', '#3b82f6']}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 0 }}
-                          className="px-5 py-2.5 flex-row items-center"
+                          className="py-3 flex-row items-center justify-center"
                         >
-                          <Ionicons name="ticket-outline" size={14} color="#fff" style={{ marginRight: 4 }} />
-                          <Text className="text-white text-xs font-bold">Réserver</Text>
+                          <Ionicons name="ticket-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
+                          <Text className="text-white text-base font-bold">Réserver</Text>
                         </LinearGradient>
                       </View>
                     </TouchableOpacity>

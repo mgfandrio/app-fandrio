@@ -392,7 +392,7 @@ export default function ReservationScreen() {
         <View className="px-6 pt-6">
           <View className="mb-6">
             <Text style={{ color: '#1e3a8a' }} className="text-2xl font-bold">Mes Réservations</Text>
-            <Text className="text-gray-500 mt-1">Gérez vos réservations de voyage</Text>
+            <Text className="text-gray-700 mt-1">Gérez vos réservations de voyage</Text>
           </View>
 
           {/* Section 1: Mini Dashboard */}
@@ -402,7 +402,7 @@ export default function ReservationScreen() {
                 <Ionicons name="receipt-outline" size={20} color="#1e3a8a" />
               </View>
               <Text className="text-gray-900 font-bold text-lg">{stats.total_reservations || 0}</Text>
-              <Text className="text-gray-400 text-[10px] uppercase font-bold text-center">Total Réservé</Text>
+              <Text className="text-gray-700 text-xs uppercase font-bold text-center">Total Réservé</Text>
             </View>
 
             <View className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 items-center justify-center flex-1 mx-2">
@@ -410,7 +410,7 @@ export default function ReservationScreen() {
                 <Ionicons name="time-outline" size={20} color="#f97316" />
               </View>
               <Text className="text-gray-900 font-bold text-lg">{stats.voyages_en_cours || 0}</Text>
-              <Text className="text-gray-400 text-[10px] uppercase font-bold text-center">Validé</Text>
+              <Text className="text-gray-700 text-xs uppercase font-bold text-center">Validé</Text>
             </View>
 
             <View className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 items-center justify-center flex-1 ml-2">
@@ -418,7 +418,7 @@ export default function ReservationScreen() {
                 <Ionicons name="close-circle-outline" size={20} color="#ef4444" />
               </View>
               <Text className="text-gray-900 font-bold text-lg">{stats.voyages_annules || 0}</Text>
-              <Text className="text-gray-400 text-[10px] uppercase font-bold text-center">Annulés</Text>
+              <Text className="text-gray-700 text-xs uppercase font-bold text-center">Annulés</Text>
             </View>
           </View>
 
@@ -433,7 +433,7 @@ export default function ReservationScreen() {
 
             {filteredHistorique.length === 0 ? (
               <View className="bg-white rounded-3xl p-8 items-center justify-center border border-dashed border-gray-200">
-                <Text className="text-gray-400 text-sm">{searchValue ? 'Aucune réservation pour cette date' : 'Aucune réservation récente'}</Text>
+                <Text className="text-gray-600 text-sm font-medium">{searchValue ? 'Aucune réservation pour cette date' : 'Aucune réservation récente'}</Text>
               </View>
             ) : (
               filteredHistorique.map((res: any, index: number) => (
@@ -441,14 +441,14 @@ export default function ReservationScreen() {
                   <View className="flex-row justify-between items-start mb-3">
                     <View className="flex-1">
                       <Text className="text-gray-900 font-bold text-base">{res?.trajet || 'Trajet inconnu'}</Text>
-                      <Text className="text-gray-500 text-xs mt-0.5">Voyage: {res?.date || 'N/A'} • {res?.heure || 'N/A'}</Text>
-                      <Text className="text-gray-400 text-[10px] mt-0.5">Réservé le {res?.date_reservation || 'N/A'}</Text>
+                      <Text className="text-gray-700 text-sm font-medium mt-1">Voyage : {res?.date || 'N/A'} • {res?.heure || 'N/A'}</Text>
+                      <Text className="text-gray-600 text-xs mt-1">Réservé le {res?.date_reservation || 'N/A'}</Text>
                       <View className="flex-row items-center mt-1">
-                        <Text className="text-gray-400 text-[10px] italic">N° {res?.numero || 'N/A'}</Text>
+                        <Text className="text-gray-600 text-xs italic">N° {res?.numero || 'N/A'}</Text>
                       </View>
                     </View>
-                    <View className={`px-2.5 py-1 rounded-full ${res?.statut === 2 ? 'bg-green-100' : res?.statut === 1 ? 'bg-orange-100' : res?.statut === 3 ? 'bg-gray-200' : 'bg-red-100'}`}>
-                      <Text className={`text-[10px] font-bold uppercase ${res?.statut === 2 ? 'text-green-700' : res?.statut === 1 ? 'text-orange-700' : res?.statut === 3 ? 'text-gray-700' : 'text-red-700'}`}>
+                    <View className={`px-3 py-1.5 rounded-full ${res?.statut === 2 ? 'bg-green-100' : res?.statut === 1 ? 'bg-orange-100' : res?.statut === 3 ? 'bg-gray-200' : 'bg-red-100'}`}>
+                      <Text className={`text-xs font-bold uppercase ${res?.statut === 2 ? 'text-green-700' : res?.statut === 1 ? 'text-orange-700' : res?.statut === 3 ? 'text-gray-700' : 'text-red-700'}`}>
                         {res?.statut === 2 ? 'Confirmée' : res?.statut === 1 ? 'En attente' : res?.statut === 3 ? 'Terminée' : 'Annulée'}
                       </Text>
                     </View>
@@ -510,7 +510,7 @@ export default function ReservationScreen() {
             {qrLoading ? (
               <View className="py-10 items-center">
                 <ActivityIndicator size="large" color="#1e3a8a" />
-                <Text className="text-gray-400 mt-4 text-sm">Chargement du QR...</Text>
+                <Text className="text-gray-600 mt-4 text-sm">Chargement du QR...</Text>
               </View>
             ) : qrString ? (
               <>
@@ -518,11 +518,11 @@ export default function ReservationScreen() {
                   <Ionicons name="qr-code" size={28} color="#22c55e" />
                 </View>
                 <Text className="text-gray-900 font-bold text-lg mb-1">QR Code</Text>
-                <Text className="text-gray-400 text-xs mb-5">Ticket N° {qrNumero}</Text>
+                <Text className="text-gray-600 text-sm mb-5">Ticket N° {qrNumero}</Text>
                 <View className="bg-white p-4 rounded-2xl border border-gray-100">
                   <QRCode value={qrString} size={220} backgroundColor="#ffffff" />
                 </View>
-                <Text className="text-gray-400 text-[10px] text-center mt-4">Présentez ce code lors de l'embarquement</Text>
+                <Text className="text-gray-700 text-xs text-center mt-4">Présentez ce code lors de l'embarquement</Text>
               </>
             ) : (
               <View className="py-10 items-center">

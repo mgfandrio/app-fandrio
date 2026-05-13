@@ -115,7 +115,7 @@ export const RenderFactures = () => {
           <LinearGradient colors={['#0f172a', '#1e3a5f', '#1e40af']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} className="px-5 py-6">
             <View className="flex-row items-center justify-between mb-4">
               <View>
-                <Text className="text-blue-300 text-xs font-medium">Registre des factures</Text>
+                <Text className="text-blue-100 text-sm font-medium">Registre des factures</Text>
                 <Text className="text-white text-xl font-bold mt-1">Suivi financier</Text>
               </View>
               <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
@@ -124,16 +124,16 @@ export const RenderFactures = () => {
             </View>
             <View className="flex-row" style={{ gap: 10 }}>
               <View className="flex-1 bg-white/10 rounded-xl p-3">
-                <Text className="text-blue-200 text-[10px]">Total CA</Text>
-                <Text className="text-white font-bold text-base">{formatMontant(resume.total_montant || 0)}</Text>
+                <Text className="text-white text-xs font-bold uppercase opacity-90">Total CA</Text>
+                <Text className="text-white font-bold text-base mt-1">{formatMontant(resume.total_montant || 0)}</Text>
               </View>
               <View className="flex-1 bg-white/10 rounded-xl p-3">
-                <Text className="text-blue-200 text-[10px]">Factures</Text>
-                <Text className="text-white font-bold text-base">{resume.total_factures || 0}</Text>
+                <Text className="text-white text-xs font-bold uppercase opacity-90">Factures</Text>
+                <Text className="text-white font-bold text-base mt-1">{resume.total_factures || 0}</Text>
               </View>
               <View className="flex-1 bg-white/10 rounded-xl p-3">
-                <Text className="text-blue-200 text-[10px]">Voyageurs</Text>
-                <Text className="text-white font-bold text-base">{resume.total_voyageurs || 0}</Text>
+                <Text className="text-white text-xs font-bold uppercase opacity-90">Voyageurs</Text>
+                <Text className="text-white font-bold text-base mt-1">{resume.total_voyageurs || 0}</Text>
               </View>
             </View>
           </LinearGradient>
@@ -162,7 +162,7 @@ export const RenderFactures = () => {
 
           {showFilters && (
             <View className="mt-3">
-              <Text className="text-xs text-gray-500 font-bold mb-2">Période</Text>
+              <Text className="text-xs text-gray-700 font-bold mb-2">Période</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ gap: 6 }}>
                 <View className="flex-row" style={{ gap: 6 }}>
                   {PERIODES.map((p, i) => (
@@ -176,7 +176,7 @@ export const RenderFactures = () => {
                   ))}
                 </View>
               </ScrollView>
-              <Text className="text-xs text-gray-500 font-bold mb-2 mt-3">Type de paiement</Text>
+              <Text className="text-xs text-gray-700 font-bold mb-2 mt-3">Type de paiement</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View className="flex-row" style={{ gap: 6 }}>
                   {TYPES_PAIEMENT.map((t, i) => (
@@ -204,12 +204,12 @@ export const RenderFactures = () => {
             <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="receipt-outline" size={30} color="#94a3b8" />
             </View>
-            <Text className="text-gray-400 font-bold mt-3">Aucune facture trouvée</Text>
-            <Text className="text-gray-300 text-xs mt-1">Ajustez vos filtres ou attendez de nouvelles réservations.</Text>
+            <Text className="text-gray-700 font-bold text-base mt-3">Aucune facture trouvée</Text>
+            <Text className="text-gray-600 text-sm mt-1 text-center px-4">Ajustez vos filtres ou attendez de nouvelles réservations.</Text>
           </View>
         ) : (
           <View className="px-4" style={{ gap: 8 }}>
-            <Text className="text-xs text-gray-400">{resume.total_factures || 0} résultat{(resume.total_factures || 0) > 1 ? 's' : ''}</Text>
+            <Text className="text-sm text-gray-700 font-medium">{resume.total_factures || 0} résultat{(resume.total_factures || 0) > 1 ? 's' : ''}</Text>
             {factures.map((f: any) => (
               <TouchableOpacity
                 key={f.res_id}
@@ -224,22 +224,22 @@ export const RenderFactures = () => {
                       <Ionicons name="receipt" size={16} color="#3b82f6" />
                     </View>
                     <View className="ml-2">
-                      <Text className="text-gray-900 font-bold text-xs">{f.res_numero}</Text>
-                      <Text className="text-gray-400 text-[10px]">{f.date}</Text>
+                      <Text className="text-gray-900 font-bold text-sm">{f.res_numero}</Text>
+                      <Text className="text-gray-700 text-xs font-medium">{f.date}</Text>
                     </View>
                   </View>
                   <Text className="text-green-600 font-bold text-sm">{formatMontant(f.montant_total)}</Text>
                 </View>
                 <View className="flex-row items-center justify-between">
                   <View className="flex-1">
-                    <Text className="text-gray-700 text-xs" numberOfLines={1}>{f.client?.nom || 'Client inconnu'}</Text>
-                    <Text className="text-gray-400 text-[10px]">{f.trajet} · {f.voyage_date}</Text>
+                    <Text className="text-gray-900 text-sm font-semibold" numberOfLines={1}>{f.client?.nom || 'Client inconnu'}</Text>
+                    <Text className="text-gray-700 text-xs font-medium">{f.trajet} · {f.voyage_date}</Text>
                   </View>
                   <View className="flex-row items-center ml-2">
                     <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: paiementColor(f.type_paiement) + '15' }}>
-                      <Text className="text-[9px] font-bold" style={{ color: paiementColor(f.type_paiement) }}>{f.type_paiement}</Text>
+                      <Text className="text-xs font-bold" style={{ color: paiementColor(f.type_paiement) }}>{f.type_paiement}</Text>
                     </View>
-                    <Text className="text-gray-400 text-[10px] ml-1.5">{f.nb_voyageurs} voy.</Text>
+                    <Text className="text-gray-700 text-xs font-medium ml-1.5">{f.nb_voyageurs} voy.</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -278,35 +278,35 @@ export const RenderFactures = () => {
                 </View>
 
                 <View className="mb-4">
-                  <Text className="text-gray-400 text-[10px] font-bold mb-1">CLIENT</Text>
-                  <Text className="text-gray-900 font-semibold">{selectedFacture.client?.nom || 'N/A'}</Text>
-                  <Text className="text-gray-500 text-xs">{selectedFacture.client?.telephone || 'N/A'}</Text>
+                  <Text className="text-gray-700 text-xs font-bold mb-1 uppercase">Client</Text>
+                  <Text className="text-gray-900 font-semibold text-base">{selectedFacture.client?.nom || 'N/A'}</Text>
+                  <Text className="text-gray-700 text-sm">{selectedFacture.client?.telephone || 'N/A'}</Text>
                 </View>
 
                 <View className="mb-4">
-                  <Text className="text-gray-400 text-[10px] font-bold mb-1">TRAJET</Text>
-                  <Text className="text-gray-900 font-semibold">{selectedFacture.trajet}</Text>
-                  <Text className="text-gray-500 text-xs">Voyage du {selectedFacture.voyage_date}</Text>
+                  <Text className="text-gray-700 text-xs font-bold mb-1 uppercase">Trajet</Text>
+                  <Text className="text-gray-900 font-semibold text-base">{selectedFacture.trajet}</Text>
+                  <Text className="text-gray-700 text-sm">Voyage du {selectedFacture.voyage_date}</Text>
                 </View>
 
                 <View className="mb-4">
-                  <Text className="text-gray-400 text-[10px] font-bold mb-1">PAIEMENT</Text>
+                  <Text className="text-gray-700 text-xs font-bold mb-1 uppercase">Paiement</Text>
                   <View className="flex-row items-center">
-                    <Text className="text-gray-900 font-semibold">{selectedFacture.type_paiement}</Text>
+                    <Text className="text-gray-900 font-semibold text-base">{selectedFacture.type_paiement}</Text>
                     {selectedFacture.numero_paiement && (
-                      <Text className="text-gray-500 text-xs ml-2">Réf: {selectedFacture.numero_paiement}</Text>
+                      <Text className="text-gray-700 text-sm ml-2">Réf: {selectedFacture.numero_paiement}</Text>
                     )}
                   </View>
                 </View>
 
                 <View className="bg-green-50 rounded-xl p-4">
                   <View className="flex-row items-center justify-between mb-2">
-                    <Text className="text-gray-600 text-sm">Montant total</Text>
+                    <Text className="text-gray-700 text-sm font-medium">Montant total</Text>
                     <Text className="text-green-700 font-bold text-lg">{formatMontant(selectedFacture.montant_total)}</Text>
                   </View>
                   <View className="flex-row items-center justify-between">
-                    <Text className="text-gray-500 text-xs">Voyageurs</Text>
-                    <Text className="text-gray-700 font-semibold">{selectedFacture.nb_voyageurs}</Text>
+                    <Text className="text-gray-700 text-sm font-medium">Voyageurs</Text>
+                    <Text className="text-gray-900 font-semibold text-base">{selectedFacture.nb_voyageurs}</Text>
                   </View>
                 </View>
               </ScrollView>

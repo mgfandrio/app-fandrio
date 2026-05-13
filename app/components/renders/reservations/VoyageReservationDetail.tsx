@@ -191,7 +191,7 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
       return (
         <View className="items-center py-16">
           <ActivityIndicator color="#ea580c" size="large" />
-          <Text className="text-slate-400 mt-3 text-sm">Chargement du plan...</Text>
+          <Text className="text-slate-700 mt-3 text-sm font-medium">Chargement du plan...</Text>
         </View>
       );
     }
@@ -200,7 +200,7 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
       return (
         <View className="bg-white rounded-2xl p-8 items-center" style={{ elevation: 2 }}>
           <Ionicons name="grid-outline" size={40} color="#94a3b8" />
-          <Text className="text-slate-400 text-sm mt-3">Plan de sièges indisponible</Text>
+          <Text className="text-slate-700 text-sm mt-3 font-medium">Plan de sièges indisponible</Text>
         </View>
       );
     }
@@ -214,15 +214,15 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
         <View className="flex-row mb-4">
           <View className="flex-1 bg-white rounded-xl p-3 mr-2 items-center" style={{ elevation: 2 }}>
             <Text className="text-emerald-600 font-bold text-lg">{seatPlan.sieges_disponibles}</Text>
-            <Text className="text-slate-400 text-[10px]">Libres</Text>
+            <Text className="text-slate-700 text-xs font-semibold uppercase">Libres</Text>
           </View>
           <View className="flex-1 bg-white rounded-xl p-3 mr-2 items-center" style={{ elevation: 2 }}>
             <Text className="text-red-500 font-bold text-lg">{seatPlan.sieges_reserves}</Text>
-            <Text className="text-slate-400 text-[10px]">Réservés</Text>
+            <Text className="text-slate-700 text-xs font-semibold uppercase">Réservés</Text>
           </View>
           <View className="flex-1 bg-white rounded-xl p-3 items-center" style={{ elevation: 2 }}>
             <Text className="text-amber-500 font-bold text-lg">{seatPlan.sieges_temporaires}</Text>
-            <Text className="text-slate-400 text-[10px]">En attente</Text>
+            <Text className="text-slate-700 text-xs font-semibold uppercase">En attente</Text>
           </View>
         </View>
 
@@ -238,7 +238,7 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
               <Text className="text-slate-800 font-bold text-sm uppercase">
                 {seatPlan.voiture?.marque || ''} - {seatPlan.voiture?.modele || ''}
               </Text>
-              <Text className="text-slate-400 text-xs">{placeCount} places • {seatPlan.voiture?.matricule || ''}</Text>
+              <Text className="text-slate-700 text-xs font-medium">{placeCount} places • {seatPlan.voiture?.matricule || ''}</Text>
             </View>
           </View>
 
@@ -248,7 +248,7 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
                 <View className="h-14 items-center justify-center">
                   <Ionicons name="person-circle" size={44} color="#1e293b" />
                 </View>
-                <Text className="text-[8px] text-slate-400 font-bold mt-1">
+                <Text className="text-[10px] text-slate-700 font-bold mt-1">
                   {seatPlan.voiture?.chauffeur || 'Chauffeur'}
                 </Text>
               </View>
@@ -262,23 +262,23 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
 
           <View className="absolute bottom-0 left-0 right-0 px-4 py-3 border-t border-slate-100 flex-row justify-between bg-white rounded-b-2xl">
             <View className="flex-row items-center">
-              <View className="w-4 h-4 rounded bg-white border border-slate-200 mr-1.5" />
-              <Text className="text-[10px] font-bold text-slate-400">Libre</Text>
+              <View className="w-4 h-4 rounded bg-white border border-slate-300 mr-1.5" />
+              <Text className="text-xs font-bold text-slate-700">Libre</Text>
             </View>
             <View className="flex-row items-center">
               <View className="w-4 h-4 rounded bg-amber-500 mr-1.5" />
-              <Text className="text-[10px] font-bold text-slate-400">Attente</Text>
+              <Text className="text-xs font-bold text-slate-700">Attente</Text>
             </View>
             <View className="flex-row items-center">
               <View className="w-4 h-4 rounded bg-red-500 mr-1.5" />
-              <Text className="text-[10px] font-bold text-slate-400">Réservé</Text>
+              <Text className="text-xs font-bold text-slate-700">Réservé</Text>
             </View>
           </View>
         </View>
 
         <View className="flex-row items-center justify-center mt-4">
           <View className="w-2 h-2 rounded-full bg-emerald-500 mr-2" />
-          <Text className="text-slate-400 text-xs">Mise à jour en temps réel</Text>
+          <Text className="text-slate-700 text-xs font-medium">Mise à jour en temps réel</Text>
         </View>
       </View>
     );
@@ -289,7 +289,7 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
       return (
         <View className="items-center py-16">
           <ActivityIndicator color="#ea580c" size="large" />
-          <Text className="text-slate-400 mt-3 text-sm">Chargement des voyageurs...</Text>
+          <Text className="text-slate-700 mt-3 text-sm font-medium">Chargement des voyageurs...</Text>
         </View>
       );
     }
@@ -298,7 +298,7 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
       return (
         <View className="bg-white rounded-2xl p-8 items-center" style={{ elevation: 2 }}>
           <Ionicons name="people-outline" size={40} color="#94a3b8" />
-          <Text className="text-slate-400 text-sm mt-3">Aucun voyageur trouvé</Text>
+          <Text className="text-slate-700 text-sm mt-3 font-medium">Aucun voyageur trouvé</Text>
         </View>
       );
     }
@@ -349,10 +349,10 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
             <View className="bg-slate-50 px-4 py-2.5 flex-row items-center justify-between border-b border-slate-100">
               <View className="flex-row items-center">
                 <Ionicons name="ticket-outline" size={12} color="#64748b" />
-                <Text className="text-slate-500 text-[10px] font-medium ml-1">{v.reservation_numero}</Text>
+                <Text className="text-slate-700 text-xs font-semibold ml-1">{v.reservation_numero}</Text>
               </View>
               <View className="bg-orange-50 rounded-md px-2 py-0.5">
-                <Text className="text-orange-600 text-[10px] font-bold">Siège {v.siege}</Text>
+                <Text className="text-orange-700 text-xs font-bold">Siège {v.siege}</Text>
               </View>
             </View>
 
@@ -365,7 +365,7 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
                 </View>
                 <View className="flex-1">
                   <Text className="text-slate-800 font-bold text-sm">{v.prenom} {v.nom}</Text>
-                  {v.age && <Text className="text-slate-400 text-xs">{v.age} ans</Text>}
+                  {v.age && <Text className="text-slate-700 text-xs font-medium">{v.age} ans</Text>}
                 </View>
               </View>
 
@@ -376,7 +376,7 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
                     onPress={() => Linking.openURL(`tel:${v.phone}`)}
                   >
                     <Ionicons name="call-outline" size={11} color="#059669" />
-                    <Text className="text-slate-600 text-[10px] font-medium ml-1">{v.phone}</Text>
+                    <Text className="text-slate-700 text-xs font-medium ml-1">{v.phone}</Text>
                   </TouchableOpacity>
                 )}
                 {v.phone2 && (
@@ -385,23 +385,23 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
                     onPress={() => Linking.openURL(`tel:${v.phone2}`)}
                   >
                     <Ionicons name="call-outline" size={11} color="#d97706" />
-                    <Text className="text-slate-600 text-[10px] font-medium ml-1">{v.phone2}</Text>
+                    <Text className="text-slate-700 text-xs font-medium ml-1">{v.phone2}</Text>
                   </TouchableOpacity>
                 )}
                 {v.cin && (
                   <View className="bg-slate-50 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-2">
                     <Ionicons name="id-card-outline" size={11} color="#64748b" />
-                    <Text className="text-slate-600 text-[10px] font-medium ml-1">{v.cin}</Text>
+                    <Text className="text-slate-700 text-xs font-medium ml-1">{v.cin}</Text>
                   </View>
                 )}
               </View>
 
               {v.client && (
                 <View className="mt-2 pt-2 border-t border-slate-100">
-                  <Text className="text-slate-400 text-[9px] uppercase font-semibold mb-1">Réservé par</Text>
+                  <Text className="text-slate-700 text-xs uppercase font-bold mb-1">Réservé par</Text>
                   <View className="flex-row items-center">
                     <Ionicons name="person-outline" size={11} color="#94a3b8" />
-                    <Text className="text-slate-500 text-[10px] ml-1">
+                    <Text className="text-slate-700 text-xs font-medium ml-1">
                       {v.client.prenom} {v.client.nom} • {v.client.telephone}
                     </Text>
                   </View>
@@ -429,7 +429,7 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
       return (
         <View className="items-center py-16">
           <ActivityIndicator color="#ea580c" size="large" />
-          <Text className="text-slate-400 mt-3 text-sm">Chargement des billets...</Text>
+          <Text className="text-slate-700 mt-3 text-sm font-medium">Chargement des billets...</Text>
         </View>
       );
     }
@@ -438,7 +438,7 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
       return (
         <View className="bg-white rounded-2xl p-8 items-center" style={{ elevation: 2 }}>
           <Ionicons name="receipt-outline" size={40} color="#94a3b8" />
-          <Text className="text-slate-400 text-sm mt-3">Aucun billet trouvé</Text>
+          <Text className="text-slate-700 text-sm mt-3 font-medium">Aucun billet trouvé</Text>
         </View>
       );
     }
@@ -461,22 +461,22 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
               <Text className="text-emerald-600 font-extrabold text-base">
                 {formatMontant(billetsResume.revenu_total || 0)}
               </Text>
-              <Text className="text-emerald-800/60 text-[10px] font-semibold mt-0.5">Revenu total</Text>
+              <Text className="text-emerald-900 text-xs font-bold mt-0.5">Revenu total</Text>
             </View>
             <View className="flex-1 bg-blue-50 rounded-xl p-3 mr-2 items-center">
               <Text className="text-blue-600 font-extrabold text-base">{billetsResume.total_billets || 0}</Text>
-              <Text className="text-blue-800/60 text-[10px] font-semibold mt-0.5">Billets</Text>
+              <Text className="text-blue-900 text-xs font-bold mt-0.5">Billets</Text>
             </View>
             <View className="flex-1 bg-purple-50 rounded-xl p-3 items-center">
               <Text className="text-purple-600 font-extrabold text-base">{billetsResume.total_voyageurs || 0}</Text>
-              <Text className="text-purple-800/60 text-[10px] font-semibold mt-0.5">Voyageurs</Text>
+              <Text className="text-purple-900 text-xs font-bold mt-0.5">Voyageurs</Text>
             </View>
           </View>
 
           {/* Payment method breakdown */}
           {billetsResume.repartition_paiement?.length > 0 && (
             <View className="pt-3 border-t border-slate-100">
-              <Text className="text-slate-500 text-[10px] font-bold uppercase mb-2">Répartition par paiement</Text>
+              <Text className="text-slate-700 text-xs font-bold uppercase mb-2">Répartition par paiement</Text>
               {billetsResume.repartition_paiement.map((rp: any, i: number) => {
                 const pi = getPaymentIcon(rp.type);
                 return (
@@ -485,7 +485,7 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
                       <Ionicons name={pi.icon as any} size={14} color={pi.color} />
                       <Text className="text-slate-600 text-xs font-medium ml-2">{rp.type}</Text>
                       <View className="bg-slate-100 rounded-md px-1.5 py-0.5 ml-2">
-                        <Text className="text-slate-500 text-[10px] font-bold">{rp.count}x</Text>
+                        <Text className="text-slate-700 text-xs font-bold">{rp.count}x</Text>
                       </View>
                     </View>
                     <Text className="text-slate-800 text-xs font-bold">{formatMontant(rp.montant)}</Text>
@@ -515,7 +515,7 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
                   </View>
                   <View>
                     <Text className="text-slate-800 font-bold text-xs">{billet.res_numero}</Text>
-                    <Text className="text-slate-400 text-[10px]">{billet.date_reservation}</Text>
+                    <Text className="text-slate-700 text-xs font-medium">{billet.date_reservation}</Text>
                   </View>
                 </View>
                 <View className="bg-emerald-50 rounded-lg px-2.5 py-1">
@@ -528,13 +528,13 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
                 {billet.client && (
                   <View className="flex-row items-center mb-3">
                     <View className="w-8 h-8 rounded-full bg-orange-50 items-center justify-center mr-2.5">
-                      <Text className="text-orange-600 font-bold text-[10px]">
+                      <Text className="text-orange-700 font-bold text-xs">
                         {(billet.client.prenom?.[0] || '').toUpperCase()}{(billet.client.nom?.[0] || '').toUpperCase()}
                       </Text>
                     </View>
                     <View className="flex-1">
                       <Text className="text-slate-700 font-semibold text-xs">{billet.client.prenom} {billet.client.nom}</Text>
-                      <Text className="text-slate-400 text-[10px]">{billet.client.telephone}</Text>
+                      <Text className="text-slate-700 text-xs font-medium">{billet.client.telephone}</Text>
                     </View>
                   </View>
                 )}
@@ -544,29 +544,30 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
                   {/* Payment type */}
                   <View className="bg-slate-50 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-2">
                     <Ionicons name={pi.icon as any} size={11} color={pi.color} />
-                    <Text className="text-slate-600 text-[10px] font-medium ml-1">{billet.type_paiement?.nom}</Text>
+                    <Text className="text-slate-700 text-xs font-medium ml-1">{billet.type_paiement?.nom}</Text>
                   </View>
 
                   {/* Payment number */}
                   {billet.numero_paiement && (
                     <View className="bg-slate-50 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-2">
                       <Ionicons name="call-outline" size={11} color="#64748b" />
-                      <Text className="text-slate-600 text-[10px] font-medium ml-1">{billet.numero_paiement}</Text>
+                      <Text className="text-slate-700 text-xs font-medium ml-1">{billet.numero_paiement}</Text>
                     </View>
                   )}
 
                   {/* Number of voyageurs */}
                   <View className="bg-blue-50 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-2">
                     <Ionicons name="people-outline" size={11} color="#2563eb" />
-                    <Text className="text-blue-700 text-[10px] font-bold ml-1">{billet.nb_voyageurs} voyag.</Text>
+                    <Text className="text-blue-800 text-xs font-bold ml-1">
+                      {billet.nb_voyageurs} {billet.nb_voyageurs > 1 ? 'voyageurs' : 'voyageur'}
+                    </Text>
                   </View>
 
                   {/* Seats */}
                   {billet.sieges?.length > 0 && (
                     <View className="bg-orange-50 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-2">
-                      <Ionicons name="grid-outline" size={11} color="#ea580c" />
-                      <Text className="text-orange-700 text-[10px] font-bold ml-1">
-                        {billet.sieges.join(', ')}
+                      <Text className="text-orange-800 text-xs font-bold">
+                        {billet.sieges.length > 1 ? 'Sièges n°' : 'Siège n°'}{billet.sieges.join(', ')}
                       </Text>
                     </View>
                   )}
@@ -576,10 +577,10 @@ export const VoyageReservationDetail = ({ voyage, onBack }: Props) => {
                 {billet.montant_avance > 0 && billet.montant_restant > 0 && (
                   <View className="mt-2 pt-2 border-t border-slate-100 flex-row items-center">
                     <View className="bg-emerald-50 rounded-md px-2 py-1 mr-2">
-                      <Text className="text-emerald-600 text-[9px] font-bold">Avance: {formatMontant(billet.montant_avance)}</Text>
+                      <Text className="text-emerald-700 text-xs font-bold">Avance: {formatMontant(billet.montant_avance)}</Text>
                     </View>
                     <View className="bg-amber-50 rounded-md px-2 py-1">
-                      <Text className="text-amber-600 text-[9px] font-bold">Reste: {formatMontant(billet.montant_restant)}</Text>
+                      <Text className="text-amber-700 text-xs font-bold">Reste: {formatMontant(billet.montant_restant)}</Text>
                     </View>
                   </View>
                 )}

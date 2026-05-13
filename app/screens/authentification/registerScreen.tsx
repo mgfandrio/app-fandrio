@@ -245,8 +245,8 @@ export default function RegisterScreen() {
 
   return (
     <LinearGradient
-      colors={['#1e40af', '#3b82f6', '#93c5fd', '#dbeafe', '#ffffff']}
-      locations={[0, 0.12, 0.28, 0.45, 1]}
+      colors={['#1e3a8a', '#1d4ed8', '#3b82f6', '#60a5fa']}
+      locations={[0, 0.4, 0.75, 1]}
       style={{ flex: 1 }}
     >
       <DialogComponent />

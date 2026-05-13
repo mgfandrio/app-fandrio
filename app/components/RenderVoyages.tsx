@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { voyageService } from '../services/voyages/voyageService';
 import { Voyage } from '../types/voyage';
+import { PlacesBadge } from './common/PlacesBadge';
 import { useConfirmDialog } from './common/ConfirmDialog';
 import { VoyageDetailModal } from './modals/VoyageDetailModal';
 import { VoyageFormModal } from './modals/VoyageFormModal';
@@ -177,7 +178,7 @@ export const RenderVoyages: React.FC = () => {
                 </View>
                 <View>
                   <Text className="text-white text-2xl font-bold">Voyages</Text>
-                  <Text className="text-orange-100 text-sm mt-0.5">{voyages.length} voyage(s) programmé(s)</Text>
+                  <Text className="text-white text-sm font-medium mt-0.5">{voyages.length} voyage(s) programmé(s)</Text>
                 </View>
               </View>
               <View className="flex-row items-center" style={{ gap: 8 }}>
@@ -229,9 +230,9 @@ export const RenderVoyages: React.FC = () => {
                   </View>
                 ) : (
                   <View className="bg-white rounded-2xl px-4 py-2.5 flex-row items-center" style={{ elevation: 1 }}>
-                    <Text className="text-slate-500 font-medium text-sm">{tab.label}</Text>
+                    <Text className="text-slate-700 font-semibold text-sm">{tab.label}</Text>
                     <View className="bg-slate-100 rounded-full px-2 py-0.5 ml-2">
-                      <Text className="text-slate-400 text-xs font-bold">{counts[tab.key]}</Text>
+                      <Text className="text-slate-700 text-xs font-bold">{counts[tab.key]}</Text>
                     </View>
                   </View>
                 )}
@@ -273,7 +274,7 @@ export const RenderVoyages: React.FC = () => {
                 <Ionicons name="navigate-outline" size={48} color="#94a3b8" />
               </View>
               <Text className="text-slate-800 font-bold text-lg">Aucun voyage trouvé</Text>
-              <Text className="text-slate-400 text-sm mt-2 text-center leading-5">
+              <Text className="text-slate-600 text-sm mt-2 text-center leading-5">
                 {searchText.length > 0 
                   ? 'Aucun voyage ne correspond à votre recherche'
                   : 'Appuyez sur + pour programmer un nouveau voyage'}
@@ -305,13 +306,13 @@ export const RenderVoyages: React.FC = () => {
                     {/* Header: route name + badge */}
                     <View className="flex-row items-start justify-between mb-3">
                       <View className="flex-1 mr-3">
-                        <Text className="text-slate-800 font-bold text-base">{trajetNom}</Text>
-                        <View className="flex-row items-center mt-1">
+                        <Text className="text-slate-900 font-bold text-base">{trajetNom}</Text>
+                        <View className="flex-row items-center mt-1 flex-wrap">
                           <Ionicons name="location" size={14} color="#ea580c" />
-                          <Text className="text-slate-500 text-sm ml-1">{depart}</Text>
-                          <Ionicons name="arrow-forward" size={12} color="#cbd5e1" style={{ marginHorizontal: 6 }} />
+                          <Text className="text-slate-800 text-sm font-medium ml-1">{depart}</Text>
+                          <Ionicons name="arrow-forward" size={12} color="#64748b" style={{ marginHorizontal: 6 }} />
                           <Ionicons name="flag" size={14} color="#059669" />
-                          <Text className="text-slate-500 text-sm ml-1">{arrivee}</Text>
+                          <Text className="text-slate-800 text-sm font-medium ml-1">{arrivee}</Text>
                         </View>
                       </View>
                       <View className="rounded-xl overflow-hidden">
@@ -333,12 +334,13 @@ export const RenderVoyages: React.FC = () => {
                           <Ionicons name="time-outline" size={14} color="#3b82f6" />
                           <Text className="text-blue-700 text-xs font-semibold ml-1.5">{voyage.heure_depart || voyage.voyage_heure_depart || '-'}</Text>
                         </View>
-                        <View className="bg-purple-50 rounded-lg px-3 py-1.5 flex-row items-center">
-                          <Ionicons name="people-outline" size={14} color="#7c3aed" />
-                          <Text className="text-purple-700 text-xs font-semibold ml-1.5">{voyage.places_disponibles ?? '-'}</Text>
-                        </View>
+                        <PlacesBadge
+                          places={voyage.places_disponibles ?? voyage.places_disponibles_restantes}
+                          estComplet={(voyage as any).est_complet}
+                          size="md"
+                        />
                       </View>
-                      <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+                      <Ionicons name="chevron-forward" size={20} color="#64748b" />
                     </View>
                   </View>
                 </TouchableOpacity>

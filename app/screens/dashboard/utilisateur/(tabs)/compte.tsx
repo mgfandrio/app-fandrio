@@ -409,8 +409,7 @@ export default function CompteScreen() {
           </View>
 
           <InfoRow icon="apps-outline" iconColor="#6366f1" iconBg="bg-indigo-50" label="Application" value="FANDRIO" />
-          <InfoRow icon="code-slash-outline" iconColor="#0ea5e9" iconBg="bg-sky-50" label="Version" value="1.0.0" />
-          <InfoRow icon="finger-print" iconColor="#6b7280" iconBg="bg-gray-100" label="ID Utilisateur" value={`#${utilisateur.id}`} last />
+          <InfoRow icon="code-slash-outline" iconColor="#0ea5e9" iconBg="bg-sky-50" label="Version" value="1.0.0" last />
         </View>
 
         {/* ====== DÉCONNEXION ====== */}

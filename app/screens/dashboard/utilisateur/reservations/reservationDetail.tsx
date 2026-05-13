@@ -76,7 +76,7 @@ export default function ReservationDetailScreen() {
         return (
             <SafeAreaView className="flex-1 bg-gray-50 justify-center items-center">
                 <ActivityIndicator size="large" color="#1e3a8a" />
-                <Text className="text-gray-400 mt-4 text-sm">Chargement des détails...</Text>
+                <Text className="text-gray-600 mt-4 text-sm">Chargement des détails...</Text>
             </SafeAreaView>
         );
     }
@@ -139,7 +139,7 @@ export default function ReservationDetailScreen() {
 
                         <View className="flex-row items-center justify-between mt-2">
                             <View className="flex-1">
-                                <Text className="text-blue-200 text-[10px] uppercase font-bold">Départ</Text>
+                                <Text className="text-blue-100 text-xs uppercase font-bold">Départ</Text>
                                 <Text className="text-white font-bold text-base">{voyage.depart}</Text>
                             </View>
                             <View className="mx-3 items-center">
@@ -147,22 +147,22 @@ export default function ReservationDetailScreen() {
                                 <View className="w-16 h-0.5 bg-blue-300/30 mt-1" />
                             </View>
                             <View className="flex-1 items-end">
-                                <Text className="text-blue-200 text-[10px] uppercase font-bold">Arrivée</Text>
+                                <Text className="text-blue-100 text-xs uppercase font-bold">Arrivée</Text>
                                 <Text className="text-white font-bold text-base">{voyage.arrivee}</Text>
                             </View>
                         </View>
 
                         <View className="flex-row justify-between mt-4 pt-4 border-t border-white/10">
                             <View>
-                                <Text className="text-blue-200 text-[10px] uppercase font-bold">Date</Text>
+                                <Text className="text-blue-100 text-xs uppercase font-bold">Date</Text>
                                 <Text className="text-white font-bold text-sm">{voyage.date}</Text>
                             </View>
                             <View>
-                                <Text className="text-blue-200 text-[10px] uppercase font-bold">Heure</Text>
+                                <Text className="text-blue-100 text-xs uppercase font-bold">Heure</Text>
                                 <Text className="text-white font-bold text-sm">{voyage.heure}</Text>
                             </View>
                             <View>
-                                <Text className="text-blue-200 text-[10px] uppercase font-bold">Voyageurs</Text>
+                                <Text className="text-blue-100 text-xs uppercase font-bold">Voyageurs</Text>
                                 <Text className="text-white font-bold text-sm">{reservation.nb_voyageurs}</Text>
                             </View>
                         </View>
@@ -179,7 +179,7 @@ export default function ReservationDetailScreen() {
                         <View className="bg-white p-4 rounded-2xl border border-gray-100">
                             <QRCode value={qrString} size={200} backgroundColor="#ffffff" />
                         </View>
-                        <Text className="text-gray-400 text-[10px] text-center mt-3">Présentez ce QR code lors de l'embarquement</Text>
+                        <Text className="text-gray-700 text-xs text-center mt-3">Présentez ce QR code lors de l'embarquement</Text>
                     </View>
                 ) : null}
 
@@ -194,15 +194,15 @@ export default function ReservationDetailScreen() {
 
                     <View className="space-y-3">
                         <View className="flex-row justify-between py-2 border-b border-gray-50">
-                            <Text className="text-gray-500 text-sm">Compagnie</Text>
+                            <Text className="text-gray-700 text-sm font-medium">Compagnie</Text>
                             <Text className="text-gray-900 font-bold text-sm">{voyage.compagnie}</Text>
                         </View>
                         <View className="flex-row justify-between py-2 border-b border-gray-50">
-                            <Text className="text-gray-500 text-sm">Véhicule</Text>
+                            <Text className="text-gray-700 text-sm font-medium">Véhicule</Text>
                             <Text className="text-gray-900 font-bold text-sm">{voyage.matricule}</Text>
                         </View>
                         <View className="flex-row justify-between py-2 border-b border-gray-50">
-                            <Text className="text-gray-500 text-sm">Date de réservation</Text>
+                            <Text className="text-gray-700 text-sm font-medium">Date de réservation</Text>
                             <Text className="text-gray-900 font-bold text-sm">{reservation.date_reservation}</Text>
                         </View>
                     </View>
@@ -246,16 +246,16 @@ export default function ReservationDetailScreen() {
                     {reservation.paiement ? (
                         <View className="space-y-3">
                             <View className="flex-row justify-between py-2 border-b border-gray-50">
-                                <Text className="text-gray-500 text-sm">Mode de paiement</Text>
+                                <Text className="text-gray-700 text-sm font-medium">Mode de paiement</Text>
                                 <Text className="text-gray-900 font-bold text-sm">{reservation.paiement.type}</Text>
                             </View>
                             <View className="flex-row justify-between py-2 border-b border-gray-50">
-                                <Text className="text-gray-500 text-sm">Référence</Text>
+                                <Text className="text-gray-700 text-sm font-medium">Référence</Text>
                                 <Text className="text-gray-900 font-bold text-sm">{reservation.paiement.numero}</Text>
                             </View>
                         </View>
                     ) : (
-                        <Text className="text-gray-400 text-sm italic">Aucun paiement enregistré</Text>
+                        <Text className="text-gray-600 text-sm italic">Aucun paiement enregistré</Text>
                     )}
 
                     <View className="flex-row justify-between items-center mt-4 pt-4 border-t border-gray-100">
