@@ -25,6 +25,7 @@ import { RenderPaiements } from '../../../components/renders/paiements/RenderPai
 import { RenderReservations } from '../../../components/renders/reservations/RenderReservations';
 import { RenderFactures } from '../../../components/renders/factures/RenderFactures';
 import { RenderPortefeuille } from '../../../components/renders/portefeuille/RenderPortefeuille';
+import { RenderRemboursements } from '../../../components/renders/remboursements/RenderRemboursements';
 import { RenderVoyages } from '../../../components/RenderVoyages';
 import { useNotifications } from '../../../hooks/useNotifications';
 import { logoService } from '../../../services/compagnies/logoService';
@@ -297,6 +298,7 @@ export default function DashboardCompagnie() {
       items: [
         { key: 'portefeuille', label: 'Portefeuille', icon: 'wallet-outline', activeIcon: 'wallet' },
         { key: 'factures', label: 'Factures', icon: 'receipt-outline', activeIcon: 'receipt' },
+        { key: 'remboursements', label: 'Remboursements', icon: 'cash-outline', activeIcon: 'cash' },
         { key: 'paiements', label: 'Paiements', icon: 'card-outline', activeIcon: 'card' },
       ],
     },
@@ -717,6 +719,7 @@ export default function DashboardCompagnie() {
              activeTab === 'factures' ? 'Factures' :
              activeTab === 'paiements' ? 'Paiements' :
              activeTab === 'portefeuille' ? 'Portefeuille' :
+             activeTab === 'remboursements' ? 'Remboursements' :
              activeTab === 'settings' ? 'Paramètres' : ''}
           </Text>
         </View>
@@ -762,6 +765,7 @@ export default function DashboardCompagnie() {
           {activeTab === 'factures' && <RenderFactures />}
           {activeTab === 'paiements' && <RenderPaiements />}
           {activeTab === 'portefeuille' && <RenderPortefeuille />}
+          {activeTab === 'remboursements' && <RenderRemboursements />}
           {activeTab === 'settings' && renderSettings()}
         </View>
 

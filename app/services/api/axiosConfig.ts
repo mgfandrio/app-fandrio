@@ -1,4 +1,5 @@
 import config from '@/app/config/env';
+import { checkOnlineNow } from '@/app/hooks/useNetwork';
 import { ApiError, ApiResponse } from '@/app/types/api';
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
@@ -14,9 +15,17 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Intercepteur de requête pour ajouter le token
+// Intercepteur de requête pour ajouter le token + pré-check réseau
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    // Court-circuit si on sait déjà qu'on est hors-ligne (évite un timeout 30s)
+    const online = await checkOnlineNow();
+    if (!online) {
+      const err: any = new Error('Hors-ligne. Vérifiez votre connexion internet.');
+      err.offline = true;
+      err.isNetworkError = true;
+      throw err;
+    }
     try {
       const token = await SecureStore.getItemAsync('fandrioToken');
       if (token && config.headers) {
@@ -37,7 +46,16 @@ apiClient.interceptors.response.use(
   (response) => {
     return response;
   },
-  async (error: AxiosError<ApiError>) => {
+  async (error: any) => {
+    // Erreur lévée par notre pré-check hors-ligne
+    if (error?.offline) {
+      return Promise.reject({
+        message: error.message || 'Hors-ligne. Vérifiez votre connexion internet.',
+        erreurs: {},
+        offline: true,
+        isNetworkError: true,
+      });
+    }
     if (error.response) {
       // Erreur de réponse du serveur
       const { status, data } = error.response;
@@ -60,10 +78,16 @@ apiClient.interceptors.response.use(
         status,
       });
     } else if (error.request) {
-      // Pas de réponse du serveur
+      // Pas de réponse du serveur (timeout / coupure pendant la requête)
+      // Vérifier si c'est un problème réseau
+      const stillOnline = await checkOnlineNow();
       return Promise.reject({
-        message: 'Impossible de contacter le serveur. Vérifiez votre connexion.',
+        message: stillOnline
+          ? 'Le serveur ne répond pas. Réessayez dans un instant.'
+          : 'Connexion perdue pendant l\'envoi. Réessayez dès que vous êtes en ligne.',
         erreurs: {},
+        offline: !stillOnline,
+        isNetworkError: true,
       });
     } else {
       // Erreur de configuration

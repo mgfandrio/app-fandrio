@@ -2,6 +2,8 @@ import { Stack } from "expo-router";
 import "../globals.css";
 import React from "react";
 import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import { NetworkProvider } from "./hooks/useNetwork";
+import OfflineBanner from "./components/common/OfflineBanner";
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -55,7 +57,10 @@ class ErrorBoundary extends React.Component<
 export default function RootLayout() {
   return (
     <ErrorBoundary>
-      <Stack screenOptions={{ headerShown: false }} />
+      <NetworkProvider>
+        <Stack screenOptions={{ headerShown: false }} />
+        <OfflineBanner />
+      </NetworkProvider>
     </ErrorBoundary>
   );
 }

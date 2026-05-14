@@ -18,6 +18,7 @@ export default function ReservationScreen() {
     { label: 'Voyages', icon: 'map-outline', onPress: () => router.push('/screens/dashboard/utilisateur/reservations/history') },
     { label: 'Trajet', icon: 'trail-sign-outline' },
     { label: 'Facture', icon: 'document-text-outline', onPress: () => router.push('/screens/dashboard/utilisateur/reservations/clientFactures') },
+    { label: 'Remboursements', icon: 'cash-outline', onPress: () => router.push('/screens/dashboard/utilisateur/reservations/clientRemboursements') },
     { label: 'Paramètre', icon: 'settings-outline' },
   ];
 

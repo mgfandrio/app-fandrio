@@ -7,6 +7,12 @@ import { provinceService } from '../../../../services/provinces/provinceService'
 import { voyageService } from '../../../../services/voyages/voyageService';
 import { reservationService } from '../../../../services/reservations/reservationService';
 import { siegeService } from '../../../../services/sieges/siegeService';
+import {
+    clearPendingReservation,
+    loadPendingReservation,
+    savePendingReservation,
+} from '../../../../services/reservations/pendingReservation';
+import { useNetwork } from '../../../../hooks/useNetwork';
 import { SearchableDropdown } from '../../../../components/common/SearchableDropdown';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Platform, KeyboardAvoidingView } from 'react-native';
@@ -45,6 +51,12 @@ export default function ReserverScreen() {
     const [transactionRef, setTransactionRef] = useState('');
     const [transactionRefError, setTransactionRefError] = useState<string | null>(null);
 
+    // Réseau
+    const { isOnline, onReconnect } = useNetwork();
+    const pendingRetryRef = useRef<null | (() => void)>(null);
+    const [showResumeModal, setShowResumeModal] = useState(false);
+    const [resumeData, setResumeData] = useState<any>(null);
+
     // Timer State
     const [timeLeft, setTimeLeft] = useState(120); // 2 minutes in seconds
     const timerRef = useRef<any>(null);
@@ -69,6 +81,31 @@ export default function ReserverScreen() {
     useEffect(() => {
         fetchProvinces();
     }, []);
+
+    // Vérifier au chargement s'il existe une réservation interrompue
+    useEffect(() => {
+        (async () => {
+            const pending = await loadPendingReservation();
+            if (pending && !params.voyageData) {
+                setResumeData(pending);
+                setShowResumeModal(true);
+            }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Auto-retry des actions critiques quand la connexion revient
+    useEffect(() => {
+        const unsubscribe = onReconnect(() => {
+            const fn = pendingRetryRef.current;
+            if (fn) {
+                pendingRetryRef.current = null;
+                console.log('[Reserver] Connexion rétablie : relance de l\'action en attente');
+                fn();
+            }
+        });
+        return unsubscribe;
+    }, [onReconnect]);
 
     // Si un voyage est passé en paramètre, démarrer directement à l'étape 3
     useEffect(() => {
@@ -255,22 +292,70 @@ export default function ReserverScreen() {
     };
 
     const createInitialReservation = async () => {
+        const data = {
+            voyage_id: selectedVoyage.voyage_id,
+            nb_voyageurs: selectedSeats.length,
+            montant_total: selectedSeats.length * (selectedVoyage?.trajet?.tarif || 0),
+            sieges: selectedSeats,
+            voyageurs: voyageurs
+        };
+
+        // Sauvegarde avant POST pour pouvoir reprendre si crash / coupure
+        await savePendingReservation({
+            payload: {
+                ...data,
+                voyageInfo: {
+                    depart: selectedVoyage?.trajet?.province_depart?.pro_libelle,
+                    arrivee: selectedVoyage?.trajet?.province_arrivee?.pro_libelle,
+                    date: selectedVoyage?.voyage_date_depart,
+                    compagnie: selectedVoyage?.trajet?.compagnie?.comp_nom,
+                },
+            },
+            step: 4,
+        });
+
+        if (!isOnline) {
+            Alert.alert(
+                'Hors-ligne',
+                'Votre réservation est sauvegardée. Elle sera envoyée automatiquement dès le retour de la connexion.',
+            );
+            // S'auto-relancer au retour en ligne
+            pendingRetryRef.current = createInitialReservation;
+            return;
+        }
+
         setLoading(true);
         try {
-            const data = {
-                voyage_id: selectedVoyage.voyage_id,
-                nb_voyageurs: selectedSeats.length,
-                montant_total: selectedSeats.length * (selectedVoyage?.trajet?.tarif || 0),
-                sieges: selectedSeats,
-                voyageurs: voyageurs
-            };
             const response = await reservationService.creerReservation(data);
             if (response.statut) {
+                pendingRetryRef.current = null;
                 setReservationResult(response.data);
+                // Mise à jour pending : on est maintenant à l'étape paiement
+                await savePendingReservation({
+                    payload: {
+                        ...data,
+                        voyageInfo: {
+                            depart: selectedVoyage?.trajet?.province_depart?.pro_libelle,
+                            arrivee: selectedVoyage?.trajet?.province_arrivee?.pro_libelle,
+                            date: selectedVoyage?.voyage_date_depart,
+                            compagnie: selectedVoyage?.trajet?.compagnie?.comp_nom,
+                        },
+                    },
+                    step: 5,
+                    res_id: response.data?.res_id,
+                });
                 setCurrentStep(5);
             }
         } catch (error: any) {
-            Alert.alert('Erreur', error.response?.data?.message || 'Impossible de créer la réservation.');
+            if (error?.offline || error?.isNetworkError) {
+                pendingRetryRef.current = createInitialReservation;
+                Alert.alert(
+                    'Connexion perdue',
+                    'Pas d\'inquiétude : votre réservation est sauvegardée. Elle sera renvoyée automatiquement dès le retour en ligne.',
+                );
+            } else {
+                Alert.alert('Erreur', error?.message || error?.response?.data?.message || 'Impossible de créer la réservation.');
+            }
         } finally {
             setLoading(false);
         }
@@ -298,6 +383,16 @@ export default function ReserverScreen() {
             return;
         }
         setTransactionRefError(null);
+
+        if (!isOnline) {
+            Alert.alert(
+                'Hors-ligne',
+                'Votre confirmation de paiement sera envoyée automatiquement dès le retour en ligne.',
+            );
+            pendingRetryRef.current = handlePaymentConfirmed;
+            return;
+        }
+
         setShowPaymentModal(false);
         setLoading(true);
         try {
@@ -307,12 +402,22 @@ export default function ReserverScreen() {
                 numero_paiement: cleanRef
             });
             if (response.statut) {
+                pendingRetryRef.current = null;
+                await clearPendingReservation();
                 stopTimer();
                 setTransactionRef('');
                 fetchInvoice();
             }
         } catch (error: any) {
-            Alert.alert('Erreur', error.response?.data?.message || 'La confirmation a échoué.');
+            if (error?.offline || error?.isNetworkError) {
+                pendingRetryRef.current = handlePaymentConfirmed;
+                Alert.alert(
+                    'Connexion perdue',
+                    'La confirmation sera renvoyée automatiquement dès le retour en ligne.',
+                );
+            } else {
+                Alert.alert('Erreur', error?.message || error?.response?.data?.message || 'La confirmation a échoué.');
+            }
         } finally {
             setLoading(false);
         }
@@ -1302,6 +1407,73 @@ export default function ReserverScreen() {
                     </TouchableOpacity>
                 </View>
             )}
+
+            {/* Modale "Reprendre votre réservation" — si une session a été interrompue */}
+            <Modal visible={showResumeModal} transparent animationType="fade" onRequestClose={() => setShowResumeModal(false)}>
+                <View className="flex-1 justify-center items-center bg-black/50 px-6">
+                    <View className="bg-white rounded-3xl w-full p-6">
+                        <View className="items-center mb-3">
+                            <View className="bg-blue-100 p-3 rounded-full mb-2">
+                                <Ionicons name="time-outline" size={28} color="#1e3a8a" />
+                            </View>
+                            <Text className="text-lg font-bold text-blue-900">Reprendre votre réservation ?</Text>
+                            <Text className="text-xs text-gray-500 text-center mt-1">
+                                Une réservation a été interrompue (connexion ou fermeture de l&apos;app).
+                            </Text>
+                        </View>
+                        {resumeData?.payload?.voyageInfo && (
+                            <View className="bg-gray-50 rounded-2xl p-3 mb-4">
+                                <Text className="text-sm font-bold text-gray-800">
+                                    {resumeData.payload.voyageInfo.depart} → {resumeData.payload.voyageInfo.arrivee}
+                                </Text>
+                                {resumeData.payload.voyageInfo.compagnie && (
+                                    <Text className="text-xs text-gray-500 mt-0.5">{resumeData.payload.voyageInfo.compagnie}</Text>
+                                )}
+                                <Text className="text-xs text-gray-600 mt-1">
+                                    {resumeData.payload.nb_voyageurs} voyageur(s) • {new Intl.NumberFormat('fr-FR').format(resumeData.payload.montant_total)} Ar
+                                </Text>
+                            </View>
+                        )}
+                        <View className="flex-row gap-2">
+                            <TouchableOpacity
+                                className="flex-1 py-3 rounded-2xl border border-gray-200 items-center"
+                                onPress={async () => {
+                                    await clearPendingReservation();
+                                    setShowResumeModal(false);
+                                    setResumeData(null);
+                                }}
+                            >
+                                <Text className="text-gray-600 font-semibold text-sm">Abandonner</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                className="flex-1 py-3 rounded-2xl bg-blue-900 items-center"
+                                onPress={async () => {
+                                    if (!resumeData) return;
+                                    setShowResumeModal(false);
+                                    // Restaurer l'état local minimal nécessaire
+                                    setSelectedSeats(resumeData.payload.sieges || []);
+                                    setVoyageurs(resumeData.payload.voyageurs || []);
+                                    if (resumeData.res_id) {
+                                        // Réservation déjà créée → retour à l'étape paiement
+                                        setReservationResult({ res_id: resumeData.res_id });
+                                        setCurrentStep(5);
+                                    } else {
+                                        // Pas encore créée → relancer la création
+                                        if (!isOnline) {
+                                            pendingRetryRef.current = createInitialReservation;
+                                            Alert.alert('Hors-ligne', 'Votre réservation sera envoyée dès le retour en ligne.');
+                                        } else {
+                                            createInitialReservation();
+                                        }
+                                    }
+                                }}
+                            >
+                                <Text className="text-white font-bold text-sm">Reprendre</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }

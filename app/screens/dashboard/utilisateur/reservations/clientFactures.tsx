@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
 import { reservationService } from '@/app/services/reservations/reservationService';
+import { genererBilletPdf } from '@/app/utils/genererBilletPdf';
 
 const STATUS_MAP: Record<number, { label: string; color: string; bg: string; icon: string }> = {
     1: { label: 'En attente', color: '#f97316', bg: '#fff7ed', icon: 'time-outline' },
@@ -25,6 +26,8 @@ export default function ClientFacturesScreen() {
     const [invoiceLoading, setInvoiceLoading] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [filter, setFilter] = useState<'all' | 'confirmed' | 'terminated'>('all');
+    const [downloadingPdf, setDownloadingPdf] = useState(false);
+    const qrRef = useRef<any>(null);
 
     const fetchFactures = useCallback(async (pageNumber = 1, isRefreshing = false) => {
         if (!isRefreshing && pageNumber === 1) setLoading(true);
@@ -93,6 +96,47 @@ export default function ClientFacturesScreen() {
     const closeModal = () => {
         setModalVisible(false);
         setSelectedInvoice(null);
+        qrRef.current = null;
+    };
+
+    /**
+     * Récupère le QR code en data URL via la ref de <QRCode>, puis génère/partage le PDF.
+     */
+    const handleDownloadPdf = async () => {
+        if (!selectedInvoice || downloadingPdf) return;
+        setDownloadingPdf(true);
+
+        const qrDataUrl = await new Promise<string>((resolve) => {
+            if (qrRef.current && typeof qrRef.current.toDataURL === 'function') {
+                try {
+                    qrRef.current.toDataURL((data: string) => {
+                        resolve(data ? `data:image/png;base64,${data}` : '');
+                    });
+                    // Filet de sécurité si toDataURL ne répond pas
+                    setTimeout(() => resolve(''), 1500);
+                } catch {
+                    resolve('');
+                }
+            } else {
+                resolve('');
+            }
+        });
+
+        await genererBilletPdf(
+            {
+                reservation: {
+                    numero: selectedInvoice.reservation.numero,
+                    statut: selectedInvoice.reservation.statut,
+                    montant: selectedInvoice.reservation.montant,
+                    date_reservation: selectedInvoice.reservation.date_reservation,
+                    paiement: selectedInvoice.reservation.paiement,
+                },
+                voyage: selectedInvoice.voyage,
+                voyageurs: selectedInvoice.voyageurs,
+            },
+            qrDataUrl
+        );
+        setDownloadingPdf(false);
     };
 
     const getQrString = (qrData: string) => {
@@ -277,7 +321,12 @@ export default function ClientFacturesScreen() {
                                         <Text className="text-blue-900 font-bold text-base ml-2">QR Code</Text>
                                     </View>
                                     <View className="bg-white p-4 rounded-2xl border border-gray-100">
-                                        <QRCode value={getQrString(selectedInvoice.reservation.qr_data)} size={180} backgroundColor="#ffffff" />
+                                        <QRCode
+                                            value={getQrString(selectedInvoice.reservation.qr_data)}
+                                            size={180}
+                                            backgroundColor="#ffffff"
+                                            getRef={(c: any) => (qrRef.current = c)}
+                                        />
                                     </View>
                                     <Text className="text-gray-400 text-[10px] text-center mt-3">Présentez ce code lors de l'embarquement</Text>
                                 </View>
@@ -369,8 +418,27 @@ export default function ClientFacturesScreen() {
                                 </View>
                             </View>
 
-                            {/* View Full Detail Button */}
+                            {/* Actions : Télécharger PDF + Voir détail */}
                             <View className="mx-5 mt-5 mb-5">
+                                <TouchableOpacity
+                                    className="bg-blue-50 border border-blue-200 w-full py-4 rounded-2xl items-center flex-row justify-center mb-3"
+                                    onPress={handleDownloadPdf}
+                                    disabled={downloadingPdf}
+                                    activeOpacity={0.7}
+                                >
+                                    {downloadingPdf ? (
+                                        <>
+                                            <ActivityIndicator size="small" color="#1e3a8a" />
+                                            <Text className="text-blue-900 font-bold text-base ml-2">Génération du PDF...</Text>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Ionicons name="download-outline" size={20} color="#1e3a8a" />
+                                            <Text className="text-blue-900 font-bold text-base ml-2">Télécharger / Partager le PDF</Text>
+                                        </>
+                                    )}
+                                </TouchableOpacity>
+
                                 <TouchableOpacity
                                     className="bg-blue-900 w-full py-4 rounded-2xl items-center flex-row justify-center"
                                     onPress={() => {
