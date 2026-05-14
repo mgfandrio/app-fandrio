@@ -45,6 +45,16 @@ export default function Index() {
       const token = await SecureStore.getItemAsync('fandrioToken');
       if (!token) return 'unauthenticated';
 
+      // Vérifie la préférence "Se souvenir de moi"
+      // (compat rétro : si la clé n'existe pas mais le token oui, on considère actif)
+      const remember = await SecureStore.getItemAsync('fandrioRememberMe');
+      if (remember === 'false') {
+        // L'utilisateur n'a pas demandé à rester connecté → nettoyer la session
+        await SecureStore.deleteItemAsync('fandrioToken');
+        await SecureStore.deleteItemAsync('fandrioUser');
+        return 'unauthenticated';
+      }
+
       // Tenter de rafraîchir le token
       const response: any = await authService.rafraichirToken();
 

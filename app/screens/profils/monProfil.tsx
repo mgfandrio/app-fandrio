@@ -70,6 +70,7 @@ export default function MonProfil() {
           // Supprimer les données locales
           await SecureStore.deleteItemAsync('fandrioToken');
           await SecureStore.deleteItemAsync('fandrioUser');
+          await SecureStore.deleteItemAsync('fandrioRememberMe');
 
           // Rediriger vers la page de connexion
           router.replace('/screens/authentification/loginScreen');

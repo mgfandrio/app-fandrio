@@ -30,6 +30,7 @@ export default function LoginScreen() {
   const [showPostLoginSplash, setShowPostLoginSplash] = useState(false);
   const [pendingRole, setPendingRole] = useState<number | null>(null);
   const [loggedUserName, setLoggedUserName] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [errors, setErrors] = useState({
     identifiant: '',
     motDePasse: '',
@@ -53,7 +54,11 @@ export default function LoginScreen() {
       try {
         const token = await SecureStore.getItemAsync('fandrioToken');
         const userJson = await SecureStore.getItemAsync('fandrioUser');
-        if (token && userJson) {
+        const remember = await SecureStore.getItemAsync('fandrioRememberMe');
+        // Auto-login uniquement si l'utilisateur a coché "Se souvenir de moi"
+        // (compat rétro : si la clé n'existe pas mais le token oui, on considère actif)
+        const shouldAutoLogin = remember === null ? true : remember === 'true';
+        if (token && userJson && shouldAutoLogin) {
           const user = JSON.parse(userJson);
           const role = user?.role ?? null;
           if (role != null) {
@@ -61,6 +66,10 @@ export default function LoginScreen() {
             setPendingRole(Number(role));
             setShowPostLoginSplash(true);
           }
+        } else if (token && userJson && !shouldAutoLogin) {
+          // L'utilisateur n'avait pas coché "Se souvenir de moi" → nettoyer
+          await SecureStore.deleteItemAsync('fandrioToken');
+          await SecureStore.deleteItemAsync('fandrioUser');
         }
       } catch (e) {
         console.warn('SecureStore read error', e);
@@ -147,6 +156,8 @@ export default function LoginScreen() {
         if (utilisateur) {
           await SecureStore.setItemAsync('fandrioUser', JSON.stringify(utilisateur));
         }
+        // Mémorise la préférence "Se souvenir de moi"
+        await SecureStore.setItemAsync('fandrioRememberMe', rememberMe ? 'true' : 'false');
 
         const role = utilisateur?.role ?? null;
         if (role != null) {
@@ -359,12 +370,25 @@ export default function LoginScreen() {
               <View className="mb-2" />
             )}
 
-            {/* Mot de passe oublié */}
-            <TouchableOpacity className="self-end mb-7">
-              <Text className="text-blue-600 font-semibold text-base">
-                Mot de passe oublié ?
-              </Text>
-            </TouchableOpacity>
+            {/* Se souvenir de moi + Mot de passe oublié */}
+            <View className="flex-row items-center justify-between mb-7">
+              <TouchableOpacity
+                className="flex-row items-center flex-1"
+                onPress={() => setRememberMe(!rememberMe)}
+                activeOpacity={0.7}
+                disabled={loading}
+              >
+                <View className={`w-5 h-5 rounded-md mr-2 items-center justify-center border-2 ${rememberMe ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                  {rememberMe && <Ionicons name="checkmark" size={14} color="#fff" />}
+                </View>
+                <Text className="text-gray-700 font-medium text-sm">Se souvenir de moi</Text>
+              </TouchableOpacity>
+              <TouchableOpacity disabled={loading}>
+                <Text className="text-blue-600 font-semibold text-sm">
+                  Mot de passe oublié ?
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Login Button */}
             <TouchableOpacity
