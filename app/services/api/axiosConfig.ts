@@ -59,9 +59,15 @@ apiClient.interceptors.response.use(
     if (error.response) {
       // Erreur de réponse du serveur
       const { status, data } = error.response;
-      
+
       // Token expiré ou non valide
-      if (status === 401) {
+      // On ne purge PAS la session si l'erreur vient de l'endpoint de
+      // rafraîchissement du token : c'est le splash (verifierSession)
+      // qui décidera quoi faire, pour ne pas casser le "Se souvenir de moi".
+      const requestUrl: string = error.config?.url || '';
+      const isRefreshEndpoint = requestUrl.includes('/api/rafraichir-token');
+
+      if (status === 401 && !isRefreshEndpoint) {
         try {
           await SecureStore.deleteItemAsync('fandrioToken');
           await SecureStore.deleteItemAsync('fandrioUser');
@@ -71,7 +77,7 @@ apiClient.interceptors.response.use(
           console.warn('Erreur lors de la suppression du token:', e);
         }
       }
-      
+
       return Promise.reject({
         message: data?.message || 'Une erreur est survenue',
         erreurs: data?.erreurs || {},
