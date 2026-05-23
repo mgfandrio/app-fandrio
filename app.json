@@ -19,6 +19,7 @@
         "monochromeImage": "./assets/images/fandrioLogo.png"
       },
       "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false,
       "googleServicesFile": "./google-services.json",
       "package": "com.fandrio.app"

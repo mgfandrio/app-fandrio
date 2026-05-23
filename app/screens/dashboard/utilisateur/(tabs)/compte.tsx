@@ -434,7 +434,7 @@ export default function CompteScreen() {
 
       {/* ====== MODAL ÉDITION PROFIL ====== */}
       <Modal visible={editModalVisible} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'padding'} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20} className="flex-1">
           <View className="flex-1 bg-black/50 justify-end">
             <View className="bg-white rounded-t-3xl px-5 pt-6 pb-10" style={{ maxHeight: '85%' }}>
               {/* Header */}
@@ -470,7 +470,7 @@ export default function CompteScreen() {
 
       {/* ====== MODAL MOT DE PASSE ====== */}
       <Modal visible={pwdModalVisible} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'padding'} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20} className="flex-1">
           <View className="flex-1 bg-black/50 justify-end">
             <View className="bg-white rounded-t-3xl px-5 pt-6 pb-10" style={{ maxHeight: '85%' }}>
               {/* Header */}

@@ -1359,7 +1359,7 @@ export default function ReserverScreen() {
                 className="flex-1"
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
-            <ScrollView className="flex-1 p-6" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView className="flex-1 p-6" contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 {loading && (
                     <View className="items-center justify-center py-20">
                         <ActivityIndicator size="large" color="#1e3a8a" />
