@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Modal,
   ScrollView,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -105,6 +106,41 @@ export const CompagnieDetailModal: React.FC<Props> = ({
       },
       onCancel: () => { }
     });
+  };
+
+  const handleToggleMode = async (mode: 'vip' | 'premium', valeur: boolean) => {
+    if (!compagnieId || !compagnie) return;
+    const labelMode = mode === 'vip' ? 'VIP' : 'Premium';
+    setActionLoading(true);
+    const payload = mode === 'vip' ? { mode_vip: valeur } : { mode_premium: valeur };
+    const response = await compagnieService.mettreAJourModes(compagnieId, payload);
+    setActionLoading(false);
+
+    if (response.statut) {
+      setCompagnie({
+        ...compagnie,
+        mode_vip: mode === 'vip' ? valeur : compagnie.mode_vip,
+        mode_premium: mode === 'premium' ? valeur : compagnie.mode_premium,
+      });
+      onRefresh?.();
+      showDialog({
+        title: 'Succès',
+        message: `Mode ${labelMode} ${valeur ? 'activé' : 'désactivé'}`,
+        type: 'success',
+        confirmText: 'OK',
+        onConfirm: () => {},
+        onCancel: () => {},
+      });
+    } else {
+      showDialog({
+        title: 'Erreur',
+        message: response.message || `Impossible de modifier le mode ${labelMode}`,
+        type: 'danger',
+        confirmText: 'OK',
+        onConfirm: () => {},
+        onCancel: () => {},
+      });
+    }
   };
 
   const handleSupprimer = () => {
@@ -302,6 +338,52 @@ export const CompagnieDetailModal: React.FC<Props> = ({
                   </View>
                 </View>
               )}
+
+              {/* Modes Premium / VIP (super-admin) */}
+              <View className="bg-white rounded-2xl p-4 mb-4 border border-gray-200">
+                <Text className="text-gray-900 font-bold text-base mb-3">Modes spéciaux</Text>
+                <Text className="text-gray-500 text-xs mb-4">
+                  Activez les modes VIP / Premium pour autoriser cette compagnie à créer des trajets et voitures de ces catégories.
+                </Text>
+
+                <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
+                  <View className="flex-row items-center">
+                    <View className="bg-amber-100 rounded-full w-10 h-10 items-center justify-center mr-3">
+                      <Ionicons name="star" size={20} color="#f59e0b" />
+                    </View>
+                    <View>
+                      <Text className="text-gray-900 font-semibold">Mode VIP</Text>
+                      <Text className="text-gray-500 text-xs">Trajets et voitures VIP</Text>
+                    </View>
+                  </View>
+                  <Switch
+                    value={!!compagnie.mode_vip}
+                    onValueChange={(v) => handleToggleMode('vip', v)}
+                    disabled={actionLoading}
+                    trackColor={{ false: '#d1d5db', true: '#f59e0b' }}
+                    thumbColor={'#ffffff'}
+                  />
+                </View>
+
+                <View className="flex-row items-center justify-between py-2">
+                  <View className="flex-row items-center">
+                    <View className="bg-purple-100 rounded-full w-10 h-10 items-center justify-center mr-3">
+                      <Ionicons name="diamond" size={20} color="#8b5cf6" />
+                    </View>
+                    <View>
+                      <Text className="text-gray-900 font-semibold">Mode Premium</Text>
+                      <Text className="text-gray-500 text-xs">Trajets et voitures Premium</Text>
+                    </View>
+                  </View>
+                  <Switch
+                    value={!!compagnie.mode_premium}
+                    onValueChange={(v) => handleToggleMode('premium', v)}
+                    disabled={actionLoading}
+                    trackColor={{ false: '#d1d5db', true: '#8b5cf6' }}
+                    thumbColor={'#ffffff'}
+                  />
+                </View>
+              </View>
 
               {/* Actions */}
               <View className="bg-white rounded-2xl p-4 mb-4 border border-gray-200">

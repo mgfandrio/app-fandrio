@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { voyageService } from '../services/voyages/voyageService';
 import { Voyage } from '../types/voyage';
+import CategorieBadge from './common/CategorieBadge';
 import { PlacesBadge } from './common/PlacesBadge';
 import { useConfirmDialog } from './common/ConfirmDialog';
 import { VoyageDetailModal } from './modals/VoyageDetailModal';
@@ -306,7 +307,10 @@ export const RenderVoyages: React.FC = () => {
                     {/* Header: route name + badge */}
                     <View className="flex-row items-start justify-between mb-3">
                       <View className="flex-1 mr-3">
-                        <Text className="text-slate-900 font-bold text-base">{trajetNom}</Text>
+                        <View className="flex-row items-center flex-wrap">
+                          <Text className="text-slate-900 font-bold text-base mr-2">{trajetNom}</Text>
+                          <CategorieBadge categorie={(voyage as any).categorie || voyage.trajet?.categorie} />
+                        </View>
                         <View className="flex-row items-center mt-1 flex-wrap">
                           <Ionicons name="location" size={14} color="#ea580c" />
                           <Text className="text-slate-800 text-sm font-medium ml-1">{depart}</Text>

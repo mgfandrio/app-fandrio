@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { voitureService } from '../../../services';
 import { Voiture } from '../../../types/voiture';
+import CategorieBadge from '../../common/CategorieBadge';
 import { useConfirmDialog } from '../../common/ConfirmDialog';
 import { VoitureDetailModal } from '../../modals/voitures/VoitureDetailModal';
 import { VoitureFormModal } from '../../modals/voitures/VoitureFormModal';
@@ -210,9 +211,12 @@ export function RenderVoitures({ onAddPress, onEditPress }: RenderVoituresProps)
                     </View>
                     
                     <View className="flex-1">
-                      <Text className="text-slate-900 font-bold text-base">
-                        {voiture.voit_marque} {voiture.voit_modele}
-                      </Text>
+                      <View className="flex-row items-center flex-wrap">
+                        <Text className="text-slate-900 font-bold text-base mr-2">
+                          {voiture.voit_marque} {voiture.voit_modele}
+                        </Text>
+                        <CategorieBadge categorie={(voiture as any).voit_categorie} hideClassique={false} />
+                      </View>
                       <View className="flex-row items-center mt-1">
                         <Ionicons name="document-text-outline" size={14} color="#475569" />
                         <Text className="text-slate-700 text-sm font-medium ml-1.5">

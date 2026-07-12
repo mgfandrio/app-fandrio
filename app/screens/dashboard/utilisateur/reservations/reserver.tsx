@@ -14,6 +14,7 @@ import {
 } from '../../../../services/reservations/pendingReservation';
 import { useNetwork } from '../../../../hooks/useNetwork';
 import { SearchableDropdown } from '../../../../components/common/SearchableDropdown';
+import CategorieBadge from '../../../../components/common/CategorieBadge';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Platform, KeyboardAvoidingView } from 'react-native';
 import echo from '../../../../services/echo/echoConfig';
@@ -703,8 +704,11 @@ export default function ReserverScreen() {
                     onPress={() => setSelectedVoyage(voyage)}
                 >
                     <View className="flex-row justify-between items-start mb-3">
-                        <View>
-                            <Text className="text-gray-900 font-bold text-xl">{voyage.compagnie?.nom || 'Compagnie'}</Text>
+                        <View className="flex-1 mr-2">
+                            <View className="flex-row items-center flex-wrap">
+                                <Text className="text-gray-900 font-bold text-xl mr-2">{voyage.compagnie?.nom || 'Compagnie'}</Text>
+                                <CategorieBadge categorie={(voyage as any).categorie || voyage.trajet?.categorie} />
+                            </View>
                             <View className="flex-row items-center mt-1">
                                 <Ionicons name="calendar-outline" size={14} color="#334155" />
                                 <Text className="text-gray-700 text-sm font-medium ml-1 mr-3">{voyage.date}</Text>

@@ -11,6 +11,8 @@ export interface Compagnie {
   adresse: string;
   statut: number; // 1: actif, 2: inactif, 3: supprimé
   logo?: string;
+  mode_vip?: boolean;
+  mode_premium?: boolean;
   localisation?: {
     id: number;
     nom: string;

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { trajetService } from '../../../services/trajets/trajetService';
 import { Trajet } from '../../../types/trajet';
+import CategorieBadge from '../../common/CategorieBadge';
 import { useConfirmDialog } from '../../common/ConfirmDialog';
 import { TrajetDetailModal } from '../../modals/trajets/TrajetDetailModal';
 import { TrajetFormModal } from '../../modals/trajets/TrajetFormModal';
@@ -188,9 +189,12 @@ export const RenderTrajets: React.FC = () => {
                   {/* Route title + status */}
                   <View className="flex-row items-start justify-between mb-3">
                     <View className="flex-1 mr-3">
-                      <Text className="text-slate-800 font-bold text-base mb-2">
-                        {trajet.nom_trajet || trajet.trajet_nom || 'Sans nom'}
-                      </Text>
+                      <View className="flex-row items-center flex-wrap mb-2">
+                        <Text className="text-slate-800 font-bold text-base mr-2">
+                          {trajet.nom_trajet || trajet.trajet_nom || 'Sans nom'}
+                        </Text>
+                        <CategorieBadge categorie={(trajet as any).categorie || (trajet as any).traj_categorie} hideClassique={false} />
+                      </View>
                       {/* Route visualization */}
                       <View className="flex-row items-center">
                         <View className="items-center mr-2">

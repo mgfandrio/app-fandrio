@@ -14,6 +14,8 @@ import {
 import { chauffeurService, voitureService } from '../../../services';
 import { Chauffeur } from '../../../types/chauffeur';
 import { Voiture } from '../../../types/voiture';
+import { useCompagnieModes, type Categorie } from '../../../hooks/useCompagnieModes';
+import CategorieSelector from '../../common/CategorieSelector';
 import { useConfirmDialog } from '../../common/ConfirmDialog';
 
 interface Props {
@@ -43,9 +45,12 @@ export const VoitureFormModal: React.FC<Props> = ({
     voit_places: '',
     voit_statut: '1',
     chauff_id: '',
+    voit_categorie: 'classique' as Categorie,
   });
 
   const isEditMode = !!voitureId;
+
+  const { mode_vip, mode_premium } = useCompagnieModes(visible);
 
   useEffect(() => {
     if (visible) {
@@ -67,6 +72,7 @@ export const VoitureFormModal: React.FC<Props> = ({
       voit_places: '',
       voit_statut: '1',
       chauff_id: '',
+      voit_categorie: 'classique',
     });
   };
 
@@ -114,6 +120,7 @@ export const VoitureFormModal: React.FC<Props> = ({
           voit_places: voiture.voit_places.toString(),
           voit_statut: voiture.voit_statut.toString(),
           chauff_id: voiture.chauff_id.toString(),
+          voit_categorie: (((voiture as any).voit_categorie as Categorie) || 'classique'),
         });
       } else {
         showDialog({
@@ -383,6 +390,16 @@ export const VoitureFormModal: React.FC<Props> = ({
                   </Picker>
                 </View>
               </View>
+
+              {/* Catégorie */}
+              <CategorieSelector
+                value={formData.voit_categorie}
+                onChange={(cat) => setFormData({ ...formData, voit_categorie: cat })}
+                modeVip={mode_vip}
+                modePremium={mode_premium}
+                disabled={submitting}
+                helperText="Définit la catégorie du véhicule. Le plan de sièges sera généré selon la catégorie."
+              />
 
               {/* Boutons d'action */}
               <View className="flex-row gap-3 mb-4">

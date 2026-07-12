@@ -226,10 +226,19 @@ export const VoyageFormModal: React.FC<Props> = ({
   };
 
   const getFilteredVoitures = (searchText: string) => {
+    // Récupérer la catégorie du trajet sélectionné (si applicable)
+    const trajetSelectionne = trajets.find((t: any) => (t.id_trajet)?.toString() === formData.traj_id);
+    const categorieRequise = (trajetSelectionne as any)?.categorie || null;
+
     return voitures.filter((voiture: any) => {
       const vNom = (voiture.voit_matricule || voiture.immatriculation || voiture.voit_immatriculation || '').toLowerCase();
       const matchesSearch = vNom.includes(searchText.toLowerCase());
-      return matchesSearch;
+      if (!matchesSearch) return false;
+      if (categorieRequise) {
+        const vCat = (voiture.voit_categorie || voiture.categorie || 'classique');
+        return vCat === categorieRequise;
+      }
+      return true;
     });
   };
 
@@ -506,19 +515,40 @@ export const VoyageFormModal: React.FC<Props> = ({
                       placeholderTextColor="#9ca3af"
                     />
                     <ScrollView>
-                      {getFilteredTrajets(searchTrajet).map((trajet: any) => (
-                        <TouchableOpacity
-                          key={trajet.id_trajet}
-                          className="px-4 py-3 border-b border-gray-100"
-                          onPress={() => {
-                            setFormData({ ...formData, traj_id: trajet.id_trajet.toString() });
-                            setShowTrajetDropdown(false);
-                            setSearchTrajet('');
-                          }}
-                        >
-                          <Text className="text-gray-900">{trajet.nom_trajet || trajet.trajet_nom}</Text>
-                        </TouchableOpacity>
-                      ))}
+                      {getFilteredTrajets(searchTrajet).map((trajet: any) => {
+                        const cat = (trajet.categorie || 'classique') as string;
+                        const badgeColor =
+                          cat === 'vip'
+                            ? 'bg-amber-100 text-amber-700'
+                            : cat === 'premium'
+                            ? 'bg-purple-100 text-purple-700'
+                            : 'bg-blue-100 text-blue-700';
+                        return (
+                          <TouchableOpacity
+                            key={trajet.id_trajet}
+                            className="px-4 py-3 border-b border-gray-100 flex-row items-center justify-between"
+                            onPress={() => {
+                              // Reset voit_id si on change la cat\u00e9gorie du trajet
+                              const prevTrajet = trajets.find((t: any) => (t.id_trajet)?.toString() === formData.traj_id);
+                              const sameCat = prevTrajet && (prevTrajet as any).categorie === cat;
+                              setFormData({
+                                ...formData,
+                                traj_id: trajet.id_trajet.toString(),
+                                voit_id: sameCat ? formData.voit_id : '',
+                              });
+                              setShowTrajetDropdown(false);
+                              setSearchTrajet('');
+                            }}
+                          >
+                            <Text className="text-gray-900 flex-1">{trajet.nom_trajet || trajet.trajet_nom}</Text>
+                            <View className={`rounded-full px-2 py-0.5 ${badgeColor.split(' ')[0]}`}>
+                              <Text className={`text-xs font-semibold ${badgeColor.split(' ')[1]}`}>
+                                {cat.toUpperCase()}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </ScrollView>
                   </View>
                 )}
@@ -527,6 +557,15 @@ export const VoyageFormModal: React.FC<Props> = ({
               {/* Voiture Dropdown */}
               <View className="mb-4">
                 <Text className="text-gray-900 font-semibold mb-2">Voiture *</Text>
+                {formData.traj_id ? (
+                  <Text className="text-gray-500 text-xs mb-2">
+                    Seules les voitures de la même catégorie que le trajet sont affichées.
+                  </Text>
+                ) : (
+                  <Text className="text-gray-500 text-xs mb-2">
+                    Sélectionnez d&apos;abord un trajet.
+                  </Text>
+                )}
                 <TouchableOpacity
                   className="bg-white border border-gray-300 rounded-xl px-4 py-3 flex-row items-center justify-between"
                   onPress={() => setShowVoitureDropdown(!showVoitureDropdown)}
@@ -545,22 +584,42 @@ export const VoyageFormModal: React.FC<Props> = ({
                       placeholderTextColor="#9ca3af"
                     />
                     <ScrollView>
-                      {getFilteredVoitures(searchVoiture).map((voiture: any) => {
-                        const vId = voiture.id_voiture || voiture.voit_id;
-                        return (
-                          <TouchableOpacity
-                            key={vId}
-                            className="px-4 py-3 border-b border-gray-100"
-                            onPress={() => {
-                              setFormData({ ...formData, voit_id: vId.toString() });
-                              setShowVoitureDropdown(false);
-                              setSearchVoiture('');
-                            }}
-                          >
-                            <Text className="text-gray-900">{voiture.voit_matricule || voiture.immatriculation || voiture.voit_immatriculation}</Text>
-                          </TouchableOpacity>
-                        );
-                      })}
+                      {getFilteredVoitures(searchVoiture).length === 0 ? (
+                        <View className="px-4 py-6 items-center">
+                          <Text className="text-gray-400 text-sm text-center">
+                            Aucune voiture disponible pour cette catégorie.
+                          </Text>
+                        </View>
+                      ) : (
+                        getFilteredVoitures(searchVoiture).map((voiture: any) => {
+                          const vId = voiture.id_voiture || voiture.voit_id;
+                          const cat = (voiture.voit_categorie || voiture.categorie || 'classique') as string;
+                          const badgeColor =
+                            cat === 'vip'
+                              ? 'bg-amber-100 text-amber-700'
+                              : cat === 'premium'
+                              ? 'bg-purple-100 text-purple-700'
+                              : 'bg-blue-100 text-blue-700';
+                          return (
+                            <TouchableOpacity
+                              key={vId}
+                              className="px-4 py-3 border-b border-gray-100 flex-row items-center justify-between"
+                              onPress={() => {
+                                setFormData({ ...formData, voit_id: vId.toString() });
+                                setShowVoitureDropdown(false);
+                                setSearchVoiture('');
+                              }}
+                            >
+                              <Text className="text-gray-900 flex-1">{voiture.voit_matricule || voiture.immatriculation || voiture.voit_immatriculation}</Text>
+                              <View className={`rounded-full px-2 py-0.5 ${badgeColor.split(' ')[0]}`}>
+                                <Text className={`text-xs font-semibold ${badgeColor.split(' ')[1]}`}>
+                                  {cat.toUpperCase()}
+                                </Text>
+                              </View>
+                            </TouchableOpacity>
+                          );
+                        })
+                      )}
                     </ScrollView>
                   </View>
                 )}

@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import apiClient from '../../../services/api/axiosConfig';
 import { trajetService } from '../../../services/trajets/trajetService';
+import { useCompagnieModes, type Categorie } from '../../../hooks/useCompagnieModes';
+import CategorieSelector from '../../common/CategorieSelector';
 import { useConfirmDialog } from '../../common/ConfirmDialog';
 
 interface Props {
@@ -49,12 +51,15 @@ export const TrajetFormModal: React.FC<Props> = ({
     traj_tarif: '',
     traj_km: '',
     traj_duree: '',
+    traj_categorie: 'classique' as Categorie,
   });
 
   const [durationHours, setDurationHours] = useState(0);
   const [durationMinutes, setDurationMinutes] = useState(0);
 
   const isEditMode = !!trajetId;
+
+  const { mode_vip, mode_premium } = useCompagnieModes(visible);
 
   useEffect(() => {
     if (visible) {
@@ -148,6 +153,7 @@ export const TrajetFormModal: React.FC<Props> = ({
           traj_tarif: tarif.toString(),
           traj_km: km.toString(),
           traj_duree: duree,
+          traj_categorie: ((trajet.categorie as Categorie) || 'classique'),
         });
         parseDuration(duree);
       } else {
@@ -181,6 +187,7 @@ export const TrajetFormModal: React.FC<Props> = ({
       traj_tarif: '',
       traj_km: '',
       traj_duree: '',
+      traj_categorie: 'classique',
     });
     setDurationHours(0);
     setDurationMinutes(0);
@@ -266,6 +273,7 @@ export const TrajetFormModal: React.FC<Props> = ({
         traj_tarif: parseFloat(formData.traj_tarif),
         traj_km: parseInt(formData.traj_km, 10),
         traj_duree: formattedDuration,
+        traj_categorie: formData.traj_categorie,
       };
 
       if (isEditMode) {
@@ -694,7 +702,7 @@ export const TrajetFormModal: React.FC<Props> = ({
               </View>
 
               {/* Tarif */}
-              <View className="mb-8">
+              <View className="mb-6">
                 <Text className="text-gray-700 font-semibold mb-2">
                   Tarif (AR) <Text className="text-red-500">*</Text>
                 </Text>
@@ -714,6 +722,16 @@ export const TrajetFormModal: React.FC<Props> = ({
                   />
                 </View>
               </View>
+
+              {/* Catégorie */}
+              <CategorieSelector
+                value={formData.traj_categorie}
+                onChange={(cat) => setFormData({ ...formData, traj_categorie: cat })}
+                modeVip={mode_vip}
+                modePremium={mode_premium}
+                disabled={submitting}
+                helperText="Définit la catégorie du trajet. Une voiture de la même catégorie sera requise pour les voyages."
+              />
 
               {/* Boutons */}
               <View className="flex-row gap-3 mb-8">

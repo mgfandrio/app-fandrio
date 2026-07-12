@@ -8,6 +8,7 @@ import { compagnieService } from '@/app/services/compagnies/compagnieService';
 import { voyageService } from '@/app/services/voyages/voyageService';
 import { CompagnieDetaillee } from '@/app/types/compagnie';
 import { PlacesBadge } from '@/app/components/common/PlacesBadge';
+import CategorieBadge from '@/app/components/common/CategorieBadge';
 
 const { width } = Dimensions.get('window');
 
@@ -343,6 +344,9 @@ export default function CompagnieDetailScreen() {
                                             </View>
                                             <View className="flex-1">
                                                 <Text className="text-slate-900 font-bold text-base" numberOfLines={1}>{voyage.trajet?.nom}</Text>
+                                                <View className="flex-row items-center mt-1">
+                                                    <CategorieBadge categorie={(voyage as any).categorie || voyage.trajet?.categorie} />
+                                                </View>
                                             </View>
                                         </View>
                                         <Text className="text-blue-700 font-bold text-base">

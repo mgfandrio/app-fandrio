@@ -145,6 +145,21 @@ class CompagnieService {
   }
 
   /**
+   * Active/désactive les modes VIP et/ou Premium d'une compagnie (super-admin)
+   */
+  async mettreAJourModes(
+    id: number,
+    modes: { mode_vip?: boolean; mode_premium?: boolean }
+  ): Promise<ApiResponse<Compagnie> | ApiError> {
+    try {
+      const response = await apiClient.patch(`${this.BASE_PATH}/${id}/modes`, modes);
+      return handleApiResponse<Compagnie>(response);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  }
+
+  /**
    * Supprime une compagnie
    */
   async supprimerCompagnie(id: number): Promise<ApiResponse<void> | ApiError> {

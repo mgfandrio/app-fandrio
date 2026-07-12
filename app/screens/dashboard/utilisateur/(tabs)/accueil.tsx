@@ -8,6 +8,7 @@ import * as Location from 'expo-location';
 import { accueilService } from '@/app/services/accueil/accueilService';
 import { provinceService } from '@/app/services/provinces/provinceService';
 import { PlacesBadge } from '@/app/components/common/PlacesBadge';
+import CategorieBadge from '@/app/components/common/CategorieBadge';
 import RechercheFilterModal from '@/app/components/modals/recherche/RechercheFilterModal';
 import DestinationSearchModal from '@/app/components/modals/recherche/DestinationSearchModal';
 import { DashboardHeader } from '@/app/components/dashboard/DashboardHeader';
@@ -387,7 +388,10 @@ export default function AccueilScreen() {
                   {/* Company name + price */}
                   <View className="flex-row items-center justify-between mb-3">
                     <View className="flex-1 mr-3">
-                      <Text className="text-slate-900 font-extrabold text-lg" numberOfLines={1}>{voyage.compagnie?.nom || 'Compagnie'}</Text>
+                      <View className="flex-row items-center flex-wrap">
+                        <Text className="text-slate-900 font-extrabold text-lg mr-2" numberOfLines={1}>{voyage.compagnie?.nom || 'Compagnie'}</Text>
+                        <CategorieBadge categorie={(voyage as any).categorie || voyage.trajet?.categorie} />
+                      </View>
                       <Text className="text-slate-600 text-sm font-medium mt-0.5" numberOfLines={1}>{voyage.trajet?.nom || 'Trajet'}</Text>
                     </View>
                     {/* Price tag */}
