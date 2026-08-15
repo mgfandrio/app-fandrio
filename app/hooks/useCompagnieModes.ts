@@ -4,9 +4,16 @@ import compagnieService from '../services/compagnies/compagnieService';
 
 export type Categorie = 'classique' | 'vip' | 'premium';
 
+export interface CompagnieLocalisation {
+  id: number;
+  nom: string;
+}
+
 export interface CompagnieModes {
   mode_vip: boolean;
   mode_premium: boolean;
+  localisation: CompagnieLocalisation | null;
+  provincesDesservies: CompagnieLocalisation[];
   loading: boolean;
   reload: () => Promise<void>;
 }
@@ -18,6 +25,8 @@ export interface CompagnieModes {
 export function useCompagnieModes(visible: boolean = true): CompagnieModes {
   const [modeVip, setModeVip] = useState(false);
   const [modePremium, setModePremium] = useState(false);
+  const [localisation, setLocalisation] = useState<CompagnieLocalisation | null>(null);
+  const [provincesDesservies, setProvincesDesservies] = useState<CompagnieLocalisation[]>([]);
   const [loading, setLoading] = useState(false);
 
   const charger = async () => {
@@ -39,6 +48,14 @@ export function useCompagnieModes(visible: boolean = true): CompagnieModes {
       if ('data' in response && response.data) {
         setModeVip(!!response.data.mode_vip);
         setModePremium(!!response.data.mode_premium);
+        const loc = (response.data as any).localisation;
+        setLocalisation(loc && loc.id ? { id: loc.id, nom: loc.nom } : null);
+        const desservies = (response.data as any).provinces_desservies;
+        setProvincesDesservies(
+          Array.isArray(desservies)
+            ? desservies.filter((p: any) => p && p.id).map((p: any) => ({ id: p.id, nom: p.nom }))
+            : []
+        );
       }
     } catch (e) {
       // silencieux : on retombe sur classique
@@ -56,6 +73,8 @@ export function useCompagnieModes(visible: boolean = true): CompagnieModes {
   return {
     mode_vip: modeVip,
     mode_premium: modePremium,
+    localisation,
+    provincesDesservies,
     loading,
     reload: charger,
   };

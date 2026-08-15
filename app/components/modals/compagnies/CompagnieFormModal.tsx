@@ -385,7 +385,11 @@ export const CompagnieFormModal: React.FC<Props> = ({
                 placeholder="Sélectionner la localisation"
                 data={provinces}
                 selectedId={formData.comp_localisation}
-                onSelect={(id) => setFormData({ ...formData, comp_localisation: id })}
+                onSelect={(id) => {
+                  setFormData({ ...formData, comp_localisation: id });
+                  // La localisation ne peut pas être aussi une province desservie
+                  setSelectedProvinces((prev) => prev.filter((pid) => pid !== id));
+                }}
                 showAllOption={false}
               />
 
@@ -464,7 +468,9 @@ export const CompagnieFormModal: React.FC<Props> = ({
               ) : (
                 <View className="bg-gray-50 border border-gray-300 rounded-xl p-3 mb-3">
                   <View className="flex-row flex-wrap">
-                    {provinces.map((province) => {
+                    {provinces
+                      .filter((province) => province.id !== formData.comp_localisation)
+                      .map((province) => {
                       const isSelected = selectedProvinces.includes(province.id);
                       const orientationConfig = getOrientationConfig(province.orientation);
                       return (

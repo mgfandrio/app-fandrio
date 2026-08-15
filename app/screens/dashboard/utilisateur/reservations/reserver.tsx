@@ -14,7 +14,7 @@ import {
 } from '../../../../services/reservations/pendingReservation';
 import { useNetwork } from '../../../../hooks/useNetwork';
 import { SearchableDropdown } from '../../../../components/common/SearchableDropdown';
-import CategorieBadge from '../../../../components/common/CategorieBadge';
+import CategorieBadge, { categorieCardBg } from '../../../../components/common/CategorieBadge';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Platform, KeyboardAvoidingView } from 'react-native';
 import echo from '../../../../services/echo/echoConfig';
@@ -699,7 +699,7 @@ export default function ReserverScreen() {
             {availableVoyages.map((voyage) => (
                 <TouchableOpacity
                     key={voyage.voyage_id}
-                    className={`bg-white p-4 rounded-3xl mb-4 border ${selectedVoyage?.voyage_id === voyage.voyage_id ? 'border-blue-500 bg-blue-50/30' : 'border-gray-100'
+                    className={`${categorieCardBg((voyage as any).categorie || voyage.trajet?.categorie)} p-4 rounded-3xl mb-4 border ${selectedVoyage?.voyage_id === voyage.voyage_id ? 'border-blue-500 bg-blue-50/30' : 'border-gray-100'
                         }`}
                     onPress={() => setSelectedVoyage(voyage)}
                 >

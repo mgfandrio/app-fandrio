@@ -59,7 +59,8 @@ export const TrajetFormModal: React.FC<Props> = ({
 
   const isEditMode = !!trajetId;
 
-  const { mode_vip, mode_premium } = useCompagnieModes(visible);
+  const { mode_vip, mode_premium, localisation, provincesDesservies } = useCompagnieModes(visible);
+  const desservieIds = provincesDesservies.map((p) => String(p.id));
 
   useEffect(() => {
     if (visible) {
@@ -71,6 +72,13 @@ export const TrajetFormModal: React.FC<Props> = ({
       }
     }
   }, [visible, trajetId]);
+
+  // La province de départ est toujours la localisation de la compagnie.
+  useEffect(() => {
+    if (visible && localisation?.id) {
+      setFormData((prev) => ({ ...prev, pro_depart: String(localisation.id) }));
+    }
+  }, [visible, localisation?.id]);
 
   const parseDuration = (durationString: string) => {
     if (!durationString) {
@@ -219,13 +227,15 @@ export const TrajetFormModal: React.FC<Props> = ({
     return name || 'Sélectionner arrivée';
   };
 
-  const getFilteredProvinces = (searchText: string, excludeId?: string) => {
+  const getFilteredProvinces = (searchText: string, excludeId?: string, allowedIds?: string[]) => {
     return provinces.filter((province: any) => {
       const pId = (province.pro_id || province.id)?.toString();
       const pNom = (province.pro_nom || province.nom || province.name || '').toLowerCase();
       const matchesSearch = pNom.includes(searchText.toLowerCase());
       const notExcluded = excludeId ? pId !== excludeId : true;
-      return matchesSearch && notExcluded;
+      // Si une liste d'IDs autorisés est fournie (non vide), on n'affiche que ceux-ci
+      const isAllowed = allowedIds && allowedIds.length > 0 ? allowedIds.includes(pId) : true;
+      return matchesSearch && notExcluded && isAllowed;
     });
   };
 
@@ -355,11 +365,12 @@ export const TrajetFormModal: React.FC<Props> = ({
     onSearchChange: (text: string) => void,
     onSelect: (provinceId: string) => void,
     onClose: () => void,
-    excludeId?: string
+    excludeId?: string,
+    allowedIds?: string[]
   ) => {
     if (!show) return null;
 
-    const filteredProvinces = getFilteredProvinces(searchText, excludeId);
+    const filteredProvinces = getFilteredProvinces(searchText, excludeId, allowedIds);
 
     return (
       <View className="bg-white border-2 border-blue-200 rounded-xl mt-2 shadow-lg overflow-hidden">
@@ -513,6 +524,21 @@ export const TrajetFormModal: React.FC<Props> = ({
                 <Text className="text-gray-700 font-semibold mb-2">
                   Province de Départ <Text className="text-red-500">*</Text>
                 </Text>
+                {localisation?.id ? (
+                  <>
+                    <View className="bg-gray-100 border-2 border-gray-200 rounded-xl px-4 py-3.5 flex-row justify-between items-center">
+                      <View className="flex-row items-center flex-1">
+                        <Ionicons name="location" size={22} color="#3b82f6" />
+                        <Text className="ml-3 text-base text-gray-900 font-medium">{localisation.nom}</Text>
+                      </View>
+                      <Ionicons name="lock-closed" size={18} color="#9ca3af" />
+                    </View>
+                    <Text className="text-gray-500 text-xs mt-2">
+                      Le départ correspond à la localisation de votre compagnie et ne peut pas être modifié.
+                    </Text>
+                  </>
+                ) : (
+                  <>
                 <TouchableOpacity
                   className={`bg-gray-50 border-2 rounded-xl px-4 py-3.5 flex-row justify-between items-center ${
                     showDepartDropdown ? 'border-blue-500' : 'border-gray-300'
@@ -550,6 +576,8 @@ export const TrajetFormModal: React.FC<Props> = ({
                   },
                   () => setShowDepartDropdown(false),
                   formData.pro_arrivee
+                )}
+                  </>
                 )}
               </View>
 
@@ -594,7 +622,13 @@ export const TrajetFormModal: React.FC<Props> = ({
                     setFormData({ ...formData, pro_arrivee: id });
                   },
                   () => setShowArriveeDropdown(false),
-                  formData.pro_depart
+                  formData.pro_depart,
+                  desservieIds
+                )}
+                {desservieIds.length > 0 && (
+                  <Text className="text-gray-500 text-xs mt-2">
+                    Seules les provinces desservies par votre compagnie sont proposées.
+                  </Text>
                 )}
               </View>
 

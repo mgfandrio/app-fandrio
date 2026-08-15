@@ -8,7 +8,7 @@ import * as Location from 'expo-location';
 import { accueilService } from '@/app/services/accueil/accueilService';
 import { provinceService } from '@/app/services/provinces/provinceService';
 import { PlacesBadge } from '@/app/components/common/PlacesBadge';
-import CategorieBadge from '@/app/components/common/CategorieBadge';
+import CategorieBadge, { categorieCardBg } from '@/app/components/common/CategorieBadge';
 import RechercheFilterModal from '@/app/components/modals/recherche/RechercheFilterModal';
 import DestinationSearchModal from '@/app/components/modals/recherche/DestinationSearchModal';
 import { DashboardHeader } from '@/app/components/dashboard/DashboardHeader';
@@ -350,7 +350,7 @@ export default function AccueilScreen() {
             voyages.map((voyage) => (
               <TouchableOpacity
                 key={voyage.voyage_id}
-                className="bg-white rounded-2xl mb-4 overflow-hidden"
+                className={`${categorieCardBg((voyage as any).categorie || voyage.trajet?.categorie)} rounded-2xl mb-4 overflow-hidden`}
                 style={{ elevation: 3 }}
                 activeOpacity={0.8}
                 onPress={() => router.push({

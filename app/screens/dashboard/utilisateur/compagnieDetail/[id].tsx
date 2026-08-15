@@ -8,7 +8,7 @@ import { compagnieService } from '@/app/services/compagnies/compagnieService';
 import { voyageService } from '@/app/services/voyages/voyageService';
 import { CompagnieDetaillee } from '@/app/types/compagnie';
 import { PlacesBadge } from '@/app/components/common/PlacesBadge';
-import CategorieBadge from '@/app/components/common/CategorieBadge';
+import CategorieBadge, { categorieCardBg } from '@/app/components/common/CategorieBadge';
 
 const { width } = Dimensions.get('window');
 
@@ -319,7 +319,7 @@ export default function CompagnieDetailScreen() {
                         voyages.map((voyage) => (
                             <View
                                 key={voyage.voyage_id}
-                                className="bg-white rounded-2xl mb-3 overflow-hidden"
+                                className={`${categorieCardBg((voyage as any).categorie || voyage.trajet?.categorie)} rounded-2xl mb-3 overflow-hidden`}
                                 style={{ elevation: 2 }}
                             >
                                 {/* Top accent */}

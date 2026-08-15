@@ -41,4 +41,15 @@ function iconColor(cat: string): string {
   return '#1d4ed8';
 }
 
+/**
+ * Classe de fond pastel d'une carte de voyage selon sa catégorie.
+ * VIP -> gold pastel, Premium -> violet pastel, classique -> blanc.
+ */
+export function categorieCardBg(categorie?: CategorieValue | null): string {
+  const cat = (categorie || 'classique').toString().toLowerCase();
+  if (cat === 'vip') return 'bg-amber-100';
+  if (cat === 'premium') return 'bg-purple-100';
+  return 'bg-white';
+}
+
 export default CategorieBadge;
