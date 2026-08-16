@@ -19,13 +19,15 @@ import { useConfirmDialog } from './common/ConfirmDialog';
 import { VoyageDetailModal } from './modals/VoyageDetailModal';
 import { VoyageFormModal } from './modals/VoyageFormModal';
 import { VoyageMultipleModal } from './modals/VoyageMultipleModal';
+import { estEnPause, getVoyageStatut, statutValeur } from '../utils/voyageStatut';
 
-type TabKey = 'tous' | 'actifs' | 'inactifs' | 'annules';
+type TabKey = 'tous' | 'programmes' | 'encours' | 'termines' | 'annules';
 
 const TABS: { key: TabKey; label: string; colors: [string, string]; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'tous', label: 'Tous', colors: ['#475569', '#64748b'], icon: 'list' },
-  { key: 'actifs', label: 'Actifs', colors: ['#059669', '#10b981'], icon: 'checkmark-circle' },
-  { key: 'inactifs', label: 'Inactifs', colors: ['#d97706', '#f59e0b'], icon: 'pause-circle' },
+  { key: 'programmes', label: 'Programmés', colors: ['#059669', '#10b981'], icon: 'time' },
+  { key: 'encours', label: 'En cours', colors: ['#d97706', '#f59e0b'], icon: 'navigate' },
+  { key: 'termines', label: 'Terminés', colors: ['#475569', '#64748b'], icon: 'checkmark-done-circle' },
   { key: 'annules', label: 'Annulés', colors: ['#dc2626', '#ef4444'], icon: 'close-circle' },
 ];
 
@@ -39,7 +41,7 @@ export const RenderVoyages: React.FC = () => {
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [selectedVoyage, setSelectedVoyage] = useState<Voyage | null>(null);
   const [multiModalVisible, setMultiModalVisible] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabKey>('actifs');
+  const [activeTab, setActiveTab] = useState<TabKey>('programmes');
 
   // Optimisation : cache TTL pour éviter les double-fetch lors de navigations rapides
   const lastFetchRef = useRef<number>(0);
@@ -106,15 +108,13 @@ export const RenderVoyages: React.FC = () => {
 
   const filteredVoyages = (Array.isArray(voyages) ? voyages : [])
     .filter((voyage: any) => {
-      const isActif = (voyage.statut !== 4 && voyage.voyage_statut !== 4) && (voyage.is_active !== false);
-      const isInactif = (voyage.statut !== 4 && voyage.voyage_statut !== 4) && (voyage.is_active === false);
-      const isAnnule = voyage.statut === 4 || voyage.voyage_statut === 4;
-      
+      const s = statutValeur(voyage);
       switch (activeTab) {
         case 'tous': return true;
-        case 'actifs': return isActif;
-        case 'inactifs': return isInactif;
-        case 'annules': return isAnnule;
+        case 'programmes': return s === 1;
+        case 'encours': return s === 2;
+        case 'termines': return s === 3;
+        case 'annules': return s === 4;
         default: return true;
       }
     })
@@ -141,22 +141,15 @@ export const RenderVoyages: React.FC = () => {
     setFormModalVisible(true);
   };
 
-  const getVoyageBadge = (voyage: any) => {
-    if (voyage.statut === 4 || voyage.voyage_statut === 4) {
-      return { colors: ['#dc2626', '#ef4444'] as const, label: 'Annulé', icon: 'close-circle' as const };
-    }
-    if (voyage.is_active === false) {
-      return { colors: ['#d97706', '#f59e0b'] as const, label: 'Inactif', icon: 'pause-circle' as const };
-    }
-    return { colors: ['#059669', '#10b981'] as const, label: 'Actif', icon: 'checkmark-circle' as const };
-  };
-
   const getCounts = () => {
     const all = Array.isArray(voyages) ? voyages : [];
-    const actifs = all.filter((v: any) => (v.statut !== 4 && v.voyage_statut !== 4) && v.is_active !== false).length;
-    const inactifs = all.filter((v: any) => (v.statut !== 4 && v.voyage_statut !== 4) && v.is_active === false).length;
-    const annules = all.filter((v: any) => v.statut === 4 || v.voyage_statut === 4).length;
-    return { tous: all.length, actifs, inactifs, annules };
+    return {
+      tous: all.length,
+      programmes: all.filter((v: any) => statutValeur(v) === 1).length,
+      encours: all.filter((v: any) => statutValeur(v) === 2).length,
+      termines: all.filter((v: any) => statutValeur(v) === 3).length,
+      annules: all.filter((v: any) => statutValeur(v) === 4).length,
+    };
   };
   const counts = getCounts();
 
@@ -179,7 +172,7 @@ export const RenderVoyages: React.FC = () => {
                 </View>
                 <View>
                   <Text className="text-white text-2xl font-bold">Voyages</Text>
-                  <Text className="text-white text-sm font-medium mt-0.5">{voyages.length} voyage(s) programmé(s)</Text>
+                  <Text className="text-white text-sm font-medium mt-0.5">{voyages.length} voyage(s) au total</Text>
                 </View>
               </View>
               <View className="flex-row items-center" style={{ gap: 8 }}>
@@ -283,7 +276,8 @@ export const RenderVoyages: React.FC = () => {
             </View>
           ) : (
             filteredVoyages.map((voyage: any) => {
-              const badge = getVoyageBadge(voyage);
+              const badge = getVoyageStatut(voyage);
+              const enPause = estEnPause(voyage);
               const trajetNom = voyage.trajet?.nom || voyage.trajet?.nom_trajet || voyage.trajet?.trajet_nom || 'Trajet sans nom';
               const depart = voyage.trajet?.province_depart || 'Départ';
               const arrivee = voyage.trajet?.province_arrivee || 'Arrivée';
@@ -319,11 +313,19 @@ export const RenderVoyages: React.FC = () => {
                           <Text className="text-slate-800 text-sm font-medium ml-1">{arrivee}</Text>
                         </View>
                       </View>
-                      <View className="rounded-xl overflow-hidden">
-                        <LinearGradient colors={[...badge.colors]} className="px-3 py-1.5 flex-row items-center">
-                          <Ionicons name={badge.icon} size={12} color="#fff" style={{ marginRight: 4 }} />
-                          <Text className="text-white text-xs font-bold">{badge.label}</Text>
-                        </LinearGradient>
+                      <View className="items-end">
+                        <View className="rounded-xl overflow-hidden">
+                          <LinearGradient colors={[...badge.colors]} className="px-3 py-1.5 flex-row items-center">
+                            <Ionicons name={badge.icon as any} size={12} color="#fff" style={{ marginRight: 4 }} />
+                            <Text className="text-white text-xs font-bold">{badge.label}</Text>
+                          </LinearGradient>
+                        </View>
+                        {enPause && (
+                          <View className="bg-amber-100 rounded-lg px-2 py-0.5 flex-row items-center mt-1.5">
+                            <Ionicons name="pause-circle" size={11} color="#b45309" style={{ marginRight: 3 }} />
+                            <Text className="text-amber-700 text-[10px] font-bold">En pause</Text>
+                          </View>
+                        )}
                       </View>
                     </View>
 

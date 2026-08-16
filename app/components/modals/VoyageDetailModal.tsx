@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { voyageService } from '../../services/voyages/voyageService';
 import { Voyage } from '../../types/voyage';
+import { estEnPause, getVoyageStatut } from '../../utils/voyageStatut';
 import { useConfirmDialog } from '../common/ConfirmDialog';
 
 interface Props {
@@ -343,15 +344,19 @@ export const VoyageDetailModal: React.FC<Props> = ({
     }
   };
 
-  const getStatutBadge = (statut: number) => {
-    const configs = {
-      1: { bg: 'bg-green-100', text: 'text-green-600', label: 'Actif' },
-      0: { bg: 'bg-red-100', text: 'text-red-600', label: 'Annulé' },
-    };
-    const config = configs[statut as keyof typeof configs] || configs[0];
+  const getStatutBadge = (voyageItem: any) => {
+    const info = getVoyageStatut(voyageItem);
+    const enPause = estEnPause(voyageItem);
     return (
-      <View className={`${config.bg} rounded-full px-3 py-1`}>
-        <Text className={`${config.text} text-xs font-semibold`}>{config.label}</Text>
+      <View className="flex-row items-center">
+        <View className={`${info.bg} rounded-full px-3 py-1`}>
+          <Text className={`${info.text} text-xs font-semibold`}>{info.label}</Text>
+        </View>
+        {enPause && (
+          <View className="bg-amber-100 rounded-full px-3 py-1 ml-2">
+            <Text className="text-amber-700 text-xs font-semibold">En pause</Text>
+          </View>
+        )}
       </View>
     );
   };
@@ -405,7 +410,7 @@ export const VoyageDetailModal: React.FC<Props> = ({
                       {voyage.trajet?.province_depart || 'Départ'} → {voyage.trajet?.province_arrivee || 'Arrivée'}
                     </Text>
                     <View className="mt-2">
-                      {getStatutBadge(voyage.statut || voyage.voyage_statut || 0)}
+                      {getStatutBadge(voyage)}
                     </View>
                   </View>
                 </View>

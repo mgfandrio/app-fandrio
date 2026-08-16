@@ -181,7 +181,13 @@ export const useConfirmDialog = () => {
     }
   });
 
+  // Compteur de "génération" : incrémenté à chaque ouverture de dialog.
+  // Permet de détecter si un callback (onConfirm/onCancel) a ouvert un NOUVEAU
+  // dialog (ex. message de succès) — auquel cas on ne doit pas le masquer.
+  const genRef = React.useRef(0);
+
   const showDialog = (config: Omit<ConfirmDialogProps, 'visible'>) => {
+    genRef.current += 1;
     setDialogState({
       visible: true,
       config
@@ -199,13 +205,17 @@ export const useConfirmDialog = () => {
     <ConfirmDialog
       visible={dialogState.visible}
       {...dialogState.config}
-      onCancel={() => {
-        dialogState.config.onCancel?.();
-        hideDialog();
+      onCancel={async () => {
+        const gen = genRef.current;
+        await dialogState.config.onCancel?.();
+        // Ne pas masquer si le callback a ouvert un nouveau dialog
+        if (genRef.current === gen) hideDialog();
       }}
       onConfirm={async () => {
+        const gen = genRef.current;
         await dialogState.config.onConfirm?.();
-        hideDialog();
+        // Ne pas masquer si le callback a ouvert un nouveau dialog
+        if (genRef.current === gen) hideDialog();
       }}
     />
   );
