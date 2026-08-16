@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Image, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import { DashboardHeader } from '@/app/components/dashboard/DashboardHeader';
 import { SideMenu } from '@/app/components/dashboard/SideMenu';
 import { compagnieService } from '@/app/services/compagnies/compagnieService';
+import { Skeleton } from '@/app/components/common/Skeleton';
 import { useNotifications } from '@/app/hooks/useNotifications';
 import { useUser } from '@/app/hooks/useUser';
 import { Ionicons } from '@expo/vector-icons';
@@ -103,13 +104,19 @@ export default function CompagnieScreen() {
         {/* Company list */}
         <View className="px-5">
           {loading ? (
-            <View className="items-center py-16">
-              <View className="rounded-full overflow-hidden" style={{ width: 48, height: 48 }}>
-                <LinearGradient colors={['#1e40af', '#3b82f6']} style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
-                  <ActivityIndicator color="#fff" size="small" />
-                </LinearGradient>
-              </View>
-              <Text className="text-slate-400 mt-3 text-sm">Chargement des compagnies...</Text>
+            <View>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <View key={i} className="bg-white rounded-2xl mb-4 overflow-hidden" style={{ elevation: 3 }}>
+                  <Skeleton width="100%" height={120} borderRadius={0} />
+                  <View className="p-4 flex-row items-center justify-between">
+                    <View className="flex-1 mr-3">
+                      <Skeleton width="65%" height={16} />
+                      <Skeleton width="40%" height={12} style={{ marginTop: 8 }} />
+                    </View>
+                    <Skeleton width={84} height={38} borderRadius={12} />
+                  </View>
+                </View>
+              ))}
             </View>
           ) : filteredCompagnies.length > 0 ? (
             filteredCompagnies.map((compagnie) => (

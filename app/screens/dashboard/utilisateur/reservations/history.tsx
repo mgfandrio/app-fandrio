@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { reservationService } from '@/app/services/reservations/reservationService';
+import { Skeleton } from '@/app/components/common/Skeleton';
 
 export default function HistoryScreen() {
     const router = useRouter();
@@ -102,9 +103,41 @@ export default function HistoryScreen() {
             </View>
 
             {loading && page === 1 ? (
-                <View className="flex-1 justify-center items-center">
-                    <ActivityIndicator size="large" color="#1e3a8a" />
-                </View>
+                <ScrollView
+                    className="flex-1"
+                    contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+                    scrollEnabled={false}
+                >
+                    {Array.from({ length: 5 }).map((_, i) => (
+                        <View key={i} className="bg-white rounded-3xl p-5 mb-4 shadow-sm border border-gray-100">
+                            <View className="flex-row justify-between items-start mb-3">
+                                <View className="flex-1 pr-3">
+                                    <Skeleton width="70%" height={18} borderRadius={6} />
+                                    <View className="mt-2">
+                                        <Skeleton width="55%" height={14} borderRadius={6} />
+                                    </View>
+                                    <View className="mt-2">
+                                        <Skeleton width="40%" height={12} borderRadius={6} />
+                                    </View>
+                                    <View className="mt-2">
+                                        <Skeleton width="35%" height={12} borderRadius={6} />
+                                    </View>
+                                </View>
+                                <Skeleton width={80} height={26} borderRadius={999} />
+                            </View>
+
+                            <View className="flex-row justify-between items-center pt-3 border-t border-gray-50">
+                                <Skeleton width={90} height={18} borderRadius={6} />
+                                <View className="flex-row items-center">
+                                    <View className="mr-2">
+                                        <Skeleton width={40} height={40} borderRadius={12} />
+                                    </View>
+                                    <Skeleton width={90} height={36} borderRadius={12} />
+                                </View>
+                            </View>
+                        </View>
+                    ))}
+                </ScrollView>
             ) : (
                 <ScrollView
                     className="flex-1"

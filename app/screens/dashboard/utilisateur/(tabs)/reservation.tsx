@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
 import { DashboardHeader } from '@/app/components/dashboard/DashboardHeader';
+import { Skeleton } from '@/app/components/common/Skeleton';
 import { SideMenu } from '@/app/components/dashboard/SideMenu';
 import { reservationService } from '@/app/services/reservations/reservationService';
 import { useNotifications } from '@/app/hooks/useNotifications';
@@ -149,8 +150,74 @@ export default function ReservationScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 bg-white justify-center items-center">
-        <ActivityIndicator color="#1e3a8a" size="large" />
+      <View className="flex-1 bg-gray-50">
+        <DashboardHeader
+          user={user}
+          insets={insets}
+          onMenuPress={() => setMenuVisible(true)}
+          onFilterPress={handleDateSelect}
+          searchPlaceholder="Filtrer par date..."
+          searchValue={searchValue}
+          onSearchPress={handleDateSelect}
+          onResetPress={searchValue ? () => clearDateFilter() : undefined}
+          searchIcon="calendar-outline"
+          notificationCount={unreadCount}
+        />
+
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View className="px-6 pt-6">
+            {/* Titre */}
+            <View className="mb-6">
+              <Skeleton width={200} height={28} borderRadius={8} />
+              <Skeleton width={240} height={16} borderRadius={6} style={{ marginTop: 8 }} />
+            </View>
+
+            {/* Section 1: Mini Dashboard (rangée de stats) */}
+            <View className="flex-row justify-between mb-8">
+              {[0, 1, 2].map((i) => (
+                <View
+                  key={i}
+                  className={`bg-white rounded-3xl p-4 shadow-sm border border-gray-100 items-center justify-center flex-1 ${i === 0 ? 'mr-2' : i === 1 ? 'mx-2' : 'ml-2'}`}
+                >
+                  <Skeleton width={40} height={40} borderRadius={20} style={{ marginBottom: 8 }} />
+                  <Skeleton width={32} height={22} borderRadius={6} />
+                  <Skeleton width={56} height={12} borderRadius={4} style={{ marginTop: 6 }} />
+                </View>
+              ))}
+            </View>
+
+            {/* Section 2: Historique Recent */}
+            <View className="mb-8">
+              <View className="flex-row justify-between items-center mb-4">
+                <Skeleton width={180} height={20} borderRadius={6} />
+                <Skeleton width={60} height={16} borderRadius={6} />
+              </View>
+
+              {[0, 1, 2, 3, 4].map((i) => (
+                <View key={i} className="bg-white rounded-3xl p-5 mb-4 shadow-sm border border-gray-100">
+                  <View className="flex-row justify-between items-start mb-3">
+                    <View className="flex-1">
+                      <Skeleton width={"70%"} height={16} borderRadius={6} />
+                      <Skeleton width={"55%"} height={13} borderRadius={5} style={{ marginTop: 6 }} />
+                      <Skeleton width={"45%"} height={11} borderRadius={5} style={{ marginTop: 6 }} />
+                      <Skeleton width={"35%"} height={11} borderRadius={5} style={{ marginTop: 6 }} />
+                    </View>
+                    <Skeleton width={80} height={26} borderRadius={13} />
+                  </View>
+
+                  <View className="flex-row justify-between items-center pt-3 border-t border-gray-50">
+                    <Skeleton width={90} height={16} borderRadius={6} />
+                    <Skeleton width={90} height={32} borderRadius={12} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
       </View>
     );
   }

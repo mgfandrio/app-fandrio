@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Dimensions, Image, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Dimensions, Image, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { accueilService } from '@/app/services/accueil/accueilService';
 import { provinceService } from '@/app/services/provinces/provinceService';
 import { PlacesBadge } from '@/app/components/common/PlacesBadge';
 import CategorieBadge, { categorieCardBg } from '@/app/components/common/CategorieBadge';
+import { Skeleton } from '@/app/components/common/Skeleton';
 import RechercheFilterModal from '@/app/components/modals/recherche/RechercheFilterModal';
 import DestinationSearchModal from '@/app/components/modals/recherche/DestinationSearchModal';
 import { DashboardHeader } from '@/app/components/dashboard/DashboardHeader';
@@ -242,8 +243,13 @@ export default function AccueilScreen() {
             {loadingCompagnies ? (
               <View className="flex-row">
                 {[1, 2, 3].map((i) => (
-                  <View key={i} className="bg-white rounded-2xl mr-4 items-center justify-center" style={{ width: CARD_WIDTH, height: 200, elevation: 2 }}>
-                    <ActivityIndicator color="#3b82f6" />
+                  <View key={i} className="bg-white rounded-2xl mr-4 overflow-hidden" style={{ width: CARD_WIDTH, elevation: 2 }}>
+                    <Skeleton width="100%" height={128} borderRadius={0} />
+                    <View className="p-4">
+                      <Skeleton width="70%" height={16} />
+                      <Skeleton width="45%" height={12} style={{ marginTop: 8 }} />
+                      <Skeleton width="100%" height={38} borderRadius={12} style={{ marginTop: 12 }} />
+                    </View>
                   </View>
                 ))}
               </View>
@@ -338,13 +344,30 @@ export default function AccueilScreen() {
           </View>
 
           {loadingVoyages ? (
-            <View className="items-center py-12">
-              <View style={{ width: 48, height: 48, borderRadius: 24, overflow: 'hidden' }}>
-                <LinearGradient colors={['#1e40af', '#3b82f6']} style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
-                  <ActivityIndicator color="#fff" size="small" />
-                </LinearGradient>
-              </View>
-              <Text className="text-slate-400 mt-3 text-sm">Chargement des voyages...</Text>
+            <View>
+              {[1, 2, 3].map((i) => (
+                <View key={i} className="bg-white rounded-2xl mb-4 overflow-hidden" style={{ elevation: 3 }}>
+                  <Skeleton width="100%" height={3} borderRadius={0} />
+                  <View className="p-4">
+                    {/* En-tête : compagnie + prix */}
+                    <View className="flex-row items-center justify-between mb-3">
+                      <View className="flex-1 mr-3">
+                        <Skeleton width="60%" height={18} />
+                        <Skeleton width="40%" height={12} style={{ marginTop: 8 }} />
+                      </View>
+                      <Skeleton width={70} height={32} borderRadius={12} />
+                    </View>
+                    {/* Ligne trajet */}
+                    <Skeleton width="80%" height={14} style={{ marginBottom: 12 }} />
+                    {/* Pied : badges */}
+                    <View className="flex-row items-center pt-3 border-t border-slate-100">
+                      <Skeleton width={90} height={28} borderRadius={10} style={{ marginRight: 8 }} />
+                      <Skeleton width={70} height={28} borderRadius={10} style={{ marginRight: 8 }} />
+                      <Skeleton width={60} height={28} borderRadius={10} />
+                    </View>
+                  </View>
+                </View>
+              ))}
             </View>
           ) : voyages.length > 0 ? (
             voyages.map((voyage) => (

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, ActivityIndicator, Linking, Dimensions } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, Linking, Dimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,6 +9,7 @@ import { voyageService } from '@/app/services/voyages/voyageService';
 import { CompagnieDetaillee } from '@/app/types/compagnie';
 import { PlacesBadge } from '@/app/components/common/PlacesBadge';
 import CategorieBadge, { categorieCardBg } from '@/app/components/common/CategorieBadge';
+import { Skeleton } from '@/app/components/common/Skeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -63,13 +64,72 @@ export default function CompagnieDetailScreen() {
 
     if (loading) {
         return (
-            <View className="flex-1 items-center justify-center bg-slate-50">
-                <View className="rounded-full overflow-hidden" style={{ width: 52, height: 52 }}>
-                    <LinearGradient colors={['#1e40af', '#3b82f6']} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }}>
-                        <ActivityIndicator color="#fff" size="small" />
-                    </LinearGradient>
+            <View className="flex-1 bg-slate-50">
+                {/* Hero shell */}
+                <LinearGradient
+                    colors={['#0f172a', '#1e3a8a', '#2563eb']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0.5, y: 1 }}
+                    style={{ paddingTop: insets.top + 10, paddingBottom: 60 }}
+                    className="px-5"
+                >
+                    <View className="flex-row items-center mb-6">
+                        <TouchableOpacity
+                            onPress={() => router.back()}
+                            className="w-10 h-10 rounded-full bg-white/15 items-center justify-center mr-3"
+                        >
+                            <Ionicons name="chevron-back" size={22} color="#fff" />
+                        </TouchableOpacity>
+                        <Text className="text-white/70 text-sm font-medium flex-1">Détail compagnie</Text>
+                    </View>
+                    <Skeleton width="60%" height={26} borderRadius={8} color="#ffffff40" />
+                    <Skeleton width="35%" height={14} borderRadius={6} color="#ffffff33" style={{ marginTop: 10 }} />
+                </LinearGradient>
+
+                {/* Floating logo skeleton */}
+                <View className="items-center" style={{ marginTop: -40 }}>
+                    <Skeleton width={80} height={80} borderRadius={16} />
                 </View>
-                <Text className="mt-4 text-slate-400 text-sm">Chargement des informations...</Text>
+
+                <View style={{ height: 20 }} />
+
+                {/* Stats row */}
+                <View className="flex-row mx-5 mb-5">
+                    {[1, 2, 3].map((i) => (
+                        <View key={i} className={`flex-1 bg-white rounded-xl p-3 items-center ${i < 3 ? 'mr-2' : ''}`} style={{ elevation: 2 }}>
+                            <Skeleton width={36} height={36} borderRadius={10} />
+                            <Skeleton width={28} height={12} style={{ marginTop: 8 }} />
+                            <Skeleton width={50} height={9} style={{ marginTop: 6 }} />
+                        </View>
+                    ))}
+                </View>
+
+                {/* À propos skeleton */}
+                <View className="mx-5 mb-5 bg-white rounded-2xl p-5" style={{ elevation: 2 }}>
+                    <Skeleton width="40%" height={16} />
+                    <Skeleton width="100%" height={12} style={{ marginTop: 14 }} />
+                    <Skeleton width="95%" height={12} style={{ marginTop: 8 }} />
+                    <Skeleton width="80%" height={12} style={{ marginTop: 8 }} />
+                </View>
+
+                {/* Voyages skeleton */}
+                <View className="mx-5">
+                    {[1, 2].map((i) => (
+                        <View key={i} className="bg-white rounded-2xl mb-3 overflow-hidden" style={{ elevation: 2 }}>
+                            <Skeleton width="100%" height={3} borderRadius={0} />
+                            <View className="p-4">
+                                <View className="flex-row items-center justify-between mb-3">
+                                    <View className="flex-1 mr-3">
+                                        <Skeleton width="55%" height={16} />
+                                        <Skeleton width="35%" height={12} style={{ marginTop: 8 }} />
+                                    </View>
+                                    <Skeleton width={64} height={28} borderRadius={10} />
+                                </View>
+                                <Skeleton width="75%" height={13} />
+                            </View>
+                        </View>
+                    ))}
+                </View>
             </View>
         );
     }
@@ -312,8 +372,25 @@ export default function CompagnieDetailScreen() {
                     </View>
 
                     {loadingVoyages ? (
-                        <View className="items-center py-8">
-                            <ActivityIndicator color="#3b82f6" />
+                        <View>
+                            {[1, 2].map((i) => (
+                                <View key={i} className="bg-white rounded-2xl mb-3 overflow-hidden" style={{ elevation: 2 }}>
+                                    <View className="p-4">
+                                        <View className="flex-row items-center justify-between mb-3">
+                                            <View className="flex-1 mr-3">
+                                                <Skeleton width="55%" height={16} />
+                                                <Skeleton width="35%" height={12} style={{ marginTop: 8 }} />
+                                            </View>
+                                            <Skeleton width={60} height={20} borderRadius={8} />
+                                        </View>
+                                        <Skeleton width="70%" height={13} style={{ marginBottom: 12 }} />
+                                        <View className="flex-row items-center pt-3 border-t border-slate-100">
+                                            <Skeleton width={80} height={26} borderRadius={10} style={{ marginRight: 8 }} />
+                                            <Skeleton width={64} height={26} borderRadius={10} />
+                                        </View>
+                                    </View>
+                                </View>
+                            ))}
                         </View>
                     ) : voyages.length > 0 ? (
                         voyages.map((voyage) => (

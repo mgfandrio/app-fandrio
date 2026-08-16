@@ -22,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import authService, { UtilisateurMoi } from '@/app/services/auth/authService';
 import { profilService } from '@/app/services/profil/profilService';
 import { useUser } from '@/app/hooks/useUser';
+import { Skeleton } from '@/app/components/common/Skeleton';
 
 export default function CompteScreen() {
   const router = useRouter();
@@ -267,14 +268,68 @@ export default function CompteScreen() {
     }
   };
 
-  // --- Loading state ---
+  // --- Loading state (skeleton) ---
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#1e3a8a" />
-          <Text className="text-gray-500 mt-3">Chargement du profil...</Text>
-        </View>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Hero header */}
+          <LinearGradient colors={['#1e3a8a', '#2563eb']} className="pb-8 pt-6 px-5" style={{ borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}>
+            <View className="items-center mb-5">
+              <Skeleton width={130} height={20} color="#ffffff40" />
+            </View>
+            <View className="items-center">
+              <Skeleton width={112} height={112} borderRadius={56} color="#ffffff33" />
+              <Skeleton width={170} height={22} color="#ffffff40" style={{ marginTop: 12 }} />
+              <Skeleton width={100} height={24} borderRadius={999} color="#ffffff33" style={{ marginTop: 8 }} />
+            </View>
+          </LinearGradient>
+
+          {/* Informations personnelles */}
+          <View className="bg-white rounded-2xl mx-4 mt-4 p-5" style={{ elevation: 2 }}>
+            <Skeleton width="55%" height={18} style={{ marginBottom: 16 }} />
+            {[1, 2, 3, 4].map((i) => (
+              <View key={i} className={`flex-row items-center py-3 ${i < 4 ? 'border-b border-gray-100' : ''}`}>
+                <Skeleton width={34} height={34} borderRadius={8} style={{ marginRight: 12 }} />
+                <View className="flex-1">
+                  <Skeleton width="30%" height={11} />
+                  <Skeleton width="60%" height={14} style={{ marginTop: 6 }} />
+                </View>
+              </View>
+            ))}
+          </View>
+
+          {/* Sécurité */}
+          <View className="bg-white rounded-2xl mx-4 mt-3 p-5" style={{ elevation: 2 }}>
+            <Skeleton width="35%" height={18} style={{ marginBottom: 16 }} />
+            <View className="flex-row items-center py-3">
+              <Skeleton width={40} height={40} borderRadius={10} style={{ marginRight: 12 }} />
+              <View className="flex-1">
+                <Skeleton width="55%" height={14} />
+                <Skeleton width="70%" height={11} style={{ marginTop: 6 }} />
+              </View>
+            </View>
+          </View>
+
+          {/* À propos */}
+          <View className="bg-white rounded-2xl mx-4 mt-3 p-5" style={{ elevation: 2 }}>
+            <Skeleton width="30%" height={18} style={{ marginBottom: 16 }} />
+            {[1, 2].map((i) => (
+              <View key={i} className={`flex-row items-center py-3 ${i < 2 ? 'border-b border-gray-100' : ''}`}>
+                <Skeleton width={34} height={34} borderRadius={8} style={{ marginRight: 12 }} />
+                <View className="flex-1">
+                  <Skeleton width="30%" height={11} />
+                  <Skeleton width="45%" height={14} style={{ marginTop: 6 }} />
+                </View>
+              </View>
+            ))}
+          </View>
+
+          {/* Déconnexion */}
+          <View className="mx-4 mt-4 mb-8">
+            <Skeleton width="100%" height={56} borderRadius={16} />
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }

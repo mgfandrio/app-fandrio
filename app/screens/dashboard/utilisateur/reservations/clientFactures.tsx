@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
 import { reservationService } from '@/app/services/reservations/reservationService';
 import { genererBilletPdf } from '@/app/utils/genererBilletPdf';
+import { Skeleton } from '@/app/components/common/Skeleton';
 
 const STATUS_MAP: Record<number, { label: string; color: string; bg: string; icon: string }> = {
     1: { label: 'En attente', color: '#f97316', bg: '#fff7ed', icon: 'time-outline' },
@@ -207,8 +208,31 @@ export default function ClientFacturesScreen() {
             </View>
 
             {loading && page === 1 ? (
-                <View className="flex-1 justify-center items-center">
-                    <ActivityIndicator size="large" color="#1e3a8a" />
+                <View className="flex-1" style={{ paddingHorizontal: 20, paddingTop: 4 }}>
+                    {[...Array(5)].map((_, i) => (
+                        <View key={i} className="bg-white rounded-3xl p-5 mb-3 shadow-sm border border-gray-100">
+                            {/* Top row : avatar + titre / numéro + badge */}
+                            <View className="flex-row justify-between items-start mb-3">
+                                <View className="flex-row items-center flex-1">
+                                    <Skeleton width={40} height={40} borderRadius={20} style={{ marginRight: 12 }} />
+                                    <View className="flex-1">
+                                        <Skeleton width="70%" height={14} borderRadius={6} />
+                                        <Skeleton width="40%" height={10} borderRadius={5} style={{ marginTop: 6 }} />
+                                    </View>
+                                </View>
+                                <Skeleton width={72} height={22} borderRadius={11} style={{ marginLeft: 8 }} />
+                            </View>
+
+                            {/* Bottom row : date/voyageurs + montant */}
+                            <View className="flex-row justify-between items-center pt-3 border-t border-gray-50">
+                                <View>
+                                    <Skeleton width={120} height={10} borderRadius={5} />
+                                    <Skeleton width={80} height={10} borderRadius={5} style={{ marginTop: 6 }} />
+                                </View>
+                                <Skeleton width={90} height={16} borderRadius={6} />
+                            </View>
+                        </View>
+                    ))}
                 </View>
             ) : (
                 <ScrollView

@@ -3,7 +3,6 @@ import {
     View,
     Text,
     ScrollView,
-    ActivityIndicator,
     TouchableOpacity,
     RefreshControl,
 } from 'react-native';
@@ -12,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { remboursementService } from '@/app/services/remboursements/remboursementService';
+import { Skeleton } from '@/app/components/common/Skeleton';
 
 interface Remboursement {
     res_id: number;
@@ -88,8 +88,33 @@ export default function ClientRemboursementsScreen() {
             </View>
 
             {loading ? (
-                <View className="flex-1 justify-center items-center">
-                    <ActivityIndicator size="large" color="#1e3a8a" />
+                <View className="px-5 mt-5">
+                    {[0, 1, 2, 3].map((i) => (
+                        <View
+                            key={i}
+                            className="bg-white rounded-3xl p-5 mb-3 border border-gray-100 shadow-sm"
+                        >
+                            {/* En-tête : infos voyage + badge statut */}
+                            <View className="flex-row justify-between items-start mb-3">
+                                <View className="flex-1 mr-2">
+                                    <Skeleton width="70%" height={16} borderRadius={6} />
+                                    <View className="mt-2">
+                                        <Skeleton width="50%" height={12} borderRadius={6} />
+                                    </View>
+                                    <View className="mt-1.5">
+                                        <Skeleton width="35%" height={12} borderRadius={6} />
+                                    </View>
+                                </View>
+                                <Skeleton width={92} height={28} borderRadius={9999} />
+                            </View>
+
+                            {/* Ligne montant */}
+                            <View className="flex-row justify-between items-center pt-3 border-t border-gray-100">
+                                <Skeleton width={70} height={14} borderRadius={6} />
+                                <Skeleton width={110} height={20} borderRadius={6} />
+                            </View>
+                        </View>
+                    ))}
                 </View>
             ) : (
                 <ScrollView

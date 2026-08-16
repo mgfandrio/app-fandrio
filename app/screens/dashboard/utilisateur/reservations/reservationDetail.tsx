@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Share, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Share, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
 import { reservationService } from '@/app/services/reservations/reservationService';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Skeleton } from '@/app/components/common/Skeleton';
 
 const STATUS_MAP: Record<number, { label: string; color: string; bg: string; icon: string }> = {
     1: { label: 'En attente', color: '#f97316', bg: 'bg-orange-100', icon: 'time-outline' },
@@ -74,9 +75,115 @@ export default function ReservationDetailScreen() {
 
     if (loading) {
         return (
-            <SafeAreaView className="flex-1 bg-gray-50 justify-center items-center">
-                <ActivityIndicator size="large" color="#1e3a8a" />
-                <Text className="text-gray-600 mt-4 text-sm">Chargement des détails...</Text>
+            <SafeAreaView className="flex-1 bg-gray-50">
+                {/* Header (identique à l'écran chargé pour conserver le retour) */}
+                <View className="bg-white border-b border-gray-100 px-6 py-4 flex-row items-center justify-between">
+                    <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center bg-gray-50 rounded-full">
+                        <Ionicons name="arrow-back" size={24} color="#1e3a8a" />
+                    </TouchableOpacity>
+                    <Text className="text-xl font-bold text-blue-900">Détail Réservation</Text>
+                    <View className="w-10 h-10 items-center justify-center bg-gray-50 rounded-full">
+                        <Skeleton width={20} height={20} borderRadius={10} color="#cbd5e1" />
+                    </View>
+                </View>
+
+                <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+                    {/* Hero Ticket Card skeleton */}
+                    <LinearGradient colors={['#1e3a8a', '#1e40af', '#2563eb']} className="mx-5 mt-5 rounded-[32px] overflow-hidden">
+                        <View className="p-6">
+                            <View className="flex-row justify-between items-center mb-4">
+                                <View>
+                                    <Skeleton width={70} height={12} borderRadius={6} color="#ffffff40" />
+                                    <Skeleton width={130} height={22} borderRadius={6} color="#ffffff40" style={{ marginTop: 6 }} />
+                                </View>
+                                <Skeleton width={100} height={28} borderRadius={14} color="#ffffff40" />
+                            </View>
+
+                            <View className="flex-row items-center justify-between mt-2">
+                                <View className="flex-1">
+                                    <Skeleton width={50} height={12} borderRadius={6} color="#ffffff40" />
+                                    <Skeleton width={90} height={18} borderRadius={6} color="#ffffff40" style={{ marginTop: 6 }} />
+                                </View>
+                                <View className="mx-3 items-center">
+                                    <Ionicons name="arrow-forward" size={20} color="#93c5fd" />
+                                    <View className="w-16 h-0.5 bg-blue-300/30 mt-1" />
+                                </View>
+                                <View className="flex-1 items-end">
+                                    <Skeleton width={50} height={12} borderRadius={6} color="#ffffff40" />
+                                    <Skeleton width={90} height={18} borderRadius={6} color="#ffffff40" style={{ marginTop: 6 }} />
+                                </View>
+                            </View>
+
+                            <View className="flex-row justify-between mt-4 pt-4 border-t border-white/10">
+                                {[0, 1, 2].map((i) => (
+                                    <View key={i}>
+                                        <Skeleton width={55} height={12} borderRadius={6} color="#ffffff40" />
+                                        <Skeleton width={70} height={16} borderRadius={6} color="#ffffff40" style={{ marginTop: 6 }} />
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    </LinearGradient>
+
+                    {/* QR Code Section skeleton */}
+                    <View className="mx-5 mt-5 bg-white rounded-[28px] p-6 border border-gray-100 shadow-sm items-center">
+                        <View className="flex-row items-center mb-4">
+                            <Skeleton width={20} height={20} borderRadius={10} />
+                            <Skeleton width={180} height={16} borderRadius={6} style={{ marginLeft: 8 }} />
+                        </View>
+                        <Skeleton width={232} height={232} borderRadius={16} />
+                        <Skeleton width={220} height={12} borderRadius={6} style={{ marginTop: 12 }} />
+                    </View>
+
+                    {/* Voyage Details skeleton */}
+                    <View className="mx-5 mt-5 bg-white rounded-[28px] p-5 border border-gray-100 shadow-sm">
+                        <View className="flex-row items-center mb-4">
+                            <Skeleton width={32} height={32} borderRadius={16} />
+                            <Skeleton width={180} height={16} borderRadius={6} style={{ marginLeft: 12 }} />
+                        </View>
+                        {[0, 1, 2].map((i) => (
+                            <View key={i} className="flex-row justify-between py-2 border-b border-gray-50">
+                                <Skeleton width={110} height={14} borderRadius={6} />
+                                <Skeleton width={90} height={14} borderRadius={6} />
+                            </View>
+                        ))}
+                    </View>
+
+                    {/* Voyageurs skeleton */}
+                    <View className="mx-5 mt-5 bg-white rounded-[28px] p-5 border border-gray-100 shadow-sm">
+                        <View className="flex-row items-center mb-4">
+                            <Skeleton width={32} height={32} borderRadius={16} />
+                            <Skeleton width={140} height={16} borderRadius={6} style={{ marginLeft: 12 }} />
+                        </View>
+                        {[0, 1].map((i) => (
+                            <View key={i} className="flex-row items-center py-3 border-b border-gray-50">
+                                <Skeleton width={32} height={32} borderRadius={16} style={{ marginRight: 12 }} />
+                                <View className="flex-1">
+                                    <Skeleton width={120} height={14} borderRadius={6} />
+                                </View>
+                                <Skeleton width={70} height={24} borderRadius={12} />
+                            </View>
+                        ))}
+                    </View>
+
+                    {/* Payment Info skeleton */}
+                    <View className="mx-5 mt-5 bg-white rounded-[28px] p-5 border border-gray-100 shadow-sm">
+                        <View className="flex-row items-center mb-4">
+                            <Skeleton width={32} height={32} borderRadius={16} />
+                            <Skeleton width={100} height={16} borderRadius={6} style={{ marginLeft: 12 }} />
+                        </View>
+                        {[0, 1].map((i) => (
+                            <View key={i} className="flex-row justify-between py-2 border-b border-gray-50">
+                                <Skeleton width={120} height={14} borderRadius={6} />
+                                <Skeleton width={100} height={14} borderRadius={6} />
+                            </View>
+                        ))}
+                        <View className="flex-row justify-between items-center mt-4 pt-4 border-t border-gray-100">
+                            <Skeleton width={120} height={20} borderRadius={6} />
+                            <Skeleton width={110} height={22} borderRadius={6} />
+                        </View>
+                    </View>
+                </ScrollView>
             </SafeAreaView>
         );
     }
