@@ -18,7 +18,7 @@ class CommissionService {
   /**
    * Récupère la liste des compagnies avec résumé commissions
    */
-  async getCompagnies(filtres?: { recherche?: string; frequence?: string }) {
+  async getCompagnies(filtres?: { recherche?: string; frequence?: string; suspendu?: boolean }) {
     try {
       const response = await apiClient.get(`${this.BASE_PATH}/compagnies`, { params: filtres });
       return handleApiResponse(response);

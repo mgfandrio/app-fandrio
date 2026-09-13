@@ -51,6 +51,7 @@ export default function ReserverScreen() {
     const [copiedField, setCopiedField] = useState<string | null>(null);
     const [transactionRef, setTransactionRef] = useState('');
     const [transactionRefError, setTransactionRefError] = useState<string | null>(null);
+    const [papiWaiting, setPapiWaiting] = useState(false);
 
     // Réseau
     const { isOnline, onReconnect } = useNetwork();
@@ -483,6 +484,49 @@ export default function ReserverScreen() {
         } catch (error) {
             console.error('Error fetching invoice:', error);
             router.replace('/screens/dashboard/utilisateur/reservation');
+        }
+    };
+
+    // ── Paiement en ligne PAPI (compagnies ayant activé le paiement en ligne) ──
+    const handlePayerEnLigne = async () => {
+        if (!reservationResult?.res_id) return;
+        setLoading(true);
+        try {
+            const res = await reservationService.payerReservation(reservationResult.res_id);
+            if (res.statut && res.data?.payment_url) {
+                setPapiWaiting(true);
+                await Linking.openURL(res.data.payment_url);
+            } else {
+                Alert.alert('Paiement indisponible', res.message || "Le paiement en ligne n'est pas disponible pour le moment.");
+            }
+        } catch (error: any) {
+            Alert.alert('Erreur', error?.message || 'Impossible de démarrer le paiement en ligne.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Vérifie (via la facture) si le paiement PAPI a été confirmé par le webhook
+    const handleVerifierPaiement = async () => {
+        if (!reservationResult?.res_id) return;
+        setLoading(true);
+        try {
+            const response = await reservationService.obtenirFacture(reservationResult.res_id);
+            if (response.statut && response.data?.reservation?.statut === 2) {
+                await clearPendingReservation();
+                stopTimer();
+                setInvoiceData(response.data);
+                setCurrentStep(6);
+            } else {
+                Alert.alert(
+                    'Paiement en attente',
+                    "Le paiement n'est pas encore confirmé. Si vous venez de payer, patientez quelques instants puis appuyez à nouveau sur « Vérifier le paiement »."
+                );
+            }
+        } catch (error: any) {
+            Alert.alert('Erreur', error?.message || 'Vérification impossible pour le moment.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -1076,6 +1120,7 @@ export default function ReserverScreen() {
 
     const renderStep5 = () => {
         const modes = selectedVoyage?.compagnie?.modes_paiement || [];
+        const papiActif = selectedVoyage?.compagnie?.papi_actif === true;
         const totalAmount = selectedSeats.length * (selectedVoyage?.trajet?.tarif || 0);
 
         return (
@@ -1128,6 +1173,28 @@ export default function ReserverScreen() {
                     </View>
                 </View>
 
+                {papiActif ? (
+                    <View className="bg-white p-5 rounded-[32px] mb-2 border border-blue-100 shadow-sm">
+                        <View className="items-center mb-2">
+                            <View className="w-14 h-14 rounded-full bg-blue-50 items-center justify-center mb-2">
+                                <Ionicons name="shield-checkmark" size={28} color="#1e3a8a" />
+                            </View>
+                            <Text className="text-gray-900 font-bold text-lg">Paiement sécurisé en ligne</Text>
+                            <Text className="text-gray-500 text-xs text-center mt-1">
+                                Payez via MVola, Orange Money, Airtel Money ou Visa. La confirmation est automatique.
+                            </Text>
+                        </View>
+                        {papiWaiting && (
+                            <View className="bg-yellow-50 p-3 rounded-2xl border border-yellow-100 flex-row items-start mt-2">
+                                <Ionicons name="information-circle-outline" size={18} color="#d97706" style={{ marginTop: 2 }} />
+                                <Text className="text-yellow-800 text-xs ml-2 flex-1 leading-5">
+                                    Après avoir payé sur la page ouverte, revenez ici et appuyez sur « Vérifier le paiement ».
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                ) : (
+                  <>
                 <Text className="text-lg font-bold text-gray-900 mb-4 px-1">Sélectionner le mode paiement</Text>
                 {modes.length === 0 && (
                     <View className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200 items-center">
@@ -1159,6 +1226,8 @@ export default function ReserverScreen() {
                         );
                     })}
                 </View>
+                  </>
+                )}
 
                 {/* Payment Detail Modal */}
                 <Modal visible={showPaymentModal} transparent animationType="slide">
@@ -1402,13 +1471,33 @@ export default function ReserverScreen() {
 
             {currentStep === 5 && (
                 <View className="px-6 pt-4 pb-8 bg-white border-t border-gray-100">
-                    <TouchableOpacity
-                        className={`py-4 rounded-2xl items-center shadow-md ${(!paymentMode || loading) ? 'bg-gray-300' : 'bg-blue-900'}`}
-                        onPress={confirmPayment}
-                        disabled={!paymentMode || loading}
-                    >
-                        <Text className="text-white font-bold text-lg">Procéder au paiement</Text>
-                    </TouchableOpacity>
+                    {selectedVoyage?.compagnie?.papi_actif === true ? (
+                        papiWaiting ? (
+                            <TouchableOpacity
+                                className={`py-4 rounded-2xl items-center shadow-md ${loading ? 'bg-gray-300' : 'bg-green-600'}`}
+                                onPress={handleVerifierPaiement}
+                                disabled={loading}
+                            >
+                                <Text className="text-white font-bold text-lg">{loading ? 'Vérification...' : 'Vérifier le paiement'}</Text>
+                            </TouchableOpacity>
+                        ) : (
+                            <TouchableOpacity
+                                className={`py-4 rounded-2xl items-center shadow-md ${loading ? 'bg-gray-300' : 'bg-blue-900'}`}
+                                onPress={handlePayerEnLigne}
+                                disabled={loading}
+                            >
+                                <Text className="text-white font-bold text-lg">Payer en ligne</Text>
+                            </TouchableOpacity>
+                        )
+                    ) : (
+                        <TouchableOpacity
+                            className={`py-4 rounded-2xl items-center shadow-md ${(!paymentMode || loading) ? 'bg-gray-300' : 'bg-blue-900'}`}
+                            onPress={confirmPayment}
+                            disabled={!paymentMode || loading}
+                        >
+                            <Text className="text-white font-bold text-lg">Procéder au paiement</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             )}
 

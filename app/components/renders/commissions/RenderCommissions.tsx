@@ -38,6 +38,7 @@ interface CompagnieResume {
   comp_id: number;
   comp_nom: string;
   comp_statut?: number;
+  suspendu?: boolean;
   frequence_collecte: string;
   brut: number;
   commission: number;
@@ -130,6 +131,7 @@ export function RenderCommissions() {
   const [selectedPeriode, setSelectedPeriode] = useState('ce_mois');
   const [recherche, setRecherche] = useState('');
   const [filtreFrequence, setFiltreFrequence] = useState<string | undefined>(undefined);
+  const [filtreSuspendu, setFiltreSuspendu] = useState(false);
 
   // Modal fréquence
   const [showFreqModal, setShowFreqModal] = useState(false);
@@ -158,10 +160,11 @@ export function RenderCommissions() {
       const res = await commissionService.getCompagnies({
         recherche: recherche || undefined,
         frequence: filtreFrequence,
+        suspendu: filtreSuspendu || undefined,
       });
       if (res.statut && res.data) setCompagnies(res.data.compagnies);
     } catch {}
-  }, [recherche, filtreFrequence]);
+  }, [recherche, filtreFrequence, filtreSuspendu]);
 
   const chargerDetail = useCallback(async (compId: number) => {
     setLoading(true);
@@ -223,7 +226,7 @@ export function RenderCommissions() {
 
   useEffect(() => {
     if (vue === 'compagnies') chargerCompagnies();
-  }, [vue, recherche, filtreFrequence]);
+  }, [vue, recherche, filtreFrequence, filtreSuspendu]);
 
   useEffect(() => {
     if (vue === 'collectes') chargerCollectes();
@@ -621,6 +624,17 @@ export function RenderCommissions() {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Filtre : compagnies suspendues (commission impayée) */}
+        <TouchableOpacity
+          className={`mt-2 py-2 rounded-lg flex-row items-center justify-center ${filtreSuspendu ? 'bg-red-600' : 'bg-gray-100'}`}
+          onPress={() => setFiltreSuspendu(v => !v)}
+        >
+          <Ionicons name="alert-circle-outline" size={14} color={filtreSuspendu ? '#fff' : '#6b7280'} />
+          <Text className={`text-center text-xs font-semibold ml-1.5 ${filtreSuspendu ? 'text-white' : 'text-gray-600'}`}>
+            Suspendues (commission impayée)
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Liste */}
@@ -634,7 +648,14 @@ export function RenderCommissions() {
         >
           <View className="flex-row items-center justify-between">
             <View className="flex-1">
-              <Text className="text-gray-900 font-semibold" numberOfLines={1}>{comp.comp_nom}</Text>
+              <View className="flex-row items-center">
+                <Text className="text-gray-900 font-semibold flex-shrink" numberOfLines={1}>{comp.comp_nom}</Text>
+                {comp.suspendu && (
+                  <View className="bg-red-100 rounded-full px-2 py-0.5 ml-2">
+                    <Text className="text-red-700 text-[10px] font-bold">Suspendue</Text>
+                  </View>
+                )}
+              </View>
               <Text className="text-gray-400 text-xs mt-1">
                 {comp.nb_reservations} réservations · {comp.billets} billets
               </Text>

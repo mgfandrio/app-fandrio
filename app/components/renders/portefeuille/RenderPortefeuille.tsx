@@ -3,7 +3,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Linking,
   RefreshControl,
   Text,
   TouchableOpacity,
@@ -92,10 +94,13 @@ interface CollecteItem {
   statut_label: string;
   date_prevue: string;
   date_confirmation: string | null;
+  payable: boolean;
+  en_retard: boolean;
 }
 
 interface CollecteData {
   config: CollecteConfig;
+  suspendu: boolean;
   prochaine_collecte: {
     date_prevue: string;
     montant: number;
@@ -139,6 +144,7 @@ export function RenderPortefeuille() {
   const [page, setPage] = useState(1);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [payingId, setPayingId] = useState<number | null>(null);
 
   const charger = useCallback(async (resetPage = true) => {
     try {
@@ -172,6 +178,23 @@ export function RenderPortefeuille() {
     setRefreshing(true);
     charger(true);
   }, [charger]);
+
+  // Paiement en ligne d'une collecte via PAPI : ouvre le lien renvoyé par le backend
+  const handlePayer = useCallback(async (coll: CollecteItem) => {
+    setPayingId(coll.coll_id);
+    try {
+      const res = await reservationAdminService.payerCollecte(coll.coll_id);
+      if (res.statut && res.data?.payment_url) {
+        await Linking.openURL(res.data.payment_url);
+      } else {
+        Alert.alert('Paiement indisponible', res.message || "Impossible d'initier le paiement pour le moment.");
+      }
+    } catch (e: any) {
+      Alert.alert('Erreur', e?.message || 'Une erreur est survenue.');
+    } finally {
+      setPayingId(null);
+    }
+  }, []);
 
   const loadMore = useCallback(async () => {
     if (!data || loadingMore) return;
@@ -344,6 +367,16 @@ export function RenderPortefeuille() {
             </View>
           </TouchableOpacity>
 
+          {/* Bannière : compte suspendu pour commission impayée */}
+          {collecteData.suspendu && (
+            <View className="mt-2 bg-red-50 border border-red-200 rounded-xl p-3 flex-row items-center">
+              <Ionicons name="alert-circle" size={20} color="#dc2626" />
+              <Text className="text-red-700 text-xs font-semibold ml-2 flex-1">
+                Compte suspendu : commission impayée. Vos voyages sont masqués des clients jusqu'au règlement de votre collecte.
+              </Text>
+            </View>
+          )}
+
           {/* Historique des collectes (dépliable) */}
           {showCollectes && collecteData.collectes.length > 0 && (
             <View className="mt-2">
@@ -363,10 +396,17 @@ export function RenderPortefeuille() {
                         {coll.nb_reservations} rés. · {coll.nb_billets} billets · Prévue: {coll.date_prevue}
                       </Text>
                     </View>
-                    <View className={`rounded-full px-2 py-0.5 ${coll.statut === 2 ? 'bg-green-100' : 'bg-yellow-100'}`}>
-                      <Text className={`text-xs font-bold ${coll.statut === 2 ? 'text-green-800' : 'text-yellow-800'}`}>
-                        {coll.statut_label}
-                      </Text>
+                    <View className="flex-row items-center">
+                      {coll.en_retard && (
+                        <View className="rounded-full px-2 py-0.5 bg-red-100 mr-1">
+                          <Text className="text-xs font-bold text-red-700">En retard</Text>
+                        </View>
+                      )}
+                      <View className={`rounded-full px-2 py-0.5 ${coll.statut === 2 ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                        <Text className={`text-xs font-bold ${coll.statut === 2 ? 'text-green-800' : 'text-yellow-800'}`}>
+                          {coll.statut_label}
+                        </Text>
+                      </View>
                     </View>
                   </View>
                   <View className="flex-row items-center justify-between">
@@ -377,6 +417,25 @@ export function RenderPortefeuille() {
                       -{formatMontant(coll.montant_commission)}
                     </Text>
                   </View>
+                  {coll.payable && (
+                    <TouchableOpacity
+                      className="mt-2 rounded-xl overflow-hidden"
+                      onPress={() => handlePayer(coll)}
+                      disabled={payingId === coll.coll_id}
+                      activeOpacity={0.8}
+                    >
+                      <LinearGradient colors={['#1e40af', '#3b82f6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} className="py-2.5 flex-row items-center justify-center">
+                        {payingId === coll.coll_id ? (
+                          <ActivityIndicator color="#fff" size="small" />
+                        ) : (
+                          <>
+                            <Ionicons name="card-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
+                            <Text className="text-white font-bold text-xs">Payer la commission</Text>
+                          </>
+                        )}
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
                   {coll.date_confirmation && (
                     <Text className="text-green-700 text-xs mt-1 font-medium">
                       Confirmée le {coll.date_confirmation}

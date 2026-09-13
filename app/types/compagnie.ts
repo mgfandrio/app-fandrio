@@ -13,6 +13,11 @@ export interface Compagnie {
   logo?: string;
   mode_vip?: boolean;
   mode_premium?: boolean;
+  frequence_collecte?: string;
+  jour_collecte?: string;
+  commission_active?: boolean;
+  papi_configure?: boolean;
+  papi_actif?: boolean;
   localisation?: {
     id: number;
     nom: string;
@@ -93,6 +98,9 @@ export interface CompagnieFormData {
   modes_paiement?: (number | ModePaiementDetail)[];
   comm_frequence_collecte?: string;
   comm_jour_collecte?: string;
+  papi_api_key?: string;
+  papi_webhook_secret?: string;
+  papi_actif?: boolean;
   admin_nom: string;
   admin_prenom: string;
   admin_email: string;
@@ -113,5 +121,8 @@ export interface CompagnieUpdateData {
   modes_paiement?: (number | ModePaiementDetail)[];
   comm_frequence_collecte?: string;
   comm_jour_collecte?: string;
+  papi_api_key?: string;
+  papi_webhook_secret?: string;
+  papi_actif?: boolean;
 }
 

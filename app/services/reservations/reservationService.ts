@@ -63,6 +63,24 @@ export const reservationService = {
     },
 
     /**
+     * Initie le paiement en ligne PAPI d'une réservation.
+     * Renvoie { payment_url, transaction_id, montant } à ouvrir dans le navigateur.
+     * La confirmation arrive ensuite via le webhook PAPI (serveur-à-serveur).
+     */
+    payerReservation: async (resId: number) => {
+        try {
+            const response = await apiClient.post(`/api/client/reservation/${resId}/payer`);
+            return { statut: true, data: response.data?.data };
+        } catch (error: any) {
+            return {
+                statut: false,
+                message: error.response?.data?.message || 'Paiement en ligne indisponible',
+                data: null,
+            };
+        }
+    },
+
+    /**
      * Récupère la facture/ticket (Étape 6)
      */
     obtenirFacture: async (resId: number) => {

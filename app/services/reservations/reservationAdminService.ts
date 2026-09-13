@@ -188,4 +188,21 @@ export const reservationAdminService = {
       };
     }
   },
+
+  /**
+   * Initie le paiement en ligne d'une collecte de commission via PAPI.
+   * Renvoie { payment_url, transaction_id, montant } à ouvrir dans le navigateur.
+   */
+  payerCollecte: async (collecteId: number) => {
+    try {
+      const response = await apiClient.post(`/api/adminCompagnie/commissions/collectes/${collecteId}/payer`);
+      return { statut: true, data: response.data?.data };
+    } catch (error: any) {
+      return {
+        statut: false,
+        message: error.response?.data?.message || 'Erreur lors de l\'initiation du paiement',
+        data: null,
+      };
+    }
+  },
 };

@@ -33,6 +33,7 @@ export const CompagnieFormModal: React.FC<Props> = ({
   const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [selectedProvinces, setSelectedProvinces] = useState<number[]>([]);
+  const [papiConfigure, setPapiConfigure] = useState(false);
   const [formData, setFormData] = useState<Partial<CompagnieFormData>>({
     comp_nom: '',
     comp_nif: '',
@@ -48,6 +49,9 @@ export const CompagnieFormModal: React.FC<Props> = ({
     admin_mot_de_passe: '',
     comp_localisation: undefined,
     modes_paiement: [],
+    papi_api_key: '',
+    papi_webhook_secret: '',
+    papi_actif: false,
   });
 
   const PAYMENT_METHODS = [
@@ -87,8 +91,12 @@ export const CompagnieFormModal: React.FC<Props> = ({
       modes_paiement: [],
       comm_frequence_collecte: 'mensuelle',
       comm_jour_collecte: '',
+      papi_api_key: '',
+      papi_webhook_secret: '',
+      papi_actif: false,
     });
     setSelectedProvinces([]);
+    setPapiConfigure(false);
   };
 
   const chargerProvinces = async () => {
@@ -177,8 +185,12 @@ export const CompagnieFormModal: React.FC<Props> = ({
         comp_localisation: compagnie.localisation?.id,
         comm_frequence_collecte: compagnie.frequence_collecte || 'mensuelle',
         comm_jour_collecte: compagnie.jour_collecte || '',
+        papi_api_key: '',
+        papi_webhook_secret: '',
+        papi_actif: compagnie.papi_actif ?? false,
         modes_paiement: [], // Will be updated below
       });
+      setPapiConfigure(!!compagnie.papi_configure);
       // Charger les provinces déjà sélectionnées
       if (compagnie.provinces_desservies && compagnie.provinces_desservies.length > 0) {
         setSelectedProvinces(compagnie.provinces_desservies.map(p => p.id));
@@ -263,6 +275,9 @@ export const CompagnieFormModal: React.FC<Props> = ({
         modes_paiement: formData.modes_paiement,
         comm_frequence_collecte: formData.comm_frequence_collecte,
         comm_jour_collecte: formData.comm_jour_collecte,
+        papi_api_key: formData.papi_api_key || undefined,
+        papi_webhook_secret: formData.papi_webhook_secret || undefined,
+        papi_actif: formData.papi_actif,
       };
 
       const response = await compagnieService.mettreAJourCompagnie(compagnieId, updateData);
@@ -605,6 +620,56 @@ export const CompagnieFormModal: React.FC<Props> = ({
                     </View>
                   );
                 })}
+              </View>
+            </View>
+
+            {/* Configuration PAPI (paiement en ligne) — super-admin */}
+            <View className="mb-4">
+              <Text className="text-gray-900 font-bold text-base mb-3">
+                Paiement en ligne (PAPI)
+              </Text>
+              <View className="bg-gray-50 border border-gray-300 rounded-xl p-3">
+                <Text className="text-gray-500 text-xs mb-3">
+                  Clé API PAPI de la compagnie (récupérée sur l'interface PAPI). Stockée chiffrée, jamais réaffichée.
+                  {isEditMode && papiConfigure ? '  ✓ Déjà configurée — laisser vide pour conserver.' : ''}
+                </Text>
+
+                <Text className="text-gray-600 text-xs mb-1 font-medium">Clé API PAPI</Text>
+                <TextInput
+                  className="bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-gray-900 text-sm"
+                  placeholder={isEditMode ? '•••••••• (laisser vide pour garder)' : 'Coller la clé API PAPI'}
+                  value={formData.papi_api_key}
+                  onChangeText={(text) => setFormData({ ...formData, papi_api_key: text })}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!loading}
+                />
+
+                <Text className="text-gray-600 text-xs mb-1 mt-3 font-medium">Secret webhook (optionnel)</Text>
+                <TextInput
+                  className="bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-gray-900 text-sm"
+                  placeholder={isEditMode ? '•••••••• (laisser vide pour garder)' : 'Secret de signature webhook'}
+                  value={formData.papi_webhook_secret}
+                  onChangeText={(text) => setFormData({ ...formData, papi_webhook_secret: text })}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!loading}
+                />
+
+                <TouchableOpacity
+                  className="flex-row items-center justify-between mt-3 bg-white border border-gray-300 rounded-xl px-3 py-3"
+                  onPress={() => setFormData({ ...formData, papi_actif: !formData.papi_actif })}
+                  disabled={loading}
+                  activeOpacity={0.7}
+                >
+                  <View className="flex-1 pr-3">
+                    <Text className="text-gray-800 text-sm font-semibold">Activer le paiement en ligne</Text>
+                    <Text className="text-gray-500 text-xs mt-0.5">Les clients paieront leurs billets via PAPI</Text>
+                  </View>
+                  <View className={`w-12 h-7 rounded-full px-0.5 justify-center ${formData.papi_actif ? 'bg-green-500' : 'bg-gray-300'}`}>
+                    <View className={`w-6 h-6 rounded-full bg-white ${formData.papi_actif ? 'self-end' : 'self-start'}`} />
+                  </View>
+                </TouchableOpacity>
               </View>
             </View>
 
