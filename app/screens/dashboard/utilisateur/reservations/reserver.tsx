@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal, Pressable, Linking } from 'react-native';
+import { View, ScrollView, ActivityIndicator, Pressable, Linking, StatusBar, Platform, KeyboardAvoidingView } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as SecureStore from 'expo-secure-store';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import QRCode from 'react-native-qrcode-svg';
+import * as Clipboard from 'expo-clipboard';
 import { provinceService } from '../../../../services/provinces/provinceService';
 import { voyageService } from '../../../../services/voyages/voyageService';
 import { reservationService } from '../../../../services/reservations/reservationService';
@@ -14,30 +18,56 @@ import {
 } from '../../../../services/reservations/pendingReservation';
 import { useNetwork } from '../../../../hooks/useNetwork';
 import { SearchableDropdown } from '../../../../components/common/SearchableDropdown';
-import CategorieBadge, { categorieCardBg } from '../../../../components/common/CategorieBadge';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { Platform, KeyboardAvoidingView } from 'react-native';
+import { useConfirmDialog } from '../../../../components/common/ConfirmDialog';
 import echo from '../../../../services/echo/echoConfig';
-import QRCode from 'react-native-qrcode-svg';
-import * as Clipboard from 'expo-clipboard';
-import { dateLocaleISO } from '@/app/theme/ocean';
+import {
+    Bouton, BoutonIcone, CaseACocher, Carte, ChampSaisie, Etapes, FeuilleModale,
+    LegendePlan, Pastille, PlanSieges, Texte,
+} from '@/app/components/ui';
+import { couleurs, dateLocaleISO, formatAriary } from '@/app/theme/ocean';
 
-const STEPS = [
-    'Itinéraire',
-    'Voyage',
-    'Sièges',
-    'Voyageurs',
-    'Paiement',
-    'Confirmation'
-];
+/*
+ * Parcours de réservation (étapes internes) :
+ *   1 Itinéraire  2 Voyage  3 Sièges  4 Voyageurs  5 Paiement  6 Billet
+ * Depuis l'accueil (voyage déjà choisi), on démarre directement à l'étape 3.
+ */
+
+const BILLETS = '/screens/dashboard/utilisateur/(tabs)/reservation';
+const ACCUEIL = '/screens/dashboard/utilisateur/(tabs)/accueil';
+const DELAI_PAR_DEFAUT = 120; // secondes, si l'API n'a pas renvoyé l'heure limite
+
+/** Nom d'une province, qu'elle soit renvoyée en objet ou en texte. */
+function nomProvince(p: any, defaut = '—') {
+    return (typeof p === 'object' ? p?.nom || p?.pro_nom : p) || defaut;
+}
+
+/** Nom du chauffeur : l'API renvoie un texte (ou un objet sur d'anciennes versions). */
+function nomChauffeur(c: any) {
+    if (!c || c === 'N/A') return '';
+    if (typeof c === 'string') return c;
+    return [c.prenom, c.nom].filter(Boolean).join(' ');
+}
+
+/** Infos affichées dans la fenêtre « Reprendre votre réservation ». */
+function infosVoyage(v: any) {
+    return {
+        depart: nomProvince(v?.trajet?.province_depart, ''),
+        arrivee: nomProvince(v?.trajet?.province_arrivee, ''),
+        date: [v?.date, v?.heure_depart].filter(Boolean).join(' · '),
+        compagnie: v?.compagnie?.nom,
+    };
+}
 
 export default function ReserverScreen() {
     const router = useRouter();
+    const insets = useSafeAreaInsets();
     const params = useLocalSearchParams<{ voyageData?: string }>();
+    const { showDialog, DialogComponent } = useConfirmDialog();
     const [currentStep, setCurrentStep] = useState(1);
     const [loading, setLoading] = useState(false);
+    const debutAuxSieges = useRef(!!params.voyageData).current;
 
-    // Form State
+    // Choix de l'utilisateur
     const [proDepartId, setProDepartId] = useState<number | string | undefined>(undefined);
     const [proArriveeId, setProArriveeId] = useState<number | string | undefined>(undefined);
     const [selectedVoyage, setSelectedVoyage] = useState<any>(null);
@@ -53,6 +83,7 @@ export default function ReserverScreen() {
     const [transactionRef, setTransactionRef] = useState('');
     const [transactionRefError, setTransactionRefError] = useState<string | null>(null);
     const [papiWaiting, setPapiWaiting] = useState(false);
+    const [utilisateur, setUtilisateur] = useState<any>(null);
 
     // Réseau
     const { isOnline, onReconnect } = useNetwork();
@@ -60,32 +91,36 @@ export default function ReserverScreen() {
     const [showResumeModal, setShowResumeModal] = useState(false);
     const [resumeData, setResumeData] = useState<any>(null);
 
-    // Timer State
-    const [timeLeft, setTimeLeft] = useState(120); // 2 minutes in seconds
+    // Délai de paiement (calculé depuis l'heure limite renvoyée par l'API)
+    const [timeLeft, setTimeLeft] = useState(DELAI_PAR_DEFAUT);
+    const [expiree, setExpiree] = useState(false);
     const timerRef = useRef<any>(null);
 
-    // Data for Step 1, 2, 3
+    // Données des étapes 1 à 3
     const [provinces, setProvinces] = useState<any[]>([]);
     const [availableVoyages, setAvailableVoyages] = useState<any[]>([]);
-    const [pagination, setPagination] = useState({
-        currentPage: 1,
-        lastPage: 1,
-        total: 0
-    });
+    const [pagination, setPagination] = useState({ currentPage: 1, lastPage: 1, total: 0 });
     const [seatPlan, setSeatPlan] = useState<any[]>([]);
 
-    // Date Filter State
+    // Filtre de dates (étape 2)
     const [dateDebut, setDateDebut] = useState<Date | null>(null);
     const [dateFin, setDateFin] = useState<Date | null>(null);
     const [showPicker, setShowPicker] = useState<'start' | 'end' | null>(null);
     const [dateFilterActive, setDateFilterActive] = useState(false);
     const [noResults, setNoResults] = useState(false);
 
+    const alerte = (title: string, message: string, type: 'info' | 'warning' | 'danger' | 'success' = 'warning') =>
+        showDialog({ title, message, type, confirmText: 'OK', onConfirm: () => {}, onCancel: () => {} });
+
     useEffect(() => {
         fetchProvinces();
+        // Utilisateur connecté (pour « C'est moi » à l'étape voyageurs)
+        SecureStore.getItemAsync('fandrioUser')
+            .then((json) => json && setUtilisateur(JSON.parse(json)))
+            .catch(() => {});
     }, []);
 
-    // Vérifier au chargement s'il existe une réservation interrompue
+    // Réservation interrompue à reprendre ?
     useEffect(() => {
         (async () => {
             const pending = await loadPendingReservation();
@@ -97,32 +132,28 @@ export default function ReserverScreen() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Auto-retry des actions critiques quand la connexion revient
+    // Relance automatique des actions critiques au retour de la connexion
     useEffect(() => {
         const unsubscribe = onReconnect(() => {
             const fn = pendingRetryRef.current;
             if (fn) {
                 pendingRetryRef.current = null;
-                console.log('[Reserver] Connexion rétablie : relance de l\'action en attente');
                 fn();
             }
         });
         return unsubscribe;
     }, [onReconnect]);
 
-    // Si un voyage est passé en paramètre, démarrer directement à l'étape 3
+    // Voyage passé en paramètre : directement au choix des sièges
     useEffect(() => {
         if (params.voyageData) {
             try {
                 const voyage = JSON.parse(params.voyageData);
                 setSelectedVoyage(voyage);
-
-                // Extraire les IDs des provinces pour le récap
                 const depId = voyage.trajet?.province_depart?.id || voyage.trajet?.province_depart?.pro_id || voyage.trajet?.pro_depart;
                 const arrId = voyage.trajet?.province_arrivee?.id || voyage.trajet?.province_arrivee?.pro_id || voyage.trajet?.pro_arrivee;
                 if (depId) setProDepartId(depId);
                 if (arrId) setProArriveeId(arrId);
-
                 setCurrentStep(3);
             } catch (e) {
                 console.warn('Invalid voyageData param:', e);
@@ -130,69 +161,72 @@ export default function ReserverScreen() {
         }
     }, [params.voyageData]);
 
+    // Plan des sièges + mises à jour en temps réel (étape 3)
     useEffect(() => {
         if (currentStep === 3 && selectedVoyage) {
             fetchSeatPlan(selectedVoyage.voyage_id);
 
-            // Écouter les mises à jour en temps réel pour ce voyage
-            const channel = echo.channel(`sieges.voyage.${selectedVoyage.voyage_id}`)
-                .listen('.siege.updated', (event: any) => {
-                    console.log('Real-time seat update received:', event);
-                    const siegeNumero = event.siege_numero;
-                    const statut = event.data?.statut;
-                    // Convertir le statut numérique en label frontend
-                    const newStatut = statut === 1 ? 'reserve'
-                        : statut === 3 ? 'selectionne'
-                        : statut === 2 ? 'disponible'
-                        : null;
-                    if (!newStatut || !siegeNumero) return;
+            const canal = `sieges.voyage.${selectedVoyage.voyage_id}`;
+            echo.channel(canal).listen('.siege.updated', (event: any) => {
+                const siegeNumero = event.siege_numero;
+                const statut = event.data?.statut;
+                // Statut numérique de l'API -> libellé du plan
+                const newStatut = statut === 1 ? 'reserve' : statut === 3 ? 'selectionne' : statut === 2 ? 'disponible' : null;
+                if (!newStatut || !siegeNumero) return;
 
-                    setSeatPlan((prevPlan) => 
-                        prevPlan.map((seat) => 
-                            seat.code === siegeNumero 
-                                ? { ...seat, statut: newStatut, selectable: newStatut === 'disponible' }
-                                : seat
-                        )
-                    );
-
-                    // Si un siège sélectionné localement a été pris par un autre, le désélectionner
-                    if (newStatut !== 'disponible') {
-                        setSelectedSeats((prev) => prev.filter(s => s !== siegeNumero));
-                    }
-                });
+                setSeatPlan((prev) => prev.map((seat) =>
+                    seat.code === siegeNumero ? { ...seat, statut: newStatut, selectable: newStatut === 'disponible' } : seat
+                ));
+                // Siège choisi ici mais pris par quelqu'un d'autre : on le retire
+                if (newStatut !== 'disponible') {
+                    setSelectedSeats((prev) => prev.filter((s) => s !== siegeNumero));
+                }
+            });
 
             return () => {
-                echo.leaveChannel(`sieges.voyage.${selectedVoyage.voyage_id}`);
+                echo.leaveChannel(canal);
             };
         }
-
-        if (currentStep === 5) {
-            startTimer();
-        } else {
-            stopTimer();
-        }
-
-        return () => stopTimer();
     }, [currentStep, selectedVoyage]);
 
-    const startTimer = () => {
-        setTimeLeft(120);
-        timerRef.current = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) {
-                    stopTimer();
-                    Alert.alert('Temps écoulé', 'Le délai de réservation a expiré. Veuillez recommencer.', [
-                        { text: 'OK', onPress: () => router.replace('/screens/dashboard/utilisateur/reservation') }
-                    ]);
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-    };
+    // Compte à rebours du paiement (étape 5)
+    useEffect(() => {
+        if (currentStep !== 5 || expiree) {
+            stopTimer();
+            return;
+        }
+        const limite = reservationResult?.date_limite_paiement
+            ? new Date(reservationResult.date_limite_paiement).getTime()
+            : Date.now() + DELAI_PAR_DEFAUT * 1000;
+
+        const tick = () => {
+            const reste = Math.max(0, Math.round((limite - Date.now()) / 1000));
+            setTimeLeft(reste);
+            if (reste <= 0) {
+                stopTimer();
+                surExpiration();
+            }
+        };
+        tick();
+        timerRef.current = setInterval(tick, 1000);
+        return () => stopTimer();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentStep, reservationResult?.date_limite_paiement, expiree]);
 
     const stopTimer = () => {
         if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = null;
+    };
+
+    /** Délai dépassé : on libère tout de suite les sièges et on affiche l'écran « délai écoulé ». */
+    const surExpiration = async () => {
+        setShowPaymentModal(false);
+        setExpiree(true);
+        await clearPendingReservation();
+        if (reservationResult?.res_id) {
+            // Sans attendre la tâche planifiée du serveur (jusqu'à 1 min)
+            reservationService.annulerReservation(reservationResult.res_id).catch(() => {});
+        }
     };
 
     const formatTime = (seconds: number) => {
@@ -205,8 +239,7 @@ export default function ReserverScreen() {
         try {
             const response = await provinceService.listerProvinces();
             if (response && 'statut' in response && response.statut) {
-                const resData = response as any;
-                const data = resData.data?.provinces || resData.data;
+                const data = (response as any).data?.provinces || (response as any).data;
                 setProvinces(Array.isArray(data) ? data : []);
             }
         } catch (error) {
@@ -220,19 +253,12 @@ export default function ReserverScreen() {
             const response = await siegeService.getPlan(voyageId);
             if (response.statut === true || response.status === 'true') {
                 setSeatPlan(response.data.plan || []);
-                // Update selectedVoyage with extra info
-                if (response && response.statut) {
-                    setPlans(response.data);
-                    if (response.data.voiture?.chauffeur) {
-                        const c = response.data.voiture.chauffeur;
-                        const fullName = [c.prenom, c.nom].filter(Boolean).join(' ');
-                        setChauffeur(fullName || 'Chauffeur');
-                    }
-                }
+                setPlans(response.data);
+                setChauffeur(nomChauffeur(response.data.voiture?.chauffeur));
             }
         } catch (error) {
             console.error('Error fetching seat plan:', error);
-            Alert.alert('Erreur', 'Impossible de charger le plan des sièges.');
+            alerte('Plan indisponible', 'Impossible de charger le plan des sièges. Vérifiez votre connexion et réessayez.', 'danger');
         } finally {
             setLoading(false);
         }
@@ -240,90 +266,68 @@ export default function ReserverScreen() {
 
     const findVoyages = async (page = 1, applyDateFilter = false) => {
         if (!proDepartId || !proArriveeId) {
-            Alert.alert('Attention', 'Veuillez choisir le départ et la destination.');
+            alerte('Trajet incomplet', 'Choisissez le départ et la destination.');
             return;
         }
         if (proDepartId === proArriveeId) {
-            Alert.alert('Attention', 'Le départ et la destination doivent être différents.');
+            alerte('Trajet invalide', 'Le départ et la destination doivent être différents.');
             return;
         }
         setLoading(true);
         try {
-            const filters: any = {
-                pro_depart: proDepartId,
-                pro_arrivee: proArriveeId,
-                page: page,
-                per_page: 15
-            };
+            const filters: any = { pro_depart: proDepartId, pro_arrivee: proArriveeId, page, per_page: 15 };
 
-            // N'appliquer le filtre de date que si explicitement demandé par l'utilisateur
+            // Filtre de date uniquement s'il est demandé (dates locales)
             if (applyDateFilter && dateDebut) {
-                // Dates locales (toISOString donnait la veille entre 0 h et 3 h)
                 const debut = dateLocaleISO(dateDebut);
                 if (dateFin && dateFin > dateDebut) {
-                    // Plage de dates
                     filters.date_debut = debut;
                     filters.date_fin = dateLocaleISO(dateFin);
                 } else {
-                    // Date exacte
                     filters.date_exacte = debut;
                 }
             }
 
             const response = await voyageService.rechercherVoyages(filters);
             if (response.statut === true) {
-                setAvailableVoyages(response.data.voyages || []);
+                const liste = response.data.voyages || [];
+                setAvailableVoyages(liste);
                 setPagination({
                     currentPage: response.data.pagination?.current_page || 1,
                     lastPage: response.data.pagination?.last_page || 1,
-                    total: response.data.pagination?.total || 0
+                    total: response.data.pagination?.total || 0,
                 });
-
                 if (applyDateFilter) setDateFilterActive(true);
-                setNoResults((response.data.voyages || []).length === 0);
-
-                if ((response.data.voyages || []).length === 0) {
-                    // Reste à l'étape 1, message inline affiché
-                } else if (currentStep === 1) {
-                    setCurrentStep(2);
-                }
+                setNoResults(liste.length === 0);
+                if (liste.length > 0 && currentStep === 1) setCurrentStep(2);
             }
         } catch (error: any) {
-            Alert.alert('Erreur', error.message || 'Impossible de trouver des voyages pour ce trajet.');
+            alerte('Recherche impossible', error.message || 'Impossible de trouver des voyages pour ce trajet.', 'danger');
         } finally {
             setLoading(false);
         }
     };
 
+    const totalTheorique = selectedSeats.length * (selectedVoyage?.trajet?.tarif || 0);
+    // Le montant renvoyé par l'API fait foi une fois la réservation créée
+    const totalAPayer = Number(reservationResult?.montant_total ?? totalTheorique) || 0;
+
     const createInitialReservation = async () => {
+        if (!selectedVoyage) return;
         const data = {
             voyage_id: selectedVoyage.voyage_id,
             nb_voyageurs: selectedSeats.length,
-            montant_total: selectedSeats.length * (selectedVoyage?.trajet?.tarif || 0),
+            montant_total: totalTheorique,
             sieges: selectedSeats,
-            voyageurs: voyageurs
+            voyageurs,
         };
+        const sauvegarde = { ...data, voyage: selectedVoyage, voyageInfo: infosVoyage(selectedVoyage) };
 
-        // Sauvegarde avant POST pour pouvoir reprendre si crash / coupure
-        await savePendingReservation({
-            payload: {
-                ...data,
-                voyageInfo: {
-                    depart: selectedVoyage?.trajet?.province_depart?.pro_libelle,
-                    arrivee: selectedVoyage?.trajet?.province_arrivee?.pro_libelle,
-                    date: selectedVoyage?.voyage_date_depart,
-                    compagnie: selectedVoyage?.trajet?.compagnie?.comp_nom,
-                },
-            },
-            step: 4,
-        });
+        // Sauvegarde avant l'envoi : reprise possible après une coupure ou un plantage
+        await savePendingReservation({ payload: sauvegarde, step: 4 });
 
         if (!isOnline) {
-            Alert.alert(
-                'Hors-ligne',
-                'Votre réservation est sauvegardée. Elle sera envoyée automatiquement dès le retour de la connexion.',
-            );
-            // S'auto-relancer au retour en ligne
+            alerte('Hors connexion', 'Votre réservation est sauvegardée. Elle sera envoyée automatiquement dès le retour de la connexion.', 'info');
             pendingRetryRef.current = createInitialReservation;
             return;
         }
@@ -334,16 +338,12 @@ export default function ReserverScreen() {
             if (response.statut) {
                 pendingRetryRef.current = null;
                 setReservationResult(response.data);
-                // Mise à jour pending : on est maintenant à l'étape paiement
+                setExpiree(false);
                 await savePendingReservation({
                     payload: {
-                        ...data,
-                        voyageInfo: {
-                            depart: selectedVoyage?.trajet?.province_depart?.pro_libelle,
-                            arrivee: selectedVoyage?.trajet?.province_arrivee?.pro_libelle,
-                            date: selectedVoyage?.voyage_date_depart,
-                            compagnie: selectedVoyage?.trajet?.compagnie?.comp_nom,
-                        },
+                        ...sauvegarde,
+                        date_limite_paiement: response.data?.date_limite_paiement,
+                        montant_serveur: response.data?.montant_total,
                     },
                     step: 5,
                     res_id: response.data?.res_id,
@@ -353,21 +353,18 @@ export default function ReserverScreen() {
         } catch (error: any) {
             if (error?.offline || error?.isNetworkError) {
                 pendingRetryRef.current = createInitialReservation;
-                Alert.alert(
-                    'Connexion perdue',
-                    'Pas d\'inquiétude : votre réservation est sauvegardée. Elle sera renvoyée automatiquement dès le retour en ligne.',
-                );
+                alerte('Connexion perdue', "Pas d'inquiétude : votre réservation est sauvegardée et sera renvoyée automatiquement dès le retour en ligne.", 'info');
             } else {
-                Alert.alert('Erreur', error?.message || error?.response?.data?.message || 'Impossible de créer la réservation.');
+                alerte('Réservation impossible', error?.message || error?.response?.data?.message || 'Impossible de créer la réservation.', 'danger');
             }
         } finally {
             setLoading(false);
         }
     };
 
-    const confirmPayment = async () => {
+    const confirmPayment = () => {
         if (!paymentMode) {
-            Alert.alert('Attention', 'Veuillez choisir un mode de paiement.');
+            alerte('Mode de paiement', 'Choisissez un mode de paiement.');
             return;
         }
         setShowPaymentModal(true);
@@ -375,8 +372,8 @@ export default function ReserverScreen() {
 
     const validateTransactionRef = (ref: string): string | null => {
         const cleaned = ref.replace(/[^a-zA-Z0-9\-]/g, '');
-        if (!cleaned || cleaned.length < 5) return 'Minimum 5 caractères alphanumériques.';
-        if (cleaned.length > 50) return 'Maximum 50 caractères.';
+        if (!cleaned || cleaned.length < 5) return 'Au moins 5 lettres ou chiffres.';
+        if (cleaned.length > 50) return '50 caractères au maximum.';
         return null;
     };
 
@@ -389,10 +386,7 @@ export default function ReserverScreen() {
         setTransactionRefError(null);
 
         if (!isOnline) {
-            Alert.alert(
-                'Hors-ligne',
-                'Votre confirmation de paiement sera envoyée automatiquement dès le retour en ligne.',
-            );
+            alerte('Hors connexion', 'Votre confirmation de paiement sera envoyée automatiquement dès le retour en ligne.', 'info');
             pendingRetryRef.current = handlePaymentConfirmed;
             return;
         }
@@ -403,7 +397,7 @@ export default function ReserverScreen() {
             const cleanRef = transactionRef.replace(/[^a-zA-Z0-9\-]/g, '');
             const response = await reservationService.confirmerReservation(reservationResult.res_id, {
                 type_paie_id: paymentMode.type_paie_id,
-                numero_paiement: cleanRef
+                numero_paiement: cleanRef,
             });
             if (response.statut) {
                 pendingRetryRef.current = null;
@@ -415,12 +409,9 @@ export default function ReserverScreen() {
         } catch (error: any) {
             if (error?.offline || error?.isNetworkError) {
                 pendingRetryRef.current = handlePaymentConfirmed;
-                Alert.alert(
-                    'Connexion perdue',
-                    'La confirmation sera renvoyée automatiquement dès le retour en ligne.',
-                );
+                alerte('Connexion perdue', 'La confirmation sera renvoyée automatiquement dès le retour en ligne.', 'info');
             } else {
-                Alert.alert('Erreur', error?.message || error?.response?.data?.message || 'La confirmation a échoué.');
+                alerte('Confirmation impossible', error?.message || error?.response?.data?.message || 'La confirmation a échoué.', 'danger');
             }
         } finally {
             setLoading(false);
@@ -433,47 +424,32 @@ export default function ReserverScreen() {
         setTimeout(() => setCopiedField(null), 2000);
     };
 
-    const getPaymentColor = (name: string) => {
-        const n = (name || '').toLowerCase();
-        if (n.includes('orange')) return '#ff7900';
-        if (n.includes('mvola') || n.includes('telma')) return '#00a4e4';
-        if (n.includes('airtel')) return '#e11900';
-        return '#6b7280';
-    };
-
-    const getPaymentIcon = (name: string) => {
-        const n = (name || '').toLowerCase();
-        if (n.includes('orange')) return 'phone-portrait-outline';
-        if (n.includes('mvola') || n.includes('telma')) return 'wallet-outline';
-        if (n.includes('airtel')) return 'phone-portrait-outline';
-        return 'card-outline';
-    };
-
     const handleCancelProcess = () => {
-        Alert.alert(
-            'Confirmation',
-            'Voulez-vous vraiment annuler cette réservation ? Tous vos choix seront perdus.',
-            [
-                { text: 'Non', style: 'cancel' },
-                { 
-                    text: 'Oui, annuler', 
-                    style: 'destructive',
-                    onPress: async () => {
-                        if (reservationResult?.res_id) {
-                            setLoading(true);
-                            try {
-                                await reservationService.annulerReservation(reservationResult.res_id);
-                            } catch (error) {
-                                console.error('Error voiding reservation:', error);
-                            } finally {
-                                setLoading(false);
-                            }
-                        }
-                        router.replace('/screens/dashboard/utilisateur/reservation');
+        const reservationCreee = !!reservationResult?.res_id;
+        showDialog({
+            title: 'Abandonner la réservation ?',
+            message: reservationCreee
+                ? 'Vos sièges seront libérés pour les autres voyageurs.'
+                : 'Les choix que vous avez faits seront perdus.',
+            type: 'danger',
+            confirmText: 'Abandonner',
+            cancelText: 'Continuer',
+            onConfirm: async () => {
+                if (reservationCreee) {
+                    setLoading(true);
+                    try {
+                        await reservationService.annulerReservation(reservationResult.res_id);
+                    } catch (error) {
+                        console.error('Error voiding reservation:', error);
+                    } finally {
+                        setLoading(false);
                     }
                 }
-            ]
-        );
+                await clearPendingReservation();
+                router.replace(reservationCreee ? BILLETS : ACCUEIL);
+            },
+            onCancel: () => {},
+        });
     };
 
     const fetchInvoice = async () => {
@@ -485,11 +461,11 @@ export default function ReserverScreen() {
             }
         } catch (error) {
             console.error('Error fetching invoice:', error);
-            router.replace('/screens/dashboard/utilisateur/reservation');
+            router.replace(BILLETS);
         }
     };
 
-    // ── Paiement en ligne PAPI (compagnies ayant activé le paiement en ligne) ──
+    // Paiement en ligne PAPI (compagnies qui l'ont activé)
     const handlePayerEnLigne = async () => {
         if (!reservationResult?.res_id) return;
         setLoading(true);
@@ -499,10 +475,10 @@ export default function ReserverScreen() {
                 setPapiWaiting(true);
                 await Linking.openURL(res.data.payment_url);
             } else {
-                Alert.alert('Paiement indisponible', res.message || "Le paiement en ligne n'est pas disponible pour le moment.");
+                alerte('Paiement indisponible', res.message || "Le paiement en ligne n'est pas disponible pour le moment.", 'danger');
             }
         } catch (error: any) {
-            Alert.alert('Erreur', error?.message || 'Impossible de démarrer le paiement en ligne.');
+            alerte('Paiement impossible', error?.message || 'Impossible de démarrer le paiement en ligne.', 'danger');
         } finally {
             setLoading(false);
         }
@@ -520,13 +496,10 @@ export default function ReserverScreen() {
                 setInvoiceData(response.data);
                 setCurrentStep(6);
             } else {
-                Alert.alert(
-                    'Paiement en attente',
-                    "Le paiement n'est pas encore confirmé. Si vous venez de payer, patientez quelques instants puis appuyez à nouveau sur « Vérifier le paiement »."
-                );
+                alerte('Paiement en attente', "Le paiement n'est pas encore confirmé. Si vous venez de payer, patientez quelques secondes puis appuyez à nouveau sur « Vérifier le paiement ».", 'info');
             }
         } catch (error: any) {
-            Alert.alert('Erreur', error?.message || 'Vérification impossible pour le moment.');
+            alerte('Vérification impossible', error?.message || 'Vérification impossible pour le moment.', 'danger');
         } finally {
             setLoading(false);
         }
@@ -535,814 +508,503 @@ export default function ReserverScreen() {
     const handleNext = () => {
         if (currentStep === 1) findVoyages();
         else if (currentStep === 2) {
-            if (!selectedVoyage) Alert.alert('Attention', 'Veuillez choisir un voyage.');
+            if (!selectedVoyage) alerte('Choisissez un voyage', 'Touchez un voyage de la liste pour le sélectionner.');
             else setCurrentStep(3);
-        }
-        else if (currentStep === 3) {
-            if (selectedSeats.length === 0) Alert.alert('Attention', 'Veuillez sélectionner au moins un siège.');
+        } else if (currentStep === 3) {
+            if (selectedSeats.length === 0) alerte('Aucun siège', 'Touchez au moins un siège libre sur le plan.');
             else {
-                const initialVoyageurs = selectedSeats.map(seat => ({
-                    nom: '',
-                    prenom: '',
-                    phone: '',
-                    phone2: '',
-                    cin: '',
-                    age: '',
-                    siege_numero: seat
-                }));
-                setVoyageurs(initialVoyageurs);
+                // Conserver ce qui a déjà été saisi si on revient en arrière
+                setVoyageurs(selectedSeats.map((seat) =>
+                    voyageurs.find((v) => v.siege_numero === seat) || { nom: '', prenom: '', phone: '', phone2: '', cin: '', age: '', siege_numero: seat }
+                ));
                 setCurrentStep(4);
             }
-        }
-        else if (currentStep === 4) {
-            const isValid = voyageurs.every(v => 
-                v.nom.trim() !== '' && 
-                v.prenom.trim() !== '' && 
-                v.phone.trim() !== '' && 
-                v.phone2.trim() !== ''
+        } else if (currentStep === 4) {
+            const isValid = voyageurs.every((v) =>
+                v.nom.trim() !== '' && v.prenom.trim() !== '' && v.phone.trim() !== '' && v.phone2.trim() !== ''
             );
-            if (!isValid) Alert.alert('Attention', 'Veuillez remplir le nom, le prénom et les deux numéros de téléphone pour tous les voyageurs.');
+            if (!isValid) alerte('Informations manquantes', 'Renseignez le nom, le prénom, le téléphone et le contact d\'urgence de chaque voyageur.');
             else createInitialReservation();
-        }
-        else if (currentStep === 5) {
+        } else if (currentStep === 5) {
             confirmPayment();
         }
     };
 
+    /** Retour arrière : après création de la réservation, revenir = abandonner. */
+    const handleBack = () => {
+        if (currentStep === 6) router.replace(BILLETS);
+        else if (currentStep === 5) handleCancelProcess();
+        else if (currentStep > (debutAuxSieges ? 3 : 1)) setCurrentStep(currentStep - 1);
+        else router.back();
+    };
+
     const updateVoyageur = (index: number, field: string, value: string) => {
-        const updated = [...voyageurs];
-        updated[index] = { ...updated[index], [field]: value };
-        setVoyageurs(updated);
+        setVoyageurs((prev) => {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], [field]: value };
+            return updated;
+        });
     };
 
-    const toggleSeat = (seatCode: string, isAvailable: boolean) => {
-        if (!isAvailable) return;
-        if (selectedSeats.includes(seatCode)) {
-            setSelectedSeats(selectedSeats.filter(s => s !== seatCode));
-        } else {
-            setSelectedSeats([...selectedSeats, seatCode]);
-        }
+    /** « C'est moi » : préremplit le voyageur avec le compte connecté. */
+    const remplirAvecMoi = (index: number, coche: boolean) => {
+        setVoyageurs((prev) => {
+            const updated = [...prev];
+            updated[index] = coche && utilisateur
+                ? { ...updated[index], moi: true, nom: utilisateur.nom || '', prenom: utilisateur.prenom || '', phone: utilisateur.telephone || '' }
+                : { ...updated[index], moi: false };
+            return updated;
+        });
     };
 
-    const renderHeader = () => (
-        <View className="bg-white px-6 pt-4 pb-2 border-b border-gray-100">
-            <View className="flex-row items-center mb-4">
-                <TouchableOpacity onPress={() => currentStep > 1 && currentStep < 6 ? setCurrentStep(currentStep - 1) : router.back()}>
-                    <Ionicons name="arrow-back" size={24} color="#1e3a8a" />
-                </TouchableOpacity>
-                <Text className="text-2xl font-bold text-gray-900 ml-4">Réservation</Text>
-            </View>
+    const toggleSeat = (code: string) => {
+        setSelectedSeats((prev) => (prev.includes(code) ? prev.filter((s) => s !== code) : [...prev, code].sort((a, b) => Number(a) - Number(b))));
+    };
 
-            {/* Progress Bar */}
-            <View className="flex-row justify-between mb-2">
-                {STEPS.map((step, index) => (
-                    <View key={index} className="items-center flex-1">
-                        <View
-                            className={`w-6 h-6 rounded-full items-center justify-center mb-1 ${index + 1 === currentStep ? 'bg-blue-900' : index + 1 < currentStep ? 'bg-green-500' : 'bg-gray-200'
-                                }`}
-                        >
-                            {index + 1 < currentStep ? (
-                                <Ionicons name="checkmark" size={14} color="white" />
-                            ) : (
-                                <Text className="text-white text-xs font-bold">{index + 1}</Text>
-                            )}
-                        </View>
-                        <Text className={`text-[10px] font-bold uppercase text-center ${index + 1 === currentStep ? 'text-blue-900' : 'text-gray-600'}`}>
-                            {step}
-                        </Text>
+    /** Reprendre au choix des sièges après expiration du délai. */
+    const recommencerSieges = () => {
+        setReservationResult(null);
+        setExpiree(false);
+        setPapiWaiting(false);
+        setPaymentMode(null);
+        setSelectedSeats([]);
+        setCurrentStep(3);
+    };
+
+    // ─────────────────────────── Rendu des étapes ───────────────────────────
+
+    const resumeVoyage = () => {
+        if (!selectedVoyage) return null;
+        return (
+            <Carte marine style={{ gap: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                        <Texte graisse="tresGras" taille={16} couleur="#FFFFFF" numberOfLines={1}>
+                            {nomProvince(selectedVoyage.trajet?.province_depart)} → {nomProvince(selectedVoyage.trajet?.province_arrivee)}
+                        </Texte>
+                        <Texte graisse="moyen" taille={12.5} couleur={couleurs.texteSurMarine} numberOfLines={1}>
+                            {selectedVoyage.compagnie?.nom || 'Compagnie'} · {selectedVoyage.date} · {selectedVoyage.heure_depart}
+                        </Texte>
                     </View>
-                ))}
-            </View>
-        </View>
-    );
+                </View>
+            </Carte>
+        );
+    };
 
     const renderStep1 = () => (
-        <View className="flex-1">
-            <Text className="text-xl font-bold text-gray-900 mb-6">Sélectionnez votre itinéraire</Text>
-            <View className="mb-6">
+        <View style={{ gap: 16 }}>
+            <View style={{ gap: 4 }}>
+                <Texte variante="titre" taille={22}>Votre itinéraire</Texte>
+                <Texte graisse="moyen" taille={14} couleur={couleurs.gris}>Choisissez d'où vous partez et où vous allez.</Texte>
+            </View>
+            <View>
                 <SearchableDropdown
                     label="Départ"
-                    data={provinces.filter(p => p.id !== proArriveeId)}
+                    data={provinces.filter((p) => p.id !== proArriveeId)}
                     selectedId={proDepartId}
                     onSelect={(id: any) => { setProDepartId(id); setNoResults(false); }}
-                    placeholder="Ville de départ"
-                    displayKey="nom"
-                    valueKey="id"
+                    placeholder="Province de départ"
                     showAllOption={false}
                 />
-            </View>
-            <View className="mb-8">
                 <SearchableDropdown
                     label="Destination"
-                    data={provinces.filter(p => p.id !== proDepartId)}
+                    data={provinces.filter((p) => p.id !== proDepartId)}
                     selectedId={proArriveeId}
                     onSelect={(id: any) => { setProArriveeId(id); setNoResults(false); }}
-                    placeholder="Ville d'arrivée"
-                    displayKey="nom"
-                    valueKey="id"
+                    placeholder="Province d'arrivée"
                     showAllOption={false}
                 />
             </View>
-
-            {/* Message aucun voyage trouvé */}
             {noResults && availableVoyages.length === 0 && (
-                <View className="bg-orange-50 border border-orange-200 rounded-2xl p-5 items-center">
-                    <Ionicons name="alert-circle-outline" size={40} color="#f97316" />
-                    <Text className="text-orange-800 font-bold text-base mt-3">Aucun voyage disponible</Text>
-                    <Text className="text-orange-600 text-sm text-center mt-1">
-                        Aucun voyage n'a été trouvé pour cet itinéraire. Veuillez essayer un autre trajet.
-                    </Text>
-                </View>
+                <Carte style={{ alignItems: 'center', gap: 8, backgroundColor: couleurs.alerteFond, borderColor: couleurs.alerteFond }}>
+                    <Ionicons name="bus-outline" size={30} color={couleurs.alerte} />
+                    <Texte graisse="tresGras" taille={15} couleur={couleurs.alerte}>Aucun voyage pour ce trajet</Texte>
+                    <Texte graisse="moyen" taille={13} couleur={couleurs.alerte} centre>Essayez un autre départ ou une autre destination.</Texte>
+                </Carte>
             )}
         </View>
     );
 
-    const renderStep2 = () => (
-        <View className="flex-1">
-            <Text className="text-xl font-bold text-gray-900 mb-4">Voyages disponibles</Text>
-
-            {/* Date Filters */}
-            <View className="bg-white p-4 rounded-3xl mb-6 border border-gray-100">
-                <Text className="text-sm font-bold text-gray-700 mb-3">Filtrer par date</Text>
-
-                <View className="flex-row" style={{ gap: 10 }}>
-                    {/* Date de départ */}
-                    <TouchableOpacity
-                        onPress={() => setShowPicker('start')}
-                        className="flex-1 flex-row items-center bg-gray-50 p-3 rounded-2xl border border-gray-100"
-                    >
-                        <Ionicons name="calendar-outline" size={18} color="#1e3a8a" />
-                        <View className="ml-2">
-                            <Text className="text-gray-600 text-xs font-medium">À partir du</Text>
-                            <Text className="text-gray-800 text-sm font-bold">
-                                {dateDebut ? dateDebut.toLocaleDateString('fr-FR') : 'Choisir'}
-                            </Text>
-                        </View>
-                    </TouchableOpacity>
-
-                    {/* Flèche séparateur */}
-                    <View className="items-center justify-center">
-                        <Ionicons name="arrow-forward" size={16} color="#9ca3af" />
-                    </View>
-
-                    {/* Date de fin (optionnelle) */}
-                    <TouchableOpacity
-                        onPress={() => setShowPicker('end')}
-                        className="flex-1 flex-row items-center bg-gray-50 p-3 rounded-2xl border border-gray-100"
-                    >
-                        <Ionicons name="calendar-outline" size={18} color="#9ca3af" />
-                        <View className="ml-2">
-                            <Text className="text-gray-600 text-xs font-medium">Jusqu'au (opt.)</Text>
-                            <Text className={`text-sm font-bold ${dateFin ? 'text-gray-800' : 'text-gray-500'}`}>
-                                {dateFin ? dateFin.toLocaleDateString('fr-FR') : 'Choisir'}
-                            </Text>
-                        </View>
-                    </TouchableOpacity>
-
-                    {/* Reset filtre */}
-                    {(dateDebut || dateFin) && (
-                        <TouchableOpacity
-                            onPress={() => { setDateDebut(null); setDateFin(null); setDateFilterActive(false); findVoyages(1, false); }}
-                            className="items-center justify-center px-2"
-                        >
-                            <Ionicons name="close-circle" size={22} color="#ef4444" />
-                        </TouchableOpacity>
-                    )}
-                </View>
-
-                <TouchableOpacity
-                    onPress={() => { setDateFilterActive(false); findVoyages(1, true); }}
-                    className="mt-4 bg-blue-900 py-3 rounded-2xl items-center"
-                >
-                    <Text className="text-white font-bold text-sm">Rechercher</Text>
-                </TouchableOpacity>
+    const champDate = (libelle: string, valeur: Date | null, quel: 'start' | 'end') => (
+        <Pressable
+            onPress={() => setShowPicker(quel)}
+            accessibilityRole="button"
+            accessibilityLabel={`${libelle} : ${valeur ? valeur.toLocaleDateString('fr-FR') : 'non choisie'}`}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 50, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1.5, borderColor: couleurs.champ, backgroundColor: couleurs.surface }}
+        >
+            <Ionicons name="calendar-outline" size={18} color={couleurs.ocean800} />
+            <View style={{ flex: 1 }}>
+                <Texte variante="legende" taille={11}>{libelle}</Texte>
+                <Texte graisse="gras" taille={14} couleur={valeur ? couleurs.encre : '#8A99AD'}>
+                    {valeur ? valeur.toLocaleDateString('fr-FR') : 'Choisir'}
+                </Texte>
             </View>
+        </Pressable>
+    );
+
+    const renderStep2 = () => (
+        <View style={{ gap: 14 }}>
+            <Texte variante="titre" taille={22}>Voyages disponibles</Texte>
+
+            <Carte style={{ gap: 12 }}>
+                <Texte graisse="gras" taille={12.5} couleur={couleurs.encreDouce}>Filtrer par date</Texte>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    {champDate('À partir du', dateDebut, 'start')}
+                    {champDate("Jusqu'au (facultatif)", dateFin, 'end')}
+                </View>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {(dateDebut || dateFin) && (
+                        <Bouton
+                            titre="Effacer"
+                            variante="secondaire"
+                            compact
+                            onPress={() => { setDateDebut(null); setDateFin(null); setDateFilterActive(false); findVoyages(1, false); }}
+                            style={{ flex: 1 }}
+                        />
+                    )}
+                    <Bouton titre="Filtrer" compact onPress={() => { setDateFilterActive(false); findVoyages(1, true); }} style={{ flex: 1 }} />
+                </View>
+            </Carte>
 
             {showPicker && (
                 <DateTimePicker
                     value={showPicker === 'start' ? (dateDebut || new Date()) : (dateFin || new Date())}
                     mode="date"
+                    minimumDate={new Date()}
                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                     onChange={(event, selectedDate) => {
+                        const quel = showPicker;
                         setShowPicker(null);
                         if (selectedDate) {
-                            if (showPicker === 'start') setDateDebut(selectedDate);
-                            else if (showPicker === 'end') setDateFin(selectedDate);
+                            if (quel === 'start') setDateDebut(selectedDate);
+                            else if (quel === 'end') setDateFin(selectedDate);
                         }
                     }}
                 />
             )}
 
-            {/* Résultat vide inline */}
             {noResults && availableVoyages.length === 0 && (
-                <View className="items-center py-10">
-                    <Ionicons name="search-outline" size={48} color="#9ca3af" />
-                    <Text className="text-gray-700 font-bold text-lg mt-3">Aucun voyage trouvé</Text>
-                    <Text className="text-gray-600 text-sm text-center mt-1">Essayez une autre date ou un autre trajet.</Text>
+                <View style={{ alignItems: 'center', paddingVertical: 30, gap: 6 }}>
+                    <Ionicons name="search-outline" size={40} color={couleurs.grisClair} />
+                    <Texte graisse="tresGras" taille={16}>Aucun voyage trouvé</Texte>
+                    <Texte variante="legende" centre>Essayez une autre date.</Texte>
                 </View>
             )}
 
-            {availableVoyages.map((voyage) => (
-                <TouchableOpacity
-                    key={voyage.voyage_id}
-                    className={`${categorieCardBg((voyage as any).categorie || voyage.trajet?.categorie)} p-4 rounded-3xl mb-4 border ${selectedVoyage?.voyage_id === voyage.voyage_id ? 'border-blue-500 bg-blue-50/30' : 'border-gray-100'
-                        }`}
-                    onPress={() => setSelectedVoyage(voyage)}
-                >
-                    <View className="flex-row justify-between items-start mb-3">
-                        <View className="flex-1 mr-2">
-                            <View className="flex-row items-center flex-wrap">
-                                <Text className="text-gray-900 font-bold text-xl mr-2">{voyage.compagnie?.nom || 'Compagnie'}</Text>
-                                <CategorieBadge categorie={(voyage as any).categorie || voyage.trajet?.categorie} />
+            {availableVoyages.map((voyage) => {
+                const choisi = selectedVoyage?.voyage_id === voyage.voyage_id;
+                const categorie = String(voyage.categorie || voyage.trajet?.categorie || '').toLowerCase();
+                return (
+                    <Carte
+                        key={voyage.voyage_id}
+                        onPress={() => setSelectedVoyage(voyage)}
+                        accessibilityState={{ selected: choisi }}
+                        style={{ gap: 10, borderWidth: choisi ? 2 : 1, borderColor: choisi ? couleurs.ocean800 : couleurs.ligne, backgroundColor: choisi ? '#F3F8FD' : couleurs.surface }}
+                    >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                                <Texte graisse="tresGras" taille={15} numberOfLines={1}>{voyage.compagnie?.nom || 'Compagnie'}</Texte>
+                                <Texte variante="legende" numberOfLines={1}>{voyage.trajet?.nom}</Texte>
                             </View>
-                            <View className="flex-row items-center mt-1">
-                                <Ionicons name="calendar-outline" size={14} color="#334155" />
-                                <Text className="text-gray-700 text-sm font-medium ml-1 mr-3">{voyage.date}</Text>
-                                <Ionicons name="time-outline" size={14} color="#334155" />
-                                <Text className="text-gray-700 text-sm font-medium ml-1">{voyage.heure_depart}</Text>
-                            </View>
+                            {(categorie === 'vip' || categorie === 'premium') && (
+                                <Pastille libelle={categorie === 'vip' ? 'VIP' : 'Premium'} tonalite="marine" point={false} />
+                            )}
+                            <Ionicons name={choisi ? 'radio-button-on' : 'radio-button-off'} size={22} color={choisi ? couleurs.ocean800 : couleurs.grisClair} />
                         </View>
-                        <Text className="text-blue-900 font-bold text-xl">{new Intl.NumberFormat('fr-FR').format(voyage.trajet?.tarif || 0)} Ar</Text>
-                    </View>
-                    <View className="flex-row justify-between items-center pt-2 border-t border-gray-50">
-                        <Text className="text-gray-700 text-sm italic">{voyage.trajet?.nom}</Text>
-                        <Text className="text-gray-800 font-bold text-sm">{voyage.places_disponibles} places restantes</Text>
-                    </View>
-                </TouchableOpacity>
-            ))}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, borderTopWidth: 1, borderTopColor: couleurs.separateur }}>
+                            <Texte graisse="gras" taille={13} couleur={couleurs.encreDouce}>
+                                {voyage.date} · {voyage.heure_depart} · {voyage.places_disponibles} places
+                            </Texte>
+                            <Texte variante="montant" couleur={couleurs.ocean800}>
+                                {formatAriary(voyage.trajet?.tarif || 0)}<Texte graisse="gras" taille={12} couleur={couleurs.gris}> Ar</Texte>
+                            </Texte>
+                        </View>
+                    </Carte>
+                );
+            })}
 
             {availableVoyages.length > 0 && pagination.lastPage > 1 && (
-                <View className="flex-row justify-center items-center mt-4 mb-8">
-                    <TouchableOpacity
-                        onPress={() => findVoyages(pagination.currentPage - 1, dateFilterActive)}
-                        disabled={pagination.currentPage === 1}
-                        className={`p-2 rounded-full ${pagination.currentPage === 1 ? 'opacity-30' : 'bg-white shadow-sm'}`}
-                    >
-                        <Ionicons name="chevron-back" size={24} color="#1e3a8a" />
-                    </TouchableOpacity>
-
-                    <View className="mx-6 items-center">
-                        <Text className="text-gray-900 font-bold">Page {pagination.currentPage}</Text>
-                        <Text className="text-gray-600 text-xs">{pagination.total} voyages trouvés</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 20, marginTop: 4 }}>
+                    <BoutonIcone icone="chevron-back" libelle="Page précédente" onPress={() => pagination.currentPage > 1 && findVoyages(pagination.currentPage - 1, dateFilterActive)} />
+                    <View style={{ alignItems: 'center' }}>
+                        <Texte graisse="tresGras">Page {pagination.currentPage} / {pagination.lastPage}</Texte>
+                        <Texte variante="legende">{pagination.total} voyages</Texte>
                     </View>
-
-                    <TouchableOpacity
-                        onPress={() => findVoyages(pagination.currentPage + 1, dateFilterActive)}
-                        disabled={pagination.currentPage === pagination.lastPage}
-                        className={`p-2 rounded-full ${pagination.currentPage === pagination.lastPage ? 'opacity-30' : 'bg-white shadow-sm'}`}
-                    >
-                        <Ionicons name="chevron-forward" size={24} color="#1e3a8a" />
-                    </TouchableOpacity>
+                    <BoutonIcone icone="chevron-forward" libelle="Page suivante" onPress={() => pagination.currentPage < pagination.lastPage && findVoyages(pagination.currentPage + 1, dateFilterActive)} />
                 </View>
             )}
         </View>
     );
 
     const renderStep3 = () => {
-        // Robust capacity detection
-        const getPlaceCount = () => {
-            // 1. D'abord la longueur du plan (source la plus fiable pour le rendu)
-            if (seatPlan && seatPlan.length > 0) return seatPlan.length;
-
-            // 2. Ensuite les champs de données (priorité à voit_places)
-            const sources = [
-                plans?.voiture,
-                selectedVoyage?.voiture,
-                plans,
-                selectedVoyage
-            ];
-            const fields = ['voit_places', 'places', 'nb_places', 'nb_place'];
-            
-            for (const source of sources) {
-                if (!source) continue;
-                for (const field of fields) {
-                    const value = source[field];
-                    if (value !== undefined && value !== null && value !== '' && !isNaN(Number(value))) {
-                        return Number(value);
-                    }
-                }
-            }
-            return NaN;
-        };
-
-        const placeCount = getPlaceCount();
-        const isSupported = [16, 18, 22].includes(placeCount);
-
-        if (!isSupported) {
-            return (
-                <View className="flex-1 items-center justify-center py-10">
-                    <Ionicons name="alert-circle-outline" size={64} color="#ef4444" />
-                    <Text className="text-gray-900 font-bold text-lg mt-4 text-center">
-                        Plan de siège non disponible
-                    </Text>
-                    <Text className="text-gray-700 text-sm mt-2 text-center px-6">
-                        Désolé, le plan de siège pour un véhicule de {placeCount || '?'} places n'est pas encore configuré. 
-                        Veuillez contacter le support.
-                    </Text>
-                </View>
-            );
-        }
-
-        const renderSeat = (seat: any, width: any = '25%') => {
-            const isSelected = selectedSeats.includes(seat.code);
-            const isAvailable = seat.statut === 'disponible';
-            const isReserved = seat.statut === 'reserve';
-            const isTemporary = seat.statut === 'selectionne';
-
-            return (
-                <View key={seat.code} className="mb-4 items-center px-1" style={{ width }}>
-                    <TouchableOpacity
-                        className={`w-full h-14 rounded-[12px] items-center justify-center border ${
-                            isSelected 
-                                ? 'bg-[#0ea5e9] border-[#0ea5e9]' 
-                                : isTemporary
-                                    ? 'bg-[#FFA500] border-[#FFA500]' 
-                                    : isReserved 
-                                        ? 'bg-[#ef4444] border-[#ef4444]' 
-                                        : 'bg-white border-gray-200 shadow-sm' 
-                        }`}
-                        onPress={() => toggleSeat(seat.code, isAvailable)}
-                        disabled={!isAvailable && !isSelected}
-                    >
-                        {isReserved ? (
-                            <Ionicons name="person" size={24} color="white" />
-                        ) : isSelected ? (
-                            <Ionicons name="person" size={24} color="white" />
-                        ) : isTemporary ? (
-                            <Ionicons name="time-outline" size={24} color="white" />
-                        ) : (
-                            <Text className="text-sm font-bold text-gray-700">{seat.code}</Text>
-                        )}
-                    </TouchableOpacity>
-                </View>
-            );
-        };
-
-        const renderGrid = () => {
-            const passengers = seatPlan.slice(2);
-            
-            if (placeCount === 16) {
-                // Logic for 16 seats: specific aisle at Row 3, Column 3
-                const gridItems = [];
-                let passengerIdx = 0;
-
-                for (let row = 0; row < 4; row++) {
-                    for (let col = 0; col < 4; col++) {
-                        if ((row === 1 || row === 2) && col === 2) {
-                            gridItems.push(
-                                <View key={`aisle-${row}`} className="mb-4 items-center px-1 justify-center" style={{ width: '25%' as any }}>
-                                    <View className="w-full h-14 rounded-[12px] items-center justify-center bg-yellow-500">
-                                        <Text className="text-[8px] font-bold text-white uppercase" style={{ transform: [{ rotate: '90deg' }] }}>COULOIRE</Text>
-                                    </View>
-                                </View>
-                            );
-                        } else if (passengerIdx < passengers.length) {
-                            gridItems.push(renderSeat(passengers[passengerIdx]));
-                            passengerIdx++;
-                        }
-                    }
-                }
-                return gridItems;
-            }
-
-            // Default for 18 and 22: simple wrap
-            return passengers.map(seat => renderSeat(seat));
-        };
-
+        const voiture = plans?.voiture || selectedVoyage?.voiture || {};
+        const nomVoiture = [voiture.marque || voiture.voit_marque, voiture.modele || voiture.voit_modele].filter(Boolean).join(' ');
         return (
-            <View className="flex-1">
-                <View className="flex-row items-center mb-4">
-                    <Ionicons name="bus-outline" size={20} color="#6b7280" />
-                    <Text className="text-sm font-bold text-gray-700 ml-2">Sélectionnez vos sièges</Text>
-                </View>
+            <View style={{ gap: 14 }}>
+                {resumeVoyage()}
 
-                {/* Vehicle Seat Plan Container */}
-                <View className="bg-white p-4 rounded-3xl border-2 border-[#0ea5e9] shadow-sm self-center relative w-full" style={{ paddingBottom: 60 }}>
-                    {/* Vehicle Header Info */}
-                    <View className="flex-row items-center mb-6 border-b border-gray-100 pb-4">
-                        <View className="w-10 h-10 rounded-xl bg-fuchsia-500 items-center justify-center mr-3">
-                            <Ionicons name="bus" size={24} color="white" />
-                        </View>
-                        <View>
-                            <Text className="text-gray-900 font-bold text-base uppercase">
-                                {selectedVoyage?.voiture?.voit_marque || selectedVoyage?.voiture?.marque || 'VOLKSWAGEN'} - {selectedVoyage?.voiture?.voit_modele || selectedVoyage?.voiture?.modele || 'Crafter'}
-                            </Text>
-                            <Text className="text-gray-700 text-sm font-medium">{placeCount || '?'} places</Text>
-                        </View>
-                    </View>
-
-                    {/* Seats Grid Container */}
-                    <View className="px-2 pb-6">
-                        {/* Front Row: Driver + Seats 1 & 2 */}
-                        <View className="flex-row justify-between mb-4" style={{ paddingHorizontal: '5%' }}>
-                            <View className="items-center justify-center" style={{ width: '28%' as any }}>
-                                <View className="h-14 items-center justify-center">
-                                    <Ionicons name="person-circle" size={48} color="#111827" />
-                                </View>
-                                <Text className="text-[10px] text-gray-700 font-bold absolute -bottom-1 text-center" numberOfLines={1}>
-                                    {chauffeur || 'Chauffeur'}
-                                </Text>
+                {seatPlan.length === 0 ? (
+                    <Carte style={{ alignItems: 'center', gap: 8, paddingVertical: 28 }}>
+                        <Ionicons name="alert-circle-outline" size={36} color={couleurs.danger} />
+                        <Texte graisse="tresGras" taille={15} centre>Plan de sièges indisponible</Texte>
+                        <Texte variante="legende" centre>Ce véhicule n'a pas encore de plan de sièges. Contactez la compagnie.</Texte>
+                        <Bouton titre="Réessayer" variante="secondaire" compact onPress={() => fetchSeatPlan(selectedVoyage.voyage_id)} style={{ marginTop: 6 }} />
+                    </Carte>
+                ) : (
+                    <>
+                        {(nomVoiture || chauffeur) && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+                                <Ionicons name="bus-outline" size={16} color={couleurs.gris} />
+                                <Texte variante="legende" numberOfLines={1}>
+                                    {[nomVoiture, `${seatPlan.length} places`, chauffeur && `chauffeur ${chauffeur}`].filter(Boolean).join(' · ')}
+                                </Texte>
                             </View>
-                            
-                            {seatPlan.slice(0, 2).map((seat) => renderSeat(seat, '28%'))}
-                        </View>
-
-                        {/* Passenger Rows */}
-                        <View className="flex-row flex-wrap" style={{ paddingHorizontal: '1%' }}>
-                            {renderGrid()}
-                        </View>
-                    </View>
-
-                    {/* Legend */}
-                    <View className="absolute bottom-0 left-0 right-0 px-4 py-4 border-t border-gray-50 flex-row flex-wrap justify-between bg-white rounded-b-3xl">
-                        <View className="flex-row items-center w-[23%]">
-                            <View className="w-5 h-5 rounded-md bg-white border border-gray-300 mr-2" />
-                            <Text className="text-xs font-bold text-gray-800">Libre</Text>
-                        </View>
-                        <View className="flex-row items-center w-[23%]">
-                            <View className="w-5 h-5 rounded-md bg-[#0ea5e9] mr-2" />
-                            <Text className="text-xs font-bold text-gray-800">Choisi</Text>
-                        </View>
-                        <View className="flex-row items-center w-[23%]">
-                            <View className="w-5 h-5 rounded-md bg-[#FFA500] mr-2" />
-                            <Text className="text-xs font-bold text-gray-800">Attente</Text>
-                        </View>
-                        <View className="flex-row items-center w-[23%]">
-                            <View className="w-5 h-5 rounded-md bg-[#ef4444] mr-2" />
-                            <Text className="text-xs font-bold text-gray-800">Occupé</Text>
-                        </View>
-                    </View>
-                </View>
+                        )}
+                        <LegendePlan />
+                        <PlanSieges sieges={seatPlan} selection={selectedSeats} onToggle={toggleSeat} />
+                        <Texte variante="legende" centre>Les sièges se mettent à jour en direct quand d'autres clients réservent.</Texte>
+                    </>
+                )}
             </View>
         );
     };
 
-    const renderStep4 = () => (
-        <View className="flex-1">
-            {/* Trip Summary Card */}
-            <View className="bg-blue-900 p-5 rounded-[32px] mb-4 shadow-sm">
-                <View className="flex-row justify-between items-center mb-3">
-                    <View className="flex-row items-center">
-                        <Ionicons name="map-outline" size={18} color="#93c5fd" />
-                        <Text className="text-white font-bold ml-2">Récapitulatif du voyage</Text>
-                    </View>
-                    <View className="bg-blue-800 px-3 py-1 rounded-full">
-                        <Text className="text-blue-100 text-[10px] font-bold uppercase">{selectedSeats.length} Passager(s)</Text>
-                    </View>
+    const renderVoyageur = (v: any, index: number) => (
+        <Carte key={v.siege_numero} style={{ gap: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: couleurs.ocean800, alignItems: 'center', justifyContent: 'center' }}>
+                    <Texte graisse="tresGras" taille={14} couleur="#FFFFFF">{v.siege_numero}</Texte>
                 </View>
-                
-                <View className="flex-row items-center justify-between mb-4">
-                    <View className="flex-1">
-                        <Text className="text-blue-200 text-[10px] uppercase font-bold">Départ</Text>
-                        <Text className="text-white font-bold text-sm" numberOfLines={1}>
-                            {provinces.find(p => p.id === proDepartId)?.nom || selectedVoyage?.trajet?.depart?.pro_nom || 'N/A'}
-                        </Text>
-                    </View>
-                    <Ionicons name="arrow-forward" size={16} color="#4b5563" className="mx-2" />
-                    <View className="flex-1 items-end">
-                        <Text className="text-blue-200 text-[10px] uppercase font-bold">Arrivée</Text>
-                        <Text className="text-white font-bold text-sm" numberOfLines={1}>
-                            {provinces.find(p => p.id === proArriveeId)?.nom || selectedVoyage?.trajet?.arrivee?.pro_nom || 'N/A'}
-                        </Text>
-                    </View>
+                <View style={{ flex: 1 }}>
+                    <Texte graisse="tresGras" taille={15}>Voyageur {index + 1}</Texte>
+                    <Texte variante="legende">Siège {v.siege_numero}</Texte>
                 </View>
-
-                <View className="flex-row justify-between border-t border-blue-800 pt-3">
-                    <View className="flex-row items-center">
-                        <Ionicons name="calendar-outline" size={14} color="#93c5fd" />
-                        <Text className="text-blue-100 text-xs ml-1">{selectedVoyage?.date || 'N/A'}</Text>
-                    </View>
-                    <View className="flex-row items-center">
-                        <Ionicons name="time-outline" size={14} color="#93c5fd" />
-                        <Text className="text-blue-100 text-xs ml-1">{selectedVoyage?.heure_depart || 'N/A'}</Text>
-                    </View>
-                    <View className="flex-row items-center">
-                        <Ionicons name="apps-outline" size={14} color="#93c5fd" />
-                        <Text className="text-blue-100 text-xs ml-1">Sièges: {selectedSeats.join(', ')}</Text>
-                    </View>
+                {index === 0 && utilisateur && (
+                    <CaseACocher coche={!!v.moi} onChange={(c) => remplirAvecMoi(index, c)} libelle="C'est moi" />
+                )}
+            </View>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                    <ChampSaisie libelle="Prénom" obligatoire value={v.prenom} onChangeText={(val) => updateVoyageur(index, 'prenom', val)} autoCapitalize="words" placeholder="Prénom" />
+                </View>
+                <View style={{ flex: 1 }}>
+                    <ChampSaisie libelle="Nom" obligatoire value={v.nom} onChangeText={(val) => updateVoyageur(index, 'nom', val)} autoCapitalize="words" placeholder="Nom" />
                 </View>
             </View>
-
-            <Text className="text-xl font-bold text-gray-900 mb-4 px-1">Informations voyageurs</Text>
-            
-            {voyageurs.map((v, index) => (
-                <View key={index} className="bg-white p-5 rounded-[32px] mb-4 border border-gray-100 shadow-sm">
-                    <View className="flex-row justify-between items-center mb-4">
-                        <Text className="text-blue-900 font-bold text-lg">Voyageur {index + 1}</Text>
-                        <View className="bg-blue-50 px-3 py-1 rounded-full">
-                            <Text className="text-blue-600 font-bold text-xs uppercase">Siège {v.siege_numero}</Text>
-                        </View>
-                    </View>
-
-                    {/* Nom & Prénom */}
-                    <View className="flex-row mb-4" style={{ gap: 12 }}>
-                        <View className="flex-1">
-                            <Text className="text-gray-700 text-sm font-bold mb-2">Nom *</Text>
-                            <TextInput
-                                className="bg-gray-50 p-4 rounded-xl text-base border border-gray-100"
-                                placeholder="Nom"
-                                value={v.nom}
-                                onChangeText={(val) => updateVoyageur(index, 'nom', val)}
-                            />
-                        </View>
-                        <View className="flex-1">
-                            <Text className="text-gray-700 text-sm font-bold mb-2">Prénom *</Text>
-                            <TextInput
-                                className="bg-gray-50 p-4 rounded-xl text-base border border-gray-100"
-                                placeholder="Prénom"
-                                value={v.prenom}
-                                onChangeText={(val) => updateVoyageur(index, 'prenom', val)}
-                            />
-                        </View>
-                    </View>
-
-                    {/* CIN & Age */}
-                    <View className="flex-row mb-4" style={{ gap: 12 }}>
-                        <View className="flex-1">
-                            <Text className="text-gray-700 text-sm font-bold mb-2">N° CIN</Text>
-                            <TextInput
-                                className="bg-gray-50 p-4 rounded-xl text-base border border-gray-100"
-                                placeholder="Facultatif"
-                                value={v.cin}
-                                onChangeText={(val) => updateVoyageur(index, 'cin', val)}
-                            />
-                        </View>
-                        <View className="w-24">
-                            <Text className="text-gray-700 text-sm font-bold mb-2">Âge</Text>
-                            <TextInput
-                                className="bg-gray-50 p-4 rounded-xl text-base border border-gray-100"
-                                placeholder="Ex: 25"
-                                keyboardType="numeric"
-                                value={v.age ? String(v.age) : ''}
-                                onChangeText={(val) => updateVoyageur(index, 'age', val)}
-                            />
-                        </View>
-                    </View>
-
-                    {/* Téléphone 1 */}
-                    <View className="mb-4">
-                        <Text className="text-gray-700 text-sm font-bold mb-2">N° Téléphone *</Text>
-                        <View className="flex-row">
-                            <View className="bg-gray-100 px-3 flex-row items-center rounded-l-xl border border-r-0 border-gray-200">
-                                <Text className="text-lg mr-1">🇲🇬</Text>
-                                <Text className="text-gray-600 font-bold">+261</Text>
-                            </View>
-                            <TextInput
-                                className="flex-1 bg-gray-50 p-4 rounded-r-xl text-base border border-gray-100"
-                                placeholder="032 XX XXX XX"
-                                keyboardType="phone-pad"
-                                value={v.phone}
-                                onChangeText={(val) => updateVoyageur(index, 'phone', val)}
-                            />
-                        </View>
-                    </View>
-
-                    {/* Téléphone 2 / Urgence */}
-                    <View>
-                        <Text className="text-gray-700 text-sm font-bold mb-2">Tél 2 (Contact Urgence) *</Text>
-                        <View className="flex-row">
-                            <View className="bg-gray-100 px-3 flex-row items-center rounded-l-xl border border-r-0 border-gray-200">
-                                <Text className="text-lg mr-1">🇲🇬</Text>
-                                <Text className="text-gray-600 font-bold">+261</Text>
-                            </View>
-                            <TextInput
-                                className="flex-1 bg-gray-50 p-4 rounded-r-xl text-base border border-gray-100"
-                                placeholder="034 XX XXX XX"
-                                keyboardType="phone-pad"
-                                value={v.phone2}
-                                onChangeText={(val) => updateVoyageur(index, 'phone2', val)}
-                            />
-                        </View>
-                        <Text className="text-gray-400 text-[10px] mt-2 italic">Ce numéro sera utilisé en cas d'urgence.</Text>
-                    </View>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ width: 96 }}>
+                    <ChampSaisie libelle="Âge" value={v.age ? String(v.age) : ''} onChangeText={(val) => updateVoyageur(index, 'age', val.replace(/[^0-9]/g, ''))} keyboardType="number-pad" placeholder="Ex. 25" maxLength={3} />
                 </View>
-            ))}
+                <View style={{ flex: 1 }}>
+                    <ChampSaisie libelle="N° CIN" value={v.cin} onChangeText={(val) => updateVoyageur(index, 'cin', val)} placeholder="Facultatif" keyboardType="number-pad" />
+                </View>
+            </View>
+            <ChampSaisie libelle="Téléphone" obligatoire prefixe="+261" value={v.phone} onChangeText={(val) => updateVoyageur(index, 'phone', val)} keyboardType="phone-pad" placeholder="032 XX XXX XX" />
+            <ChampSaisie
+                libelle="Contact d'urgence"
+                obligatoire
+                prefixe="+261"
+                value={v.phone2}
+                onChangeText={(val) => updateVoyageur(index, 'phone2', val)}
+                keyboardType="phone-pad"
+                placeholder="034 XX XXX XX"
+                aide="Un proche à prévenir en cas de problème sur la route."
+            />
+        </Carte>
+    );
+
+    const renderStep4 = () => (
+        <View style={{ gap: 14 }}>
+            {resumeVoyage()}
+            <View style={{ gap: 2 }}>
+                <Texte variante="titre" taille={22}>Qui voyage ?</Texte>
+                <Texte graisse="moyen" taille={14} couleur={couleurs.gris}>Le nom doit correspondre à la pièce d'identité.</Texte>
+            </View>
+            {voyageurs.map(renderVoyageur)}
         </View>
     );
 
     const renderStep5 = () => {
         const modes = selectedVoyage?.compagnie?.modes_paiement || [];
         const papiActif = selectedVoyage?.compagnie?.papi_actif === true;
-        const totalAmount = selectedSeats.length * (selectedVoyage?.trajet?.tarif || 0);
+        const urgent = timeLeft <= 30;
 
         return (
-            <View className="flex-1">
-                <View className="bg-red-50 p-6 rounded-[32px] border border-red-100 items-center mb-6">
-                    <Ionicons name="timer-outline" size={32} color="#ef4444" />
-                    <Text className="text-red-900 font-bold text-2xl mt-2">{formatTime(timeLeft)}</Text>
-                    <Text className="text-red-600 text-[10px] text-center mt-1 mb-4">Veuillez confirmer votre paiement avant l'expiration du délai.</Text>
-                    
-                    <TouchableOpacity 
-                        onPress={handleCancelProcess}
-                        className="bg-white border border-red-200 px-6 py-2 rounded-full shadow-sm"
-                    >
-                        <Text className="text-red-600 font-bold text-xs uppercase">Abandonner la réservation</Text>
-                    </TouchableOpacity>
+            <View style={{ gap: 14 }}>
+                {/* Compte à rebours */}
+                <View
+                    accessibilityRole="timer"
+                    accessibilityLabel={`Sièges gardés encore ${Math.floor(timeLeft / 60)} minutes ${timeLeft % 60} secondes`}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 16, backgroundColor: urgent ? couleurs.dangerFond : couleurs.alerteFond }}
+                >
+                    <Ionicons name="hourglass-outline" size={22} color={urgent ? couleurs.danger : couleurs.alerte} />
+                    <Texte graisse="gras" taille={13.5} couleur={urgent ? couleurs.danger : couleurs.alerte} style={{ flex: 1 }}>
+                        Vos sièges sont gardés pendant
+                    </Texte>
+                    <Texte variante="montant" taille={22} couleur={urgent ? couleurs.danger : couleurs.alerte}>{formatTime(timeLeft)}</Texte>
                 </View>
 
-                {/* Reservation Summary Card */}
-                <View className="bg-white p-5 rounded-[32px] mb-6 border border-blue-100 shadow-sm overflow-hidden relative">
-                    <View className="absolute -top-6 -right-6 w-20 h-20 bg-blue-50/50 rounded-full" />
-                    
-                    <View className="flex-row items-center mb-4">
-                        <View className="w-8 h-8 bg-blue-100 rounded-lg items-center justify-center mr-3">
-                            <Ionicons name="receipt-outline" size={18} color="#1e3a8a" />
+                {/* Récapitulatif */}
+                <Carte style={{ gap: 9 }}>
+                    <Texte variante="etiquette">Récapitulatif</Texte>
+                    {[
+                        ['Trajet', `${nomProvince(selectedVoyage?.trajet?.province_depart)} → ${nomProvince(selectedVoyage?.trajet?.province_arrivee)}`],
+                        ['Départ', `${selectedVoyage?.date || '—'} · ${selectedVoyage?.heure_depart || '—'}`],
+                        ['Compagnie', selectedVoyage?.compagnie?.nom || '—'],
+                        ['Sièges', `${selectedSeats.join(', ')} · ${selectedSeats.length} × ${formatAriary(selectedVoyage?.trajet?.tarif || 0)} Ar`],
+                    ].map(([libelle, valeur]) => (
+                        <View key={libelle} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+                            <Texte graisse="moyen" taille={13.5} couleur={couleurs.gris}>{libelle}</Texte>
+                            <Texte graisse="gras" taille={13.5} style={{ flexShrink: 1, textAlign: 'right' }} numberOfLines={2}>{valeur}</Texte>
                         </View>
-                        <Text className="text-gray-900 font-bold text-lg">Détails de réservation</Text>
+                    ))}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 10, borderTopWidth: 1, borderTopColor: couleurs.separateur }}>
+                        <Texte graisse="tresGras" taille={15}>Total</Texte>
+                        <Texte variante="montant" taille={22}>{formatAriary(totalAPayer)} Ar</Texte>
                     </View>
-
-                    <View className="space-y-3">
-                        <View className="flex-row justify-between">
-                            <Text className="text-gray-500 text-xs">Itinéraire</Text>
-                            <Text className="text-gray-900 font-bold text-xs" numberOfLines={1}>
-                                {(provinces.find(p => p.id === proDepartId)?.nom || 'N/A') + ' → ' + (provinces.find(p => p.id === proArriveeId)?.nom || 'N/A')}
-                            </Text>
-                        </View>
-                        <View className="flex-row justify-between">
-                            <Text className="text-gray-500 text-xs">Date & Heure</Text>
-                            <Text className="text-gray-900 font-bold text-xs">{selectedVoyage?.date} à {selectedVoyage?.heure_depart}</Text>
-                        </View>
-                        <View className="flex-row justify-between">
-                            <Text className="text-gray-500 text-xs">Passagers ({selectedSeats.length})</Text>
-                            <Text className="text-gray-900 font-bold text-xs">Sièges: {selectedSeats.join(', ')}</Text>
-                        </View>
-                        <View className="flex-row justify-between pt-3 border-t border-gray-50 mt-2">
-                            <Text className="text-gray-900 font-bold text-base">Total à payer</Text>
-                            <Text className="text-blue-900 font-bold text-lg">
-                                {new Intl.NumberFormat('fr-FR').format(totalAmount)} Ar
-                            </Text>
-                        </View>
-                    </View>
-                </View>
+                </Carte>
 
                 {papiActif ? (
-                    <View className="bg-white p-5 rounded-[32px] mb-2 border border-blue-100 shadow-sm">
-                        <View className="items-center mb-2">
-                            <View className="w-14 h-14 rounded-full bg-blue-50 items-center justify-center mb-2">
-                                <Ionicons name="shield-checkmark" size={28} color="#1e3a8a" />
-                            </View>
-                            <Text className="text-gray-900 font-bold text-lg">Paiement sécurisé en ligne</Text>
-                            <Text className="text-gray-500 text-xs text-center mt-1">
-                                Payez via MVola, Orange Money, Airtel Money ou Visa. La confirmation est automatique.
-                            </Text>
+                    <Carte style={{ alignItems: 'center', gap: 8 }}>
+                        <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: couleurs.ocean50, alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name="shield-checkmark" size={26} color={couleurs.ocean800} />
                         </View>
+                        <Texte graisse="tresGras" taille={16}>Paiement sécurisé en ligne</Texte>
+                        <Texte variante="legende" centre>Payez par MVola, Orange Money, Airtel Money ou carte. La confirmation est automatique.</Texte>
                         {papiWaiting && (
-                            <View className="bg-yellow-50 p-3 rounded-2xl border border-yellow-100 flex-row items-start mt-2">
-                                <Ionicons name="information-circle-outline" size={18} color="#d97706" style={{ marginTop: 2 }} />
-                                <Text className="text-yellow-800 text-xs ml-2 flex-1 leading-5">
+                            <View style={{ flexDirection: 'row', gap: 8, padding: 12, borderRadius: 12, backgroundColor: couleurs.alerteFond, marginTop: 4 }}>
+                                <Ionicons name="information-circle-outline" size={18} color={couleurs.alerte} />
+                                <Texte graisse="moyen" taille={12.5} couleur={couleurs.alerte} style={{ flex: 1, lineHeight: 18 }}>
                                     Après avoir payé sur la page ouverte, revenez ici et appuyez sur « Vérifier le paiement ».
-                                </Text>
+                                </Texte>
                             </View>
                         )}
-                    </View>
+                    </Carte>
                 ) : (
-                  <>
-                <Text className="text-lg font-bold text-gray-900 mb-4 px-1">Sélectionner le mode paiement</Text>
-                {modes.length === 0 && (
-                    <View className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200 items-center">
-                        <Ionicons name="warning-outline" size={24} color="#d97706" />
-                        <Text className="text-yellow-700 text-xs text-center mt-2">Aucun mode de paiement disponible pour cette compagnie.</Text>
+                    <View accessibilityRole="radiogroup" style={{ gap: 8 }}>
+                        <Texte variante="etiquette" style={{ marginLeft: 2 }}>Payer avec</Texte>
+                        {modes.length === 0 && (
+                            <Carte style={{ backgroundColor: couleurs.alerteFond, borderColor: couleurs.alerteFond }}>
+                                <Texte graisse="gras" taille={13} couleur={couleurs.alerte} centre>Cette compagnie n'a pas encore configuré de mode de paiement.</Texte>
+                            </Carte>
+                        )}
+                        {modes.map((mode: any) => {
+                            const choisi = paymentMode?.type_paie_id === mode.type_paie_id;
+                            const nom = mode.nom_paie || mode.type_paie;
+                            return (
+                                <Pressable
+                                    key={mode.type_paie_id}
+                                    onPress={() => setPaymentMode(mode)}
+                                    accessibilityRole="radio"
+                                    accessibilityState={{ checked: choisi }}
+                                    style={{
+                                        flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14,
+                                        borderWidth: 1.5, borderColor: choisi ? couleurs.ocean800 : couleurs.champ,
+                                        backgroundColor: choisi ? '#F3F8FD' : couleurs.surface,
+                                    }}
+                                >
+                                    <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: couleurs.ocean50, alignItems: 'center', justifyContent: 'center' }}>
+                                        <Ionicons name="phone-portrait-outline" size={20} color={couleurs.ocean800} />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Texte graisse="tresGras" taille={14.5}>{nom}</Texte>
+                                        {!!mode.numero && <Texte variante="legende">{mode.numero}</Texte>}
+                                    </View>
+                                    <Ionicons name={choisi ? 'radio-button-on' : 'radio-button-off'} size={22} color={choisi ? couleurs.ocean800 : couleurs.grisClair} />
+                                </Pressable>
+                            );
+                        })}
                     </View>
                 )}
-                <View className="flex-row flex-wrap justify-between" style={{ gap: 10 }}>
-                    {modes.map((mode: any) => {
-                        const color = getPaymentColor(mode.nom_paie || mode.type_paie);
-                        const icon = getPaymentIcon(mode.nom_paie || mode.type_paie);
-                        const isSelected = paymentMode?.type_paie_id === mode.type_paie_id;
-                        return (
-                            <TouchableOpacity
-                                key={mode.type_paie_id}
-                                className={`w-[48%] bg-white p-5 rounded-[28px] mb-2 border-2 items-center justify-center ${isSelected ? 'border-blue-500 bg-blue-50/50' : 'border-gray-50 shadow-sm'}`}
-                                onPress={() => setPaymentMode(mode)}
-                            >
-                                <View className="w-12 h-12 rounded-2xl items-center justify-center mb-3" style={{ backgroundColor: color + '15' }}>
-                                    <Ionicons name={icon as any} size={24} color={color} />
+
+                {/* Paiement manuel : numéro, montant, référence */}
+                <FeuilleModale
+                    visible={showPaymentModal}
+                    onClose={() => setShowPaymentModal(false)}
+                    titre={`Payer par ${paymentMode?.nom_paie || paymentMode?.type_paie || ''}`}
+                    sousTitre={`Temps restant ${formatTime(timeLeft)}`}
+                    pied={
+                        <Bouton
+                            titre="J'ai effectué le paiement"
+                            onPress={handlePaymentConfirmed}
+                            chargement={loading}
+                            desactive={!transactionRef.trim()}
+                        />
+                    }
+                >
+                    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 12, gap: 14 }}>
+                        <View style={{ alignItems: 'center', padding: 16, borderRadius: 16, backgroundColor: couleurs.ocean50 }}>
+                            <Texte variante="etiquette" couleur={couleurs.ocean800}>Montant exact à envoyer</Texte>
+                            <Texte variante="montant" taille={30} couleur={couleurs.ocean950}>{formatAriary(totalAPayer)} Ar</Texte>
+                        </View>
+
+                        <Carte style={{ gap: 12, backgroundColor: couleurs.fond }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                <View style={{ flex: 1 }}>
+                                    <Texte variante="legende">Numéro</Texte>
+                                    <Texte variante="montant" taille={19} style={{ letterSpacing: 1 }}>{paymentMode?.numero || '—'}</Texte>
                                 </View>
-                                <Text className="text-gray-900 font-bold text-center text-xs">{mode.nom_paie || mode.type_paie}</Text>
-                                {isSelected && (
-                                    <View className="absolute top-2 right-2">
-                                        <Ionicons name="checkmark-circle" size={18} color="#3b82f6" />
-                                    </View>
-                                )}
-                            </TouchableOpacity>
-                        );
-                    })}
-                </View>
-                  </>
-                )}
-
-                {/* Payment Detail Modal */}
-                <Modal visible={showPaymentModal} transparent animationType="slide">
-                    <Pressable className="flex-1 bg-black/50 justify-end" onPress={() => setShowPaymentModal(false)}>
-                        <Pressable className="bg-white rounded-t-[32px] p-6" onPress={(e) => e.stopPropagation()}>
-                            <View className="w-12 h-1.5 bg-gray-200 rounded-full self-center mb-6" />
-                            
-                            <View className="items-center mb-6">
-                                <View className="w-16 h-16 rounded-full items-center justify-center mb-3" style={{ backgroundColor: getPaymentColor(paymentMode?.nom_paie || paymentMode?.type_paie) + '15' }}>
-                                    <Ionicons name={getPaymentIcon(paymentMode?.nom_paie || paymentMode?.type_paie) as any} size={32} color={getPaymentColor(paymentMode?.nom_paie || paymentMode?.type_paie)} />
-                                </View>
-                                <Text className="text-gray-900 font-bold text-xl">{paymentMode?.nom_paie || paymentMode?.type_paie}</Text>
+                                <Bouton
+                                    titre={copiedField === 'numero' ? 'Copié' : 'Copier'}
+                                    icone={copiedField === 'numero' ? 'checkmark' : 'copy-outline'}
+                                    variante="secondaire"
+                                    compact
+                                    onPress={() => paymentMode?.numero && copyToClipboard(paymentMode.numero, 'numero')}
+                                    style={{ minHeight: 40, paddingHorizontal: 12 }}
+                                />
                             </View>
-
-                            {/* Amount */}
-                            <View className="bg-blue-50 p-5 rounded-2xl mb-5 items-center border border-blue-100">
-                                <Text className="text-blue-600 text-xs font-bold uppercase mb-1">Montant à payer</Text>
-                                <Text className="text-blue-900 font-bold text-3xl">{new Intl.NumberFormat('fr-FR').format(totalAmount)} Ar</Text>
+                            <View>
+                                <Texte variante="legende">Titulaire du compte</Texte>
+                                <Texte graisse="tresGras" taille={15}>{paymentMode?.titulaire || '—'}</Texte>
                             </View>
+                        </Carte>
 
-                            {/* Account Info */}
-                            <View className="bg-gray-50 p-5 rounded-2xl mb-5 border border-gray-100">
-                                <Text className="text-gray-500 text-xs font-bold uppercase mb-3">Informations du compte</Text>
-                                
-                                <View className="flex-row items-center justify-between mb-3">
-                                    <View className="flex-1">
-                                        <Text className="text-gray-400 text-[10px] uppercase">Numéro</Text>
-                                        <Text className="text-gray-900 font-bold text-lg tracking-wider">{paymentMode?.numero || 'N/A'}</Text>
-                                    </View>
-                                    <TouchableOpacity
-                                        className={`px-4 py-2 rounded-xl flex-row items-center ${copiedField === 'numero' ? 'bg-green-100' : 'bg-white border border-gray-200'}`}
-                                        onPress={() => paymentMode?.numero && copyToClipboard(paymentMode.numero, 'numero')}
-                                    >
-                                        <Ionicons name={copiedField === 'numero' ? 'checkmark' : 'copy-outline'} size={16} color={copiedField === 'numero' ? '#22c55e' : '#6b7280'} />
-                                        <Text className={`ml-1 text-xs font-bold ${copiedField === 'numero' ? 'text-green-600' : 'text-gray-500'}`}>
-                                            {copiedField === 'numero' ? 'Copié !' : 'Copier'}
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                            <Ionicons name="information-circle-outline" size={18} color={couleurs.ocean800} />
+                            <Texte graisse="moyen" taille={13} couleur={couleurs.encreDouce} style={{ flex: 1, lineHeight: 19 }}>
+                                Envoyez le montant exact à ce numéro, puis saisissez la référence de la transaction reçue par SMS.
+                            </Texte>
+                        </View>
 
-                                <View>
-                                    <Text className="text-gray-400 text-[10px] uppercase">Titulaire du compte</Text>
-                                    <Text className="text-gray-900 font-bold text-base">{paymentMode?.titulaire || 'N/A'}</Text>
-                                </View>
-                            </View>
-
-                            {/* Instructions */}
-                            <View className="bg-yellow-50 p-4 rounded-2xl mb-5 border border-yellow-100 flex-row items-start">
-                                <Ionicons name="information-circle-outline" size={20} color="#d97706" style={{ marginTop: 2 }} />
-                                <Text className="text-yellow-800 text-xs ml-2 flex-1 leading-5">
-                                    Envoyez le montant exact au numéro ci-dessus via {paymentMode?.nom_paie || paymentMode?.type_paie}, puis saisissez le numéro de référence de la transaction ci-dessous.
-                                </Text>
-                            </View>
-
-                            {/* Transaction Reference Input */}
-                            <View className="mb-6">
-                                <Text className="text-gray-700 font-bold text-sm mb-2">Numéro de référence / ID transaction</Text>
-                                <View className={`flex-row items-center bg-gray-50 rounded-2xl border ${transactionRefError ? 'border-red-300' : 'border-gray-200'} px-4`}>
-                                    <Ionicons name="document-text-outline" size={18} color={transactionRefError ? '#ef4444' : '#6b7280'} />
-                                    <TextInput
-                                        className="flex-1 py-4 px-3 text-base text-gray-900 font-bold"
-                                        placeholder="Ex: TRX123456789"
-                                        placeholderTextColor="#9ca3af"
-                                        value={transactionRef}
-                                        onChangeText={(text) => {
-                                            setTransactionRef(text);
-                                            if (transactionRefError) setTransactionRefError(null);
-                                        }}
-                                        maxLength={50}
-                                        autoCapitalize="characters"
-                                        autoCorrect={false}
-                                    />
-                                    {transactionRef.length > 0 && (
-                                        <TouchableOpacity onPress={() => { setTransactionRef(''); setTransactionRefError(null); }}>
-                                            <Ionicons name="close-circle" size={20} color="#9ca3af" />
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
-                                {transactionRefError && (
-                                    <View className="flex-row items-center mt-1.5 ml-1">
-                                        <Ionicons name="alert-circle" size={14} color="#ef4444" />
-                                        <Text className="text-red-500 text-xs ml-1">{transactionRefError}</Text>
-                                    </View>
-                                )}
-                                <Text className="text-gray-400 text-[10px] mt-1.5 ml-1">
-                                    Saisissez le numéro de référence reçu après votre paiement {paymentMode?.nom_paie || paymentMode?.type_paie}.
-                                </Text>
-                            </View>
-
-                            <TouchableOpacity
-                                className={`py-4 rounded-2xl items-center shadow-md ${(!transactionRef.trim() || loading) ? 'bg-gray-300' : 'bg-blue-900'}`}
-                                onPress={handlePaymentConfirmed}
-                                disabled={!transactionRef.trim() || loading}
-                            >
-                                {loading ? (
-                                    <ActivityIndicator color="#fff" />
-                                ) : (
-                                    <Text className="text-white font-bold text-lg">J'ai effectué le paiement</Text>
-                                )}
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                className="py-3 items-center mt-2"
-                                onPress={() => setShowPaymentModal(false)}
-                            >
-                                <Text className="text-gray-400 font-bold text-sm">Annuler</Text>
-                            </TouchableOpacity>
-                        </Pressable>
-                    </Pressable>
-                </Modal>
+                        <ChampSaisie
+                            libelle="Référence de la transaction"
+                            icone="document-text-outline"
+                            placeholder="Ex. TRX123456789"
+                            value={transactionRef}
+                            onChangeText={(text) => {
+                                setTransactionRef(text);
+                                if (transactionRefError) setTransactionRefError(null);
+                            }}
+                            maxLength={50}
+                            autoCapitalize="characters"
+                            autoCorrect={false}
+                            erreur={transactionRefError || undefined}
+                        />
+                    </ScrollView>
+                </FeuilleModale>
             </View>
         );
     };
+
+    const renderExpiree = () => (
+        <View style={{ alignItems: 'center', gap: 16, paddingTop: 24 }}>
+            <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: couleurs.alerteFond, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="hourglass-outline" size={42} color={couleurs.alerte} />
+            </View>
+            <View style={{ gap: 8, alignItems: 'center' }}>
+                <Texte variante="titre" taille={23} centre>Le délai de paiement est écoulé</Texte>
+                <Texte graisse="moyen" taille={14.5} couleur={couleurs.gris} centre style={{ lineHeight: 21, maxWidth: 320 }}>
+                    {selectedSeats.length > 1 ? `Les sièges ${selectedSeats.join(', ')} ont été libérés` : `Le siège ${selectedSeats[0] || ''} a été libéré`} pour d'autres voyageurs. Aucun montant n'a été prélevé.
+                </Texte>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8, padding: 12, borderRadius: 14, backgroundColor: couleurs.ocean50, alignSelf: 'stretch' }}>
+                <Ionicons name="information-circle-outline" size={18} color={couleurs.ocean800} />
+                <Texte graisse="moyen" taille={12.5} couleur={couleurs.encreDouce} style={{ flex: 1, lineHeight: 18 }}>
+                    Si votre paiement arrive malgré tout, il vous sera remboursé automatiquement. Suivez-le dans Remboursements.
+                </Texte>
+            </View>
+        </View>
+    );
 
     const renderStep6 = () => {
         const qrData = invoiceData?.reservation?.qr_data || '';
@@ -1354,221 +1016,275 @@ export default function ReserverScreen() {
         }
 
         return (
-            <View className="flex-1 items-center">
-                <View className="w-20 h-20 bg-green-100 rounded-full items-center justify-center mb-6">
-                    <Ionicons name="checkmark-circle" size={50} color="#22c55e" />
-                </View>
-                <Text className="text-2xl font-bold text-gray-900 mb-2">Réservation Confirmée !</Text>
-                <Text className="text-gray-500 text-center mb-8">Votre ticket est prêt. Présentez le QR code à l'embarquement.</Text>
-
-                <View className="bg-white p-6 rounded-[40px] border border-gray-100 shadow-sm w-full items-center">
-                    <Text className="text-gray-400 font-bold text-xs uppercase mb-1">Ticket N°</Text>
-                    <Text className="text-2xl font-bold text-blue-900 mb-5">{invoiceData?.reservation?.numero}</Text>
-
-                    {/* QR Code */}
-                    <View className="bg-white p-4 rounded-3xl border border-gray-100 mb-5">
-                        {qrString ? (
-                            <QRCode value={qrString} size={200} backgroundColor="#ffffff" />
-                        ) : (
-                            <View className="w-[200px] h-[200px] items-center justify-center">
-                                <Ionicons name="qr-code-outline" size={100} color="#cbd5e1" />
-                                <Text className="text-[10px] text-gray-400 mt-2">Chargement...</Text>
-                            </View>
-                        )}
+            <View style={{ gap: 18 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: couleurs.succesVif, alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="checkmark" size={26} color="#FFFFFF" />
                     </View>
-                    <Text className="text-gray-400 text-[10px] text-center mb-5">Scannez ce code lors de l'embarquement</Text>
+                    <View style={{ flex: 1 }}>
+                        <Texte variante="titre" taille={21} couleur="#FFFFFF">Réservation confirmée</Texte>
+                        <Texte graisse="moyen" taille={13} couleur={couleurs.texteSurMarine}>
+                            {invoiceData?.reservation?.paiement?.type ? `Paiement ${invoiceData.reservation.paiement.type} reçu · ` : ''}{formatAriary(invoiceData?.reservation?.montant || 0)} Ar
+                        </Texte>
+                    </View>
+                </View>
 
-                    {/* Invoice details */}
-                    <View className="w-full space-y-3">
-                        <View className="flex-row justify-between border-b border-gray-50 pb-2">
-                            <Text className="text-gray-500 text-sm">Trajet</Text>
-                            <Text className="text-gray-900 font-bold text-sm">{invoiceData?.voyage?.depart} → {invoiceData?.voyage?.arrivee}</Text>
+                {/* Billet */}
+                <View style={{ backgroundColor: couleurs.surface, borderRadius: 22, overflow: 'hidden' }}>
+                    <View style={{ padding: 18, gap: 14 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Texte graisse="tresGras" taille={13} couleur={couleurs.ocean950}>{invoiceData?.voyage?.compagnie || selectedVoyage?.compagnie?.nom}</Texte>
+                            <Texte graisse="gras" taille={12} couleur={couleurs.gris}>Billet {invoiceData?.reservation?.numero}</Texte>
                         </View>
-                        <View className="flex-row justify-between border-b border-gray-50 pb-2">
-                            <Text className="text-gray-500 text-sm">Date & Heure</Text>
-                            <Text className="text-gray-900 font-bold text-sm">{invoiceData?.voyage?.date} à {invoiceData?.voyage?.heure}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <View style={{ flex: 1 }}>
+                                <Texte graisse="tresGras" taille={18} numberOfLines={1}>{invoiceData?.voyage?.depart}</Texte>
+                            </View>
+                            <Ionicons name="bus-outline" size={20} color={couleurs.ocean800} />
+                            <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                                <Texte graisse="tresGras" taille={18} numberOfLines={1}>{invoiceData?.voyage?.arrivee}</Texte>
+                            </View>
                         </View>
-                        <View className="flex-row justify-between border-b border-gray-50 pb-2">
-                            <Text className="text-gray-500 text-sm">Compagnie</Text>
-                            <Text className="text-gray-900 font-bold text-sm">{invoiceData?.voyage?.compagnie || selectedVoyage?.compagnie?.nom}</Text>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            {[
+                                ['Date', invoiceData?.voyage?.date],
+                                ['Heure', invoiceData?.voyage?.heure],
+                                ['Sièges', (invoiceData?.voyageurs || []).map((v: any) => v.siege).join(', ') || selectedSeats.join(', ')],
+                            ].map(([l, val]) => (
+                                <View key={l}>
+                                    <Texte variante="etiquette" taille={10.5}>{l}</Texte>
+                                    <Texte graisse="tresGras" taille={14}>{val || '—'}</Texte>
+                                </View>
+                            ))}
                         </View>
-                        {invoiceData?.voyageurs && invoiceData.voyageurs.length > 0 && (
-                            <View className="border-b border-gray-50 pb-2">
-                                <Text className="text-gray-500 text-sm mb-1">Voyageurs</Text>
+                    </View>
+
+                    {/* Perforation */}
+                    <View style={{ height: 22, justifyContent: 'center' }}>
+                        <View style={{ position: 'absolute', left: -11, width: 22, height: 22, borderRadius: 11, backgroundColor: couleurs.ocean950 }} />
+                        <View style={{ marginHorizontal: 18, borderTopWidth: 2, borderStyle: 'dashed', borderColor: couleurs.ocean100 }} />
+                        <View style={{ position: 'absolute', right: -11, width: 22, height: 22, borderRadius: 11, backgroundColor: couleurs.ocean950 }} />
+                    </View>
+
+                    <View style={{ alignItems: 'center', gap: 10, padding: 18, paddingTop: 10 }}>
+                        <View style={{ padding: 10, borderRadius: 14, borderWidth: 1, borderColor: couleurs.ligne }}>
+                            {qrString ? (
+                                <QRCode value={qrString} size={180} color={couleurs.ocean950} backgroundColor="#FFFFFF" />
+                            ) : (
+                                <View style={{ width: 180, height: 180, alignItems: 'center', justifyContent: 'center' }}>
+                                    <ActivityIndicator color={couleurs.ocean800} />
+                                </View>
+                            )}
+                        </View>
+                        <Texte variante="legende" centre>Présentez ce code au chauffeur à l'embarquement</Texte>
+                        {(invoiceData?.voyageurs || []).length > 0 && (
+                            <View style={{ alignSelf: 'stretch', gap: 4, paddingTop: 8, borderTopWidth: 1, borderTopColor: couleurs.separateur }}>
                                 {invoiceData.voyageurs.map((v: any, i: number) => (
-                                    <Text key={i} className="text-gray-900 text-xs">
-                                        {v.nom} {v.prenom} — Siège {v.siege}
-                                    </Text>
+                                    <Texte key={i} graisse="moyen" taille={13}>{v.prenom} {v.nom} · siège {v.siege}</Texte>
                                 ))}
                             </View>
                         )}
-                        {invoiceData?.reservation?.paiement && (
-                            <View className="flex-row justify-between border-b border-gray-50 pb-2">
-                                <Text className="text-gray-500 text-sm">Paiement</Text>
-                                <Text className="text-gray-900 font-bold text-sm">{invoiceData.reservation.paiement.type}</Text>
-                            </View>
-                        )}
-                        <View className="flex-row justify-between pt-1">
-                            <Text className="text-gray-900 font-bold text-base">Montant Payé</Text>
-                            <Text className="text-blue-900 font-bold text-lg">{new Intl.NumberFormat('fr-FR').format(invoiceData?.reservation?.montant || 0)} Ar</Text>
-                        </View>
                     </View>
                 </View>
+            </View>
+        );
+    };
 
-                <TouchableOpacity
-                    className="bg-blue-900 w-full py-4 rounded-2xl items-center mt-10"
-                    onPress={() => router.replace('/screens/dashboard/utilisateur/(tabs)/reservation')}
-                >
-                    <Text className="text-white font-bold text-lg">Retour à l'accueil</Text>
-                </TouchableOpacity>
+    // ─────────────────────────── Mise en page ───────────────────────────
+
+    const marine = currentStep === 6;
+    const etapesAffichees = debutAuxSieges ? ['Sièges', 'Voyageurs', 'Paiement'] : ['Trajet', 'Voyage', 'Sièges', 'Voyageurs', 'Paiement'];
+    const indexEtape = Math.min(currentStep, 5) - (debutAuxSieges ? 3 : 1);
+    const titres: Record<number, string> = {
+        1: 'Réserver un voyage', 2: 'Choisir un voyage', 3: 'Choisissez vos sièges', 4: 'Voyageurs', 5: 'Paiement', 6: 'Votre billet',
+    };
+
+    const piedEtapes = () => {
+        if (expiree) {
+            return (
+                <View style={{ gap: 10 }}>
+                    <Bouton titre="Choisir à nouveau mes sièges" icone="refresh" onPress={recommencerSieges} />
+                    <Bouton titre="Retour à l'accueil" variante="secondaire" onPress={() => router.replace(ACCUEIL)} />
+                </View>
+            );
+        }
+        if (currentStep === 6) {
+            return <Bouton titre="Voir mes billets" variante="secondaire" onPress={() => router.replace(BILLETS)} style={{ backgroundColor: '#FFFFFF', borderColor: '#FFFFFF' }} />;
+        }
+        if (currentStep === 5) {
+            const papiActif = selectedVoyage?.compagnie?.papi_actif === true;
+            return (
+                <View style={{ gap: 6 }}>
+                    {papiActif ? (
+                        papiWaiting ? (
+                            <Bouton titre="Vérifier le paiement" variante="succes" icone="refresh" onPress={handleVerifierPaiement} chargement={loading} />
+                        ) : (
+                            <Bouton titre={`Payer ${formatAriary(totalAPayer)} Ar`} icone="lock-closed" onPress={handlePayerEnLigne} chargement={loading} />
+                        )
+                    ) : (
+                        <Bouton titre="Continuer vers le paiement" onPress={confirmPayment} desactive={!paymentMode} chargement={loading} />
+                    )}
+                    <Bouton titre="Abandonner la réservation" variante="lien" compact onPress={handleCancelProcess} />
+                </View>
+            );
+        }
+        // Étapes 1 à 4 : résumé + bouton
+        const desactive = (currentStep === 1 && (!proDepartId || !proArriveeId)) || (currentStep === 2 && !selectedVoyage) || (currentStep === 3 && selectedSeats.length === 0);
+        return (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                {currentStep >= 3 && (
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                        <Texte variante="legende" numberOfLines={1}>
+                            {selectedSeats.length === 0
+                                ? 'Aucun siège choisi'
+                                : `${selectedSeats.length} siège${selectedSeats.length > 1 ? 's' : ''} · n° ${selectedSeats.join(', ')}`}
+                        </Texte>
+                        <Texte variante="montant" taille={20}>
+                            {formatAriary(totalTheorique)}<Texte graisse="gras" taille={13} couleur={couleurs.gris}> Ar</Texte>
+                        </Texte>
+                    </View>
+                )}
+                <Bouton
+                    titre={currentStep === 1 ? 'Rechercher' : currentStep === 4 ? 'Réserver' : 'Continuer'}
+                    onPress={handleNext}
+                    desactive={desactive}
+                    chargement={loading && currentStep === 4}
+                    style={currentStep >= 3 ? { paddingHorizontal: 26 } : { flex: 1 }}
+                />
             </View>
         );
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-gray-50">
+        <View style={{ flex: 1, backgroundColor: marine ? couleurs.ocean950 : couleurs.fond }}>
             <Stack.Screen options={{ headerShown: false }} />
-            {renderHeader()}
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-                className="flex-1"
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            <DialogComponent />
+            <StatusBar barStyle={marine ? 'light-content' : 'dark-content'} backgroundColor={marine ? couleurs.ocean950 : couleurs.surface} />
+
+            {/* En-tête */}
+            {!marine && (
+                <View style={{ backgroundColor: couleurs.surface, borderBottomWidth: 1, borderBottomColor: couleurs.ligne, paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 14, gap: 14 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <BoutonIcone icone={currentStep === 5 && !expiree ? 'close' : 'chevron-back'} libelle={currentStep === 5 ? 'Abandonner' : 'Retour'} onPress={expiree ? () => router.replace(ACCUEIL) : handleBack} />
+                        <Texte variante="sousTitre" style={{ flex: 1 }} numberOfLines={1}>{expiree ? 'Réservation expirée' : titres[currentStep]}</Texte>
+                    </View>
+                    {!expiree && <Etapes etapes={etapesAffichees} courante={Math.max(0, indexEtape)} />}
+                </View>
+            )}
+
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+                <ScrollView
+                    style={{ flex: 1 }}
+                    contentContainerStyle={{ padding: 16, paddingTop: marine ? insets.top + 20 : 16, paddingBottom: 24 }}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {loading && currentStep !== 4 && currentStep !== 5 ? (
+                        <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 80, gap: 12 }}>
+                            <ActivityIndicator size="large" color={couleurs.ocean800} />
+                            <Texte graisse="gras" couleur={couleurs.gris}>Chargement…</Texte>
+                        </View>
+                    ) : expiree ? (
+                        renderExpiree()
+                    ) : (
+                        <>
+                            {currentStep === 1 && renderStep1()}
+                            {currentStep === 2 && renderStep2()}
+                            {currentStep === 3 && renderStep3()}
+                            {currentStep === 4 && renderStep4()}
+                            {currentStep === 5 && renderStep5()}
+                            {currentStep === 6 && renderStep6()}
+                        </>
+                    )}
+                </ScrollView>
+
+                {/* Pied fixe */}
+                <View
+                    style={{
+                        backgroundColor: marine ? couleurs.ocean950 : couleurs.surface,
+                        borderTopWidth: marine ? 0 : 1,
+                        borderTopColor: couleurs.ligne,
+                        paddingHorizontal: 16,
+                        paddingTop: 12,
+                        paddingBottom: Math.max(insets.bottom, 12) + 8,
+                    }}
+                >
+                    {piedEtapes()}
+                </View>
+            </KeyboardAvoidingView>
+
+            {/* Reprendre une réservation interrompue */}
+            <FeuilleModale
+                visible={showResumeModal}
+                onClose={() => setShowResumeModal(false)}
+                titre="Reprendre votre réservation ?"
+                sousTitre="Elle a été interrompue (connexion ou fermeture de l'app)."
+                pied={
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <Bouton
+                            titre="Abandonner"
+                            variante="secondaire"
+                            style={{ flex: 1 }}
+                            onPress={async () => {
+                                // Libérer les sièges si la réservation avait été créée
+                                if (resumeData?.res_id) reservationService.annulerReservation(resumeData.res_id).catch(() => {});
+                                await clearPendingReservation();
+                                setShowResumeModal(false);
+                                setResumeData(null);
+                            }}
+                        />
+                        <Bouton
+                            titre="Reprendre"
+                            style={{ flex: 1 }}
+                            onPress={() => {
+                                if (!resumeData) return;
+                                const p = resumeData.payload;
+                                setShowResumeModal(false);
+                                if (!p.voyage) {
+                                    // Ancienne sauvegarde sans le voyage : impossible de reprendre proprement
+                                    clearPendingReservation();
+                                    alerte('Reprise impossible', 'Cette réservation ne peut pas être reprise. Recommencez depuis l\'accueil.', 'info');
+                                    return;
+                                }
+                                setSelectedVoyage(p.voyage);
+                                setSelectedSeats(p.sieges || []);
+                                setVoyageurs(p.voyageurs || []);
+                                if (resumeData.res_id) {
+                                    // Réservation déjà créée -> paiement (le délai vient du serveur)
+                                    setReservationResult({
+                                        res_id: resumeData.res_id,
+                                        date_limite_paiement: p.date_limite_paiement,
+                                        montant_total: p.montant_serveur,
+                                    });
+                                    setCurrentStep(5);
+                                } else if (!isOnline) {
+                                    pendingRetryRef.current = createInitialReservation;
+                                    setCurrentStep(4);
+                                    alerte('Hors connexion', 'Votre réservation sera envoyée dès le retour en ligne.', 'info');
+                                } else {
+                                    // Pas encore créée : on revient aux voyageurs pour valider
+                                    setCurrentStep(4);
+                                }
+                            }}
+                        />
+                    </View>
+                }
             >
-            <ScrollView className="flex-1 p-6" contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                {loading && (
-                    <View className="items-center justify-center py-20">
-                        <ActivityIndicator size="large" color="#1e3a8a" />
-                        <Text className="text-gray-500 mt-4 font-bold">Traitement en cours...</Text>
+                {resumeData?.payload?.voyageInfo && (
+                    <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
+                        <Carte style={{ gap: 4, backgroundColor: couleurs.fond }}>
+                            <Texte graisse="tresGras" taille={15}>
+                                {resumeData.payload.voyageInfo.depart || '—'} → {resumeData.payload.voyageInfo.arrivee || '—'}
+                            </Texte>
+                            {!!resumeData.payload.voyageInfo.compagnie && <Texte variante="legende">{resumeData.payload.voyageInfo.compagnie}</Texte>}
+                            {!!resumeData.payload.voyageInfo.date && <Texte variante="legende">{resumeData.payload.voyageInfo.date}</Texte>}
+                            <Texte graisse="gras" taille={13} couleur={couleurs.encreDouce}>
+                                {resumeData.payload.nb_voyageurs} voyageur{resumeData.payload.nb_voyageurs > 1 ? 's' : ''} · {formatAriary(resumeData.payload.montant_serveur ?? resumeData.payload.montant_total)} Ar
+                            </Texte>
+                        </Carte>
                     </View>
                 )}
-                {!loading && currentStep === 1 && renderStep1()}
-                {!loading && currentStep === 2 && renderStep2()}
-                {!loading && currentStep === 3 && renderStep3()}
-                {!loading && currentStep === 4 && renderStep4()}
-                {!loading && currentStep === 5 && renderStep5()}
-                {!loading && currentStep === 6 && renderStep6()}
-            </ScrollView>
-            </KeyboardAvoidingView>
-            {currentStep < 5 && (
-                <View className="px-6 pt-4 pb-8 bg-white border-t border-gray-100 flex-row" style={{ gap: 12 }}>
-                    <TouchableOpacity
-                        className="flex-1 py-4 rounded-2xl items-center border border-red-200 bg-red-50"
-                        onPress={handleCancelProcess}
-                        disabled={loading}
-                    >
-                        <Text className="text-red-600 font-bold text-lg">Annuler</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        className={`flex-[1.5] py-4 rounded-2xl items-center shadow-md ${((currentStep === 1 && (!proDepartId || !proArriveeId)) || (currentStep === 2 && !selectedVoyage) || (currentStep === 3 && selectedSeats.length === 0) || loading) ? 'bg-gray-300' : 'bg-blue-900'}`}
-                        onPress={handleNext}
-                        disabled={loading}
-                    >
-                        <Text className="text-white font-bold text-lg">
-                            {currentStep === 1 ? 'Rechercher' : 'Continuer'}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-
-            {currentStep === 5 && (
-                <View className="px-6 pt-4 pb-8 bg-white border-t border-gray-100">
-                    {selectedVoyage?.compagnie?.papi_actif === true ? (
-                        papiWaiting ? (
-                            <TouchableOpacity
-                                className={`py-4 rounded-2xl items-center shadow-md ${loading ? 'bg-gray-300' : 'bg-green-600'}`}
-                                onPress={handleVerifierPaiement}
-                                disabled={loading}
-                            >
-                                <Text className="text-white font-bold text-lg">{loading ? 'Vérification...' : 'Vérifier le paiement'}</Text>
-                            </TouchableOpacity>
-                        ) : (
-                            <TouchableOpacity
-                                className={`py-4 rounded-2xl items-center shadow-md ${loading ? 'bg-gray-300' : 'bg-blue-900'}`}
-                                onPress={handlePayerEnLigne}
-                                disabled={loading}
-                            >
-                                <Text className="text-white font-bold text-lg">Payer en ligne</Text>
-                            </TouchableOpacity>
-                        )
-                    ) : (
-                        <TouchableOpacity
-                            className={`py-4 rounded-2xl items-center shadow-md ${(!paymentMode || loading) ? 'bg-gray-300' : 'bg-blue-900'}`}
-                            onPress={confirmPayment}
-                            disabled={!paymentMode || loading}
-                        >
-                            <Text className="text-white font-bold text-lg">Procéder au paiement</Text>
-                        </TouchableOpacity>
-                    )}
-                </View>
-            )}
-
-            {/* Modale "Reprendre votre réservation" — si une session a été interrompue */}
-            <Modal visible={showResumeModal} transparent animationType="fade" onRequestClose={() => setShowResumeModal(false)}>
-                <View className="flex-1 justify-center items-center bg-black/50 px-6">
-                    <View className="bg-white rounded-3xl w-full p-6">
-                        <View className="items-center mb-3">
-                            <View className="bg-blue-100 p-3 rounded-full mb-2">
-                                <Ionicons name="time-outline" size={28} color="#1e3a8a" />
-                            </View>
-                            <Text className="text-lg font-bold text-blue-900">Reprendre votre réservation ?</Text>
-                            <Text className="text-xs text-gray-500 text-center mt-1">
-                                Une réservation a été interrompue (connexion ou fermeture de l&apos;app).
-                            </Text>
-                        </View>
-                        {resumeData?.payload?.voyageInfo && (
-                            <View className="bg-gray-50 rounded-2xl p-3 mb-4">
-                                <Text className="text-sm font-bold text-gray-800">
-                                    {resumeData.payload.voyageInfo.depart} → {resumeData.payload.voyageInfo.arrivee}
-                                </Text>
-                                {resumeData.payload.voyageInfo.compagnie && (
-                                    <Text className="text-xs text-gray-500 mt-0.5">{resumeData.payload.voyageInfo.compagnie}</Text>
-                                )}
-                                <Text className="text-xs text-gray-600 mt-1">
-                                    {resumeData.payload.nb_voyageurs} voyageur(s) • {new Intl.NumberFormat('fr-FR').format(resumeData.payload.montant_total)} Ar
-                                </Text>
-                            </View>
-                        )}
-                        <View className="flex-row gap-2">
-                            <TouchableOpacity
-                                className="flex-1 py-3 rounded-2xl border border-gray-200 items-center"
-                                onPress={async () => {
-                                    await clearPendingReservation();
-                                    setShowResumeModal(false);
-                                    setResumeData(null);
-                                }}
-                            >
-                                <Text className="text-gray-600 font-semibold text-sm">Abandonner</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                className="flex-1 py-3 rounded-2xl bg-blue-900 items-center"
-                                onPress={async () => {
-                                    if (!resumeData) return;
-                                    setShowResumeModal(false);
-                                    // Restaurer l'état local minimal nécessaire
-                                    setSelectedSeats(resumeData.payload.sieges || []);
-                                    setVoyageurs(resumeData.payload.voyageurs || []);
-                                    if (resumeData.res_id) {
-                                        // Réservation déjà créée → retour à l'étape paiement
-                                        setReservationResult({ res_id: resumeData.res_id });
-                                        setCurrentStep(5);
-                                    } else {
-                                        // Pas encore créée → relancer la création
-                                        if (!isOnline) {
-                                            pendingRetryRef.current = createInitialReservation;
-                                            Alert.alert('Hors-ligne', 'Votre réservation sera envoyée dès le retour en ligne.');
-                                        } else {
-                                            createInitialReservation();
-                                        }
-                                    }
-                                }}
-                            >
-                                <Text className="text-white font-bold text-sm">Reprendre</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
-        </SafeAreaView>
+            </FeuilleModale>
+        </View>
     );
 }
