@@ -1,49 +1,48 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Dimensions, Image, RefreshControl } from 'react-native';
+import { View, ScrollView, Image, RefreshControl, Pressable, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { accueilService } from '@/app/services/accueil/accueilService';
-import { provinceService } from '@/app/services/provinces/provinceService';
-import { PlacesBadge } from '@/app/components/common/PlacesBadge';
-import CategorieBadge, { categorieCardBg } from '@/app/components/common/CategorieBadge';
 import { Skeleton } from '@/app/components/common/Skeleton';
 import RechercheFilterModal from '@/app/components/modals/recherche/RechercheFilterModal';
 import DestinationSearchModal from '@/app/components/modals/recherche/DestinationSearchModal';
-import { DashboardHeader } from '@/app/components/dashboard/DashboardHeader';
-import { SideMenu } from '@/app/components/dashboard/SideMenu';
 import { useNotifications } from '@/app/hooks/useNotifications';
 import { useUser } from '@/app/hooks/useUser';
+import { Bouton, BoutonIcone, Carte, Pastille, Texte } from '@/app/components/ui';
+import { couleurs, formatAriary } from '@/app/theme/ocean';
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.7;
+/** Initiales d'un nom de compagnie : « Mahery Trans » -> « MT ». */
+function initiales(nom?: string) {
+  return (nom || '?')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((m) => m[0]!.toUpperCase())
+    .join('');
+}
 
-const QUICK_ACTIONS = [
-  { label: 'Rechercher', icon: 'search', colors: ['#1e40af', '#3b82f6'] as [string, string] },
-  { label: 'Réserver', icon: 'ticket', colors: ['#059669', '#10b981'] as [string, string] },
-  { label: 'Compagnies', icon: 'business', colors: ['#7c3aed', '#8b5cf6'] as [string, string] },
-  { label: 'Historique', icon: 'time', colors: ['#ea580c', '#f97316'] as [string, string] },
-];
+/** Nom d'une province, qu'elle soit renvoyée en objet ou en texte. */
+function nomProvince(p: any, defaut: string) {
+  return (typeof p === 'object' ? p?.nom : p) || defaut;
+}
 
-const MENU_ITEMS = [
-  { label: 'Voyages', icon: 'map-outline' },
-  { label: 'Trajet', icon: 'trail-sign-outline' },
-  { label: 'Facture', icon: 'document-text-outline' },
-  { label: 'Paramètre', icon: 'settings-outline' },
-];
+/** Pastille de places restantes. */
+function PastillePlaces({ places, complet }: { places?: number; complet?: boolean }) {
+  if (complet || places === 0) return <Pastille libelle="Complet" tonalite="neutre" />;
+  if (places === undefined || places === null) return null;
+  return <Pastille libelle={`${places} place${places > 1 ? 's' : ''}`} tonalite={places <= 3 ? 'alerte' : 'info'} />;
+}
 
 export default function AccueilScreen() {
   const router = useRouter();
   const { user } = useUser();
-  const [menuVisible, setMenuVisible] = useState(false);
   const [compagnies, setCompagnies] = useState<any[]>([]);
   const [voyages, setVoyages] = useState<any[]>([]);
   const [loadingCompagnies, setLoadingCompagnies] = useState(true);
   const [loadingVoyages, setLoadingVoyages] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [provinces, setProvinces] = useState<any[]>([]);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [showDestinationModal, setShowDestinationModal] = useState(false);
@@ -53,6 +52,7 @@ export default function AccueilScreen() {
   const params = useLocalSearchParams();
   const { unreadCount } = useNotifications();
 
+  // L'onglet « Recherche » ouvre la recherche détaillée sur cet écran
   useEffect(() => {
     if (params.openSearch) {
       setShowSearchModal(true);
@@ -80,25 +80,11 @@ export default function AccueilScreen() {
       }
 
       // Appel unifié /api/accueil avec géolocalisation
-      const [accueilResp, provResp] = await Promise.allSettled([
-        accueilService.getDonneesAccueil(locationRef.current?.lat, locationRef.current?.lng),
-        provinceService.listerProvinces()
-      ]);
-
-      if (accueilResp.status === 'fulfilled') {
-        const resp = accueilResp.value;
-        if (resp && resp.statut && resp.data) {
-          setCompagnies(resp.data.compagnies || []);
-          setVoyages(resp.data.voyages || []);
-          setProvinceDetectee(resp.data.province_detectee?.nom || null);
-        }
-      }
-
-      if (provResp.status === 'fulfilled') {
-        const resp = provResp.value;
-        if (resp && 'statut' in resp && resp.statut !== false) {
-          setProvinces((resp as any).data?.provinces || []);
-        }
+      const resp = await accueilService.getDonneesAccueil(locationRef.current?.lat, locationRef.current?.lng);
+      if (resp && resp.statut && resp.data) {
+        setCompagnies(resp.data.compagnies || []);
+        setVoyages(resp.data.voyages || []);
+        setProvinceDetectee(resp.data.province_detectee?.nom || null);
       }
     } catch (e) {
       console.error('Fetch data error:', e);
@@ -119,392 +105,289 @@ export default function AccueilScreen() {
     setRefreshing(false);
   };
 
-  const handleQuickAction = (label: string) => {
-    switch (label) {
-      case 'Rechercher':
-        setShowSearchModal(true);
-        break;
-      case 'Compagnies':
-        router.push('/screens/dashboard/utilisateur/(tabs)/compagnie');
-        break;
-      case 'Réserver':
-        setShowSearchModal(true);
-        break;
-      case 'Historique':
-        router.push('/screens/dashboard/utilisateur/(tabs)/reservation');
-        break;
-    }
-  };
+  const reserver = (voyage: any) =>
+    router.push({
+      pathname: '/screens/dashboard/utilisateur/reservations/reserver',
+      params: { voyageData: JSON.stringify(voyage) },
+    });
+
+  const ouvrirCompagnie = (id: any) =>
+    router.push({
+      pathname: '/screens/dashboard/utilisateur/compagnieDetail/[id]',
+      params: { id },
+    });
 
   return (
-    <View className="flex-1 bg-slate-50">
-      {/* Header */}
-      <DashboardHeader
-        user={user}
-        insets={insets}
-        onMenuPress={() => setMenuVisible(true)}
-        onFilterPress={() => setShowSearchModal(true)}
-        onSearchPress={() => setShowDestinationModal(true)}
-        notificationCount={unreadCount}
-      />
+    <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
+      <StatusBar barStyle="light-content" backgroundColor={couleurs.ocean950} />
 
-      {/* Scrollable Content */}
       <ScrollView
         showsVerticalScrollIndicator={false}
-        className="flex-1"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={couleurs.ocean800}
+            colors={[couleurs.ocean800]}
+            progressViewOffset={insets.top}
+          />
+        }
       >
-        {/* Quick Actions */}
-        {!isSearchMode && (
-          <View className="px-5 mt-6 mb-2">
-            <View className="flex-row justify-between">
-              {QUICK_ACTIONS.map((action) => (
-                <TouchableOpacity
-                  key={action.label}
-                  className="items-center"
-                  onPress={() => handleQuickAction(action.label)}
-                  activeOpacity={0.7}
-                  style={{ width: (width - 40) / 4 }}
-                >
-                  <View className="rounded-2xl overflow-hidden mb-2" style={{ elevation: 3 }}>
-                    <LinearGradient colors={action.colors} className="p-3.5">
-                      <Ionicons name={action.icon as any} size={24} color="#fff" />
-                    </LinearGradient>
-                  </View>
-                  <Text className="text-slate-600 text-xs font-medium text-center">{action.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+        {/* En-tête marine */}
+        <View
+          style={{
+            backgroundColor: couleurs.ocean950,
+            paddingTop: insets.top + 12,
+            paddingHorizontal: 20,
+            paddingBottom: 92,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Texte graisse="moyen" taille={13} couleur={couleurs.texteSurMarine} numberOfLines={1}>
+              {user?.prenom ? `Salama, ${user.prenom}` : 'Salama'}
+            </Texte>
+            <Texte variante="titre" taille={22} couleur="#FFFFFF">Où allez-vous ?</Texte>
           </View>
-        )}
-
-        {/* Search Results Banner */}
-        {isSearchMode && (
-          <View className="px-5 mt-4 mb-2">
-            <View className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex-row items-center justify-between">
-              <View className="flex-row items-center flex-1">
-                <View className="bg-blue-100 rounded-full p-2 mr-3">
-                  <Ionicons name="search" size={18} color="#2563eb" />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-blue-800 font-bold text-sm">Résultats de recherche</Text>
-                  <Text className="text-blue-500 text-xs mt-0.5">{voyages.length} voyage{voyages.length !== 1 ? 's' : ''} trouvé{voyages.length !== 1 ? 's' : ''}</Text>
-                </View>
-              </View>
-              <View className="flex-row items-center">
-                <TouchableOpacity
-                  className="mr-2"
-                  onPress={() => setShowSearchModal(true)}
-                  activeOpacity={0.7}
-                >
-                  <View className="bg-blue-100 rounded-xl px-3 py-2 flex-row items-center">
-                    <Ionicons name="options-outline" size={14} color="#2563eb" />
-                    <Text className="text-blue-700 text-xs font-semibold ml-1">Modifier</Text>
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => {
-                    setIsSearchMode(false);
-                    fetchData();
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View className="bg-slate-100 rounded-xl p-2">
-                    <Ionicons name="close" size={16} color="#64748b" />
-                  </View>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Compagnies Section */}
-        {!isSearchMode && (
-        <View className="mt-6 mb-2">
-          <View className="flex-row justify-between items-center px-5 mb-4">
-            <View>
-              <Text className="text-slate-800 text-xl font-bold">Compagnies</Text>
-              <Text className="text-slate-400 text-xs mt-0.5">Parcourez les compagnies de taxi brousse</Text>
-            </View>
-            <TouchableOpacity
-              className="flex-row items-center"
-              onPress={() => router.push('/screens/dashboard/utilisateur/(tabs)/compagnie')}
-            >
-              <Text className="text-blue-600 font-semibold text-sm mr-1">Voir tout</Text>
-              <Ionicons name="chevron-forward" size={16} color="#2563eb" />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 20 }}
-          >
-            {loadingCompagnies ? (
-              <View className="flex-row">
-                {[1, 2, 3].map((i) => (
-                  <View key={i} className="bg-white rounded-2xl mr-4 overflow-hidden" style={{ width: CARD_WIDTH, elevation: 2 }}>
-                    <Skeleton width="100%" height={128} borderRadius={0} />
-                    <View className="p-4">
-                      <Skeleton width="70%" height={16} />
-                      <Skeleton width="45%" height={12} style={{ marginTop: 8 }} />
-                      <Skeleton width="100%" height={38} borderRadius={12} style={{ marginTop: 12 }} />
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : compagnies.length > 0 ? (
-              compagnies.map((compagnie) => (
-                <TouchableOpacity
-                  key={compagnie.id}
-                  onPress={() => router.push({
-                    pathname: '/screens/dashboard/utilisateur/compagnieDetail/[id]',
-                    params: { id: compagnie.id }
-                  })}
-                  className="bg-white rounded-2xl mr-4 overflow-hidden"
-                  style={{ width: CARD_WIDTH, elevation: 3 }}
-                  activeOpacity={0.8}
-                >
-                  {/* Company image/logo area */}
-                  <View className="w-full h-32 overflow-hidden">
-                    {compagnie.logo ? (
-                      <Image
-                        source={{ uri: compagnie.logo }}
-                        className="w-full h-full"
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <LinearGradient
-                        colors={['#e0e7ff', '#c7d2fe']}
-                        className="w-full h-full items-center justify-center"
-                      >
-                        <View className="bg-white rounded-2xl p-4" style={{ elevation: 2 }}>
-                          <Ionicons name="business" size={36} color="#3b82f6" />
-                        </View>
-                      </LinearGradient>
-                    )}
-                  </View>
-
-                  <View className="p-4">
-                    <Text className="text-slate-800 font-bold text-base" numberOfLines={1}>
-                      {compagnie.nom}
-                    </Text>
-                    {compagnie.localisation && (
-                      <View className="flex-row items-center mt-1">
-                        <Ionicons name="location-outline" size={13} color="#94a3b8" />
-                        <Text className="text-slate-400 text-xs ml-1" numberOfLines={1}>
-                          {compagnie.localisation.nom}
-                        </Text>
-                      </View>
-                    )}
-                    <View className="mt-3">
-                      <View className="rounded-xl overflow-hidden">
-                        <LinearGradient
-                          colors={['#1e40af', '#3b82f6']}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 0 }}
-                          className="py-2.5 items-center"
-                        >
-                          <Text className="text-white font-semibold text-sm">Voir les détails</Text>
-                        </LinearGradient>
-                      </View>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))
-            ) : (
-              <View className="bg-white rounded-2xl p-8 items-center" style={{ width: width - 40, elevation: 2 }}>
-                <View className="bg-slate-100 rounded-full p-4 mb-3">
-                  <Ionicons name="business-outline" size={32} color="#94a3b8" />
-                </View>
-                <Text className="text-slate-400 text-sm">Aucune compagnie disponible</Text>
-              </View>
-            )}
-          </ScrollView>
+          <BoutonIcone
+            icone="notifications-outline"
+            libelle="Notifications"
+            variante="marine"
+            compteur={unreadCount}
+            onPress={() => router.push('/screens/notifications/notificationsScreen')}
+          />
         </View>
+
+        {/* Carte de recherche (chevauche l'en-tête) */}
+        <Carte enRelief padding={0} style={{ marginHorizontal: 16, marginTop: -76 }}>
+          <Pressable
+            onPress={() => setShowDestinationModal(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Choisir le départ et l'arrivée"
+            style={{ paddingHorizontal: 16, paddingTop: 6 }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: couleurs.separateur }}>
+              <View style={{ width: 12, height: 12, borderRadius: 6, borderWidth: 3, borderColor: couleurs.ocean800 }} />
+              <View style={{ flex: 1 }}>
+                <Texte variante="legende" taille={11.5}>Départ</Texte>
+                <Texte graisse="tresGras" taille={16} couleur={provinceDetectee ? couleurs.encre : '#8A99AD'} numberOfLines={1}>
+                  {provinceDetectee || "D'où partez-vous ?"}
+                </Texte>
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11 }}>
+              <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: couleurs.ocean800 }} />
+              <View style={{ flex: 1 }}>
+                <Texte variante="legende" taille={11.5}>Arrivée</Texte>
+                <Texte graisse="tresGras" taille={16} couleur="#8A99AD">Choisir une destination</Texte>
+              </View>
+            </View>
+          </Pressable>
+
+          <View style={{ paddingHorizontal: 16, paddingBottom: 16, gap: 10 }}>
+            <Pressable
+              onPress={() => setShowSearchModal(true)}
+              accessibilityRole="button"
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, paddingHorizontal: 12, borderRadius: 12, backgroundColor: couleurs.fond }}
+            >
+              <Ionicons name="options-outline" size={18} color={couleurs.ocean800} />
+              <Texte graisse="gras" taille={13.5} style={{ flex: 1 }}>Dates et filtres</Texte>
+              <Ionicons name="chevron-forward" size={16} color={couleurs.grisClair} />
+            </Pressable>
+            <Bouton titre="Rechercher" icone="search" onPress={() => setShowDestinationModal(true)} />
+          </View>
+        </Carte>
+
+        {/* Bandeau des résultats de recherche */}
+        {isSearchMode && (
+          <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
+            <Carte padding={12} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: couleurs.ocean50, borderColor: couleurs.ocean100 }}>
+              <Ionicons name="search" size={20} color={couleurs.ocean800} />
+              <View style={{ flex: 1 }}>
+                <Texte graisse="tresGras" taille={14} couleur={couleurs.ocean950}>Résultats de recherche</Texte>
+                <Texte variante="legende">{voyages.length} voyage{voyages.length !== 1 ? 's' : ''} trouvé{voyages.length !== 1 ? 's' : ''}</Texte>
+              </View>
+              <Bouton titre="Modifier" variante="secondaire" compact onPress={() => setShowSearchModal(true)} style={{ minHeight: 40, paddingHorizontal: 12 }} />
+              <BoutonIcone
+                icone="close"
+                libelle="Effacer la recherche"
+                onPress={() => {
+                  setIsSearchMode(false);
+                  fetchData();
+                }}
+              />
+            </Carte>
+          </View>
         )}
 
-        {/* Voyages à venir Section */}
-        <View className="px-5 mt-6 mb-4">
-          <View className="flex-row justify-between items-center mb-4">
-            <View>
-              <Text className="text-slate-800 text-xl font-bold">
-                {isSearchMode ? 'Voyages trouvés' : 'Voyages à venir'}
-              </Text>
-              <Text className="text-slate-400 text-xs mt-0.5">
-                {isSearchMode ? `${voyages.length} résultat${voyages.length !== 1 ? 's' : ''}` : 'Prochains départs disponibles'}
-              </Text>
+        {/* Compagnies */}
+        {!isSearchMode && (
+          <View style={{ marginTop: 22, gap: 12 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 18 }}>
+              <Texte variante="sousTitre" taille={16}>Compagnies</Texte>
+              <Pressable onPress={() => router.push('/screens/dashboard/utilisateur/(tabs)/compagnie')} hitSlop={10} accessibilityRole="link">
+                <Texte graisse="gras" taille={13} couleur={couleurs.ocean800}>Voir tout</Texte>
+              </Pressable>
             </View>
-            {!isSearchMode && (
-              <TouchableOpacity className="flex-row items-center">
-                <Text className="text-blue-600 font-semibold text-sm mr-1">Voir tout</Text>
-                <Ionicons name="chevron-forward" size={16} color="#2563eb" />
-              </TouchableOpacity>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
+              {loadingCompagnies ? (
+                [1, 2, 3, 4].map((i) => (
+                  <View key={i} style={{ width: 78, alignItems: 'center', gap: 6 }}>
+                    <Skeleton width={58} height={58} borderRadius={18} />
+                    <Skeleton width={56} height={10} />
+                  </View>
+                ))
+              ) : compagnies.length > 0 ? (
+                compagnies.map((compagnie) => (
+                  <Pressable
+                    key={compagnie.id}
+                    onPress={() => ouvrirCompagnie(compagnie.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Compagnie ${compagnie.nom}`}
+                    style={{ width: 78, alignItems: 'center', gap: 6 }}
+                  >
+                    <View
+                      style={{
+                        width: 58,
+                        height: 58,
+                        borderRadius: 18,
+                        backgroundColor: couleurs.surface,
+                        borderWidth: 1,
+                        borderColor: couleurs.ligne,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {compagnie.logo ? (
+                        <Image source={{ uri: compagnie.logo }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                      ) : (
+                        <Texte graisse="tresGras" taille={16} couleur={couleurs.ocean950}>{initiales(compagnie.nom)}</Texte>
+                      )}
+                    </View>
+                    <Texte graisse="gras" taille={11.5} centre numberOfLines={1} style={{ maxWidth: 78 }}>
+                      {compagnie.nom}
+                    </Texte>
+                  </Pressable>
+                ))
+              ) : (
+                <Texte variante="legende" style={{ paddingVertical: 12 }}>Aucune compagnie disponible pour le moment.</Texte>
+              )}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Voyages */}
+        <View style={{ paddingHorizontal: 16, marginTop: 22, gap: 10 }}>
+          <View style={{ paddingHorizontal: 2 }}>
+            <Texte variante="sousTitre" taille={16}>
+              {isSearchMode ? 'Voyages trouvés' : provinceDetectee ? 'Départs près de chez vous' : 'Prochains départs'}
+            </Texte>
+            {!isSearchMode && !!provinceDetectee && (
+              <Texte variante="legende">Depuis {provinceDetectee} en priorité</Texte>
             )}
           </View>
 
           {loadingVoyages ? (
-            <View>
-              {[1, 2, 3].map((i) => (
-                <View key={i} className="bg-white rounded-2xl mb-4 overflow-hidden" style={{ elevation: 3 }}>
-                  <Skeleton width="100%" height={3} borderRadius={0} />
-                  <View className="p-4">
-                    {/* En-tête : compagnie + prix */}
-                    <View className="flex-row items-center justify-between mb-3">
-                      <View className="flex-1 mr-3">
-                        <Skeleton width="60%" height={18} />
-                        <Skeleton width="40%" height={12} style={{ marginTop: 8 }} />
-                      </View>
-                      <Skeleton width={70} height={32} borderRadius={12} />
-                    </View>
-                    {/* Ligne trajet */}
-                    <Skeleton width="80%" height={14} style={{ marginBottom: 12 }} />
-                    {/* Pied : badges */}
-                    <View className="flex-row items-center pt-3 border-t border-slate-100">
-                      <Skeleton width={90} height={28} borderRadius={10} style={{ marginRight: 8 }} />
-                      <Skeleton width={70} height={28} borderRadius={10} style={{ marginRight: 8 }} />
-                      <Skeleton width={60} height={28} borderRadius={10} />
-                    </View>
-                  </View>
+            [1, 2, 3].map((i) => (
+              <Carte key={i} style={{ gap: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Skeleton width={34} height={34} borderRadius={10} />
+                  <Skeleton width="50%" height={14} />
                 </View>
-              ))}
-            </View>
-          ) : voyages.length > 0 ? (
-            voyages.map((voyage) => (
-              <TouchableOpacity
-                key={voyage.voyage_id}
-                className={`${categorieCardBg((voyage as any).categorie || voyage.trajet?.categorie)} rounded-2xl mb-4 overflow-hidden`}
-                style={{ elevation: 3 }}
-                activeOpacity={0.8}
-                onPress={() => router.push({
-                  pathname: '/screens/dashboard/utilisateur/compagnieDetail/[id]',
-                  params: { id: voyage.compagnie?.id }
-                })}
-              >
-                {/* Top accent bar */}
-                <LinearGradient
-                  colors={['#1e40af', '#3b82f6', '#60a5fa']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={{ height: 3 }}
-                />
-
-                {/* Company logo/photo banner */}
-                <View className="w-full overflow-hidden" style={{ height: 100 }}>
-                  {voyage.compagnie?.logo ? (
-                    <Image source={{ uri: voyage.compagnie.logo }} className="w-full h-full" resizeMode="cover" />
-                  ) : (
-                    <LinearGradient
-                      colors={['#0f172a', '#1e3a8a', '#2563eb']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      className="w-full h-full items-center justify-center"
-                    >
-                      <View className="bg-white/15 rounded-full p-3">
-                        <Ionicons name="bus" size={32} color="#fff" />
-                      </View>
-                    </LinearGradient>
-                  )}
-                </View>
-
-                <View className="p-4">
-                  {/* Company name + price */}
-                  <View className="flex-row items-center justify-between mb-3">
-                    <View className="flex-1 mr-3">
-                      <View className="flex-row items-center flex-wrap">
-                        <Text className="text-slate-900 font-extrabold text-lg mr-2" numberOfLines={1}>{voyage.compagnie?.nom || 'Compagnie'}</Text>
-                        <CategorieBadge categorie={(voyage as any).categorie || voyage.trajet?.categorie} />
-                      </View>
-                      <Text className="text-slate-600 text-sm font-medium mt-0.5" numberOfLines={1}>{voyage.trajet?.nom || 'Trajet'}</Text>
-                    </View>
-                    {/* Price tag */}
-                    <View className="rounded-xl overflow-hidden">
-                      <LinearGradient colors={['#eff6ff', '#dbeafe']} className="px-3 py-2 items-center">
-                        <Text className="text-blue-700 font-bold text-sm">
-                          {typeof voyage.trajet?.tarif === 'number'
-                            ? voyage.trajet.tarif.toLocaleString('fr-FR')
-                            : voyage.trajet?.tarif} Ar
-                        </Text>
-                      </LinearGradient>
-                    </View>
-                  </View>
-
-                  {/* Route visualization */}
-                  <View className="flex-row items-center mb-3 ml-1">
-                    <View className="items-center mr-3">
-                      <View className="bg-blue-500 rounded-full w-3 h-3" />
-                      <View className="bg-blue-200 w-0.5 h-5 my-0.5" />
-                      <View className="bg-emerald-500 rounded-full w-3 h-3" />
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-slate-900 text-base font-semibold">{typeof voyage.trajet?.province_depart === 'object' ? voyage.trajet.province_depart?.nom : voyage.trajet?.province_depart || 'Départ'}</Text>
-                      <View className="flex-row items-center my-1">
-                        <Ionicons name="swap-vertical-outline" size={14} color="#64748b" />
-                        <Text className="text-slate-600 text-sm ml-1">{voyage.trajet?.distance_km || '?'} km • {voyage.trajet?.duree || ''}</Text>
-                      </View>
-                      <Text className="text-slate-900 text-base font-semibold">{typeof voyage.trajet?.province_arrivee === 'object' ? voyage.trajet.province_arrivee?.nom : voyage.trajet?.province_arrivee || 'Arrivée'}</Text>
-                    </View>
-                  </View>
-
-                  {/* Info badges */}
-                  <View className="pt-3 border-t border-slate-100">
-                    <View className="flex-row items-center flex-wrap">
-                      <View className="bg-slate-100 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-2">
-                        <Ionicons name="calendar-outline" size={15} color="#334155" />
-                        <Text className="text-slate-800 text-sm font-semibold ml-1">{voyage.date || '-'}</Text>
-                      </View>
-                      <View className="bg-slate-100 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-2">
-                        <Ionicons name="time-outline" size={15} color="#334155" />
-                        <Text className="text-slate-800 text-sm font-semibold ml-1">{voyage.heure_depart || '-'}</Text>
-                      </View>
-                      <View className="mb-2">
-                        <PlacesBadge
-                          places={voyage.places_disponibles ?? voyage.places_disponibles_restantes}
-                          estComplet={voyage.est_complet}
-                          size="md"
-                        />
-                      </View>
-                    </View>
-
-                    {/* Reserve button (full width) */}
-                    <TouchableOpacity activeOpacity={0.8} onPress={(e) => {
-                      e.stopPropagation();
-                      router.push({
-                        pathname: '/screens/dashboard/utilisateur/reservations/reserver',
-                        params: { voyageData: JSON.stringify(voyage) }
-                      });
-                    }}>
-                      <View className="rounded-xl overflow-hidden mt-1">
-                        <LinearGradient
-                          colors={['#1e40af', '#3b82f6']}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 0 }}
-                          className="py-3 flex-row items-center justify-center"
-                        >
-                          <Ionicons name="ticket-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
-                          <Text className="text-white text-base font-bold">Réserver</Text>
-                        </LinearGradient>
-                      </View>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </TouchableOpacity>
+                <Skeleton width="85%" height={18} />
+                <Skeleton width="40%" height={12} />
+              </Carte>
             ))
+          ) : voyages.length > 0 ? (
+            voyages.map((voyage) => {
+              const categorie = String(voyage.categorie || voyage.trajet?.categorie || '').toLowerCase();
+              const complet = voyage.est_complet || voyage.places_disponibles === 0;
+              const depart = nomProvince(voyage.trajet?.province_depart, 'Départ');
+              const arrivee = nomProvince(voyage.trajet?.province_arrivee, 'Arrivée');
+              return (
+                <Carte
+                  key={voyage.voyage_id}
+                  onPress={complet ? undefined : () => reserver(voyage)}
+                  accessibilityLabel={`${voyage.compagnie?.nom || 'Compagnie'}, ${depart} vers ${arrivee}, ${voyage.date || ''} à ${voyage.heure_depart || ''}`}
+                  style={{ gap: 10, opacity: complet ? 0.6 : 1 }}
+                >
+                  {/* Compagnie + places */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: couleurs.ocean950, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                      {voyage.compagnie?.logo ? (
+                        <Image source={{ uri: voyage.compagnie.logo }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                      ) : (
+                        <Texte graisse="tresGras" taille={12} couleur="#FFFFFF">{initiales(voyage.compagnie?.nom)}</Texte>
+                      )}
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Texte graisse="tresGras" taille={14} numberOfLines={1}>{voyage.compagnie?.nom || 'Compagnie'}</Texte>
+                      <Texte variante="legende" numberOfLines={1}>
+                        {voyage.type === 'nuit' ? 'Nuit' : 'Jour'}
+                        {voyage.trajet?.distance_km ? ` · ${voyage.trajet.distance_km} km` : ''}
+                        {voyage.trajet?.duree ? ` · ${voyage.trajet.duree}` : ''}
+                      </Texte>
+                    </View>
+                    {(categorie === 'vip' || categorie === 'premium') && (
+                      <Pastille libelle={categorie === 'vip' ? 'VIP' : 'Premium'} tonalite="marine" point={false} />
+                    )}
+                    <PastillePlaces places={voyage.places_disponibles ?? voyage.places_disponibles_restantes} complet={voyage.est_complet} />
+                  </View>
+
+                  {/* Trajet */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Texte graisse="tresGras" taille={16} numberOfLines={1}>{depart}</Texte>
+                    </View>
+                    <Ionicons name="arrow-forward" size={16} color={couleurs.grisClair} />
+                    <View style={{ flex: 1, minWidth: 0, alignItems: 'flex-end' }}>
+                      <Texte graisse="tresGras" taille={16} numberOfLines={1}>{arrivee}</Texte>
+                    </View>
+                  </View>
+
+                  {/* Date + prix */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, borderTopWidth: 1, borderTopColor: couleurs.separateur }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Ionicons name="calendar-outline" size={15} color={couleurs.gris} />
+                      <Texte graisse="gras" taille={13} couleur={couleurs.encreDouce}>
+                        {voyage.date || '—'} · {voyage.heure_depart || '—'}
+                      </Texte>
+                    </View>
+                    <Texte variante="montant" couleur={couleurs.ocean800}>
+                      {typeof voyage.trajet?.tarif === 'number' ? formatAriary(voyage.trajet.tarif) : voyage.trajet?.tarif ?? '—'}
+                      <Texte graisse="gras" taille={12} couleur={couleurs.gris}> Ar</Texte>
+                    </Texte>
+                  </View>
+                </Carte>
+              );
+            })
           ) : (
-            <View className="bg-white rounded-2xl p-10 items-center" style={{ elevation: 2 }}>
-              <View className="bg-slate-100 rounded-full p-5 mb-3">
-                <Ionicons name="navigate-outline" size={36} color="#94a3b8" />
+            <Carte style={{ alignItems: 'center', paddingVertical: 28, gap: 8 }}>
+              <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: couleurs.ocean50, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="bus-outline" size={30} color={couleurs.ocean800} />
               </View>
-              <Text className="text-slate-800 font-bold text-base">Aucun voyage disponible</Text>
-              <Text className="text-slate-400 text-sm mt-1 text-center">Essayez de rechercher avec des filtres différents</Text>
-            </View>
+              <Texte graisse="tresGras" taille={15} centre>
+                {isSearchMode ? 'Aucun voyage trouvé' : 'Aucun départ pour le moment'}
+              </Texte>
+              <Texte variante="legende" centre style={{ maxWidth: 260 }}>
+                {isSearchMode ? 'Essayez une autre date ou une autre destination.' : 'Tirez vers le bas pour actualiser.'}
+              </Texte>
+              {isSearchMode && (
+                <Bouton titre="Modifier la recherche" variante="secondaire" compact onPress={() => setShowSearchModal(true)} style={{ marginTop: 6 }} />
+              )}
+            </Carte>
           )}
         </View>
-
-        <View className="h-24" />
       </ScrollView>
 
-      {/* Destination Search Modal */}
+      {/* Recherche rapide (départ / arrivée) */}
       <DestinationSearchModal
         visible={showDestinationModal}
         onClose={() => setShowDestinationModal(false)}
@@ -514,7 +397,7 @@ export default function AccueilScreen() {
         }}
       />
 
-      {/* Advanced Search Modal */}
+      {/* Recherche détaillée (dates, filtres) */}
       <RechercheFilterModal
         visible={showSearchModal}
         onClose={() => setShowSearchModal(false)}
@@ -523,13 +406,6 @@ export default function AccueilScreen() {
           setIsSearchMode(true);
         }}
         setLoading={(loading) => setLoadingVoyages(loading)}
-      />
-
-      {/* Side Menu Overlay */}
-      <SideMenu
-        visible={menuVisible}
-        onClose={() => setMenuVisible(false)}
-        items={MENU_ITEMS}
       />
     </View>
   );

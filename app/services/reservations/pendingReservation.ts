@@ -16,6 +16,12 @@ export interface PendingReservationPayload {
         date?: string;
         compagnie?: string;
     };
+    /** Voyage complet : nécessaire pour reprendre (compagnie, modes de paiement, tarif). */
+    voyage?: any;
+    /** Heure limite de paiement renvoyée par l'API (ISO 8601). */
+    date_limite_paiement?: string;
+    /** Montant calculé par l'API (fait foi). */
+    montant_serveur?: number;
 }
 
 export interface PendingReservation {

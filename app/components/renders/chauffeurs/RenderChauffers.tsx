@@ -1,274 +1,135 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  RefreshControl,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
-} from 'react-native';
-import { chauffeurService } from '../../../services';
-import { Chauffeur } from '../../../types/chauffeur';
-import { useConfirmDialog } from '../../common/ConfirmDialog';
-import { ChauffeurDetailModal } from '../../modals/chauffeurs/ChauffeurDetailModal';
-import { ChauffeurFormModal } from '../../modals/chauffeurs/ChauffeurFormModal';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
+import { Linking, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { chauffeurService, voitureService } from '../../../services';
+import { couleurs } from '../../../theme/ocean';
+import { Skeleton } from '../../common/Skeleton';
+import { BoutonIcone, Carte, EnTete, Pastille, Puce, Texte } from '../../ui';
+import { FormulaireChauffeur } from '../../flotte/FormulaireChauffeur';
+import { BoutonAjout, initiales, Recherche } from '../../flotte/communs';
 
-interface RenderChauffeursProps {
-  onAddPress?: () => void;
-  onEditPress?: (chauffeur: Chauffeur) => void;
+type Filtre = 'tous' | 'actifs' | 'inactifs';
+
+/** Ligne d'un chauffeur : avatar, nom, statut, véhicule, permis, téléphone, appel. */
+function LigneChauffeur({ c, vehicule, premiere, onPress }: { c: any; vehicule?: string; premiere: boolean; onPress: () => void }) {
+  const [presse, setPresse] = useState(false);
+  const actif = Number(c.chauff_statut) === 1;
+  const nom = `${c.chauff_prenom} ${c.chauff_nom}`;
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => setPresse(true)}
+      onPressOut={() => setPresse(false)}
+      accessibilityRole="button"
+      accessibilityLabel={`${nom}, ${actif ? 'actif' : 'inactif'}`}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderTopWidth: premiere ? 0 : 1, borderTopColor: couleurs.separateur, backgroundColor: presse ? couleurs.ocean50 : 'transparent' }}
+    >
+      <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: actif ? couleurs.ocean950 : couleurs.neutreFond, alignItems: 'center', justifyContent: 'center' }}>
+        <Texte graisse="tresGras" taille={14} couleur={actif ? '#FFFFFF' : couleurs.neutre}>{initiales(c.chauff_prenom, c.chauff_nom)}</Texte>
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Texte graisse="tresGras" taille={14.5} numberOfLines={1} style={{ flexShrink: 1 }}>{nom}</Texte>
+          <Pastille libelle={actif ? 'Actif' : 'Inactif'} tonalite={actif ? 'succes' : 'neutre'} />
+        </View>
+        <Texte graisse="moyen" taille={12} couleur={couleurs.gris} numberOfLines={1} style={{ marginTop: 2 }}>
+          {[vehicule || 'Sans véhicule', `permis ${c.chauff_permis}`, c.chauff_phone].filter(Boolean).join(' · ')}
+        </Texte>
+      </View>
+      {!!c.chauff_phone && <BoutonIcone icone="call-outline" libelle={`Appeler ${nom}`} onPress={() => Linking.openURL(`tel:${c.chauff_phone}`)} />}
+    </Pressable>
+  );
 }
 
-export function RenderChauffers({ onAddPress, onEditPress }: RenderChauffeursProps) {
-  const { showDialog, DialogComponent } = useConfirmDialog();
-  const [chauffeurs, setChauffeurs] = useState<Chauffeur[]>([]);
+/** Onglet « Chauffeurs » de l'admin compagnie. */
+export function RenderChauffers({ onMenu }: { onMenu?: () => void }) {
+  const [chauffeurs, setChauffeurs] = useState<any[]>([]);
+  const [voitures, setVoitures] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedChauffeurId, setSelectedChauffeurId] = useState<number | null>(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showFormModal, setShowFormModal] = useState(false);
-  const [editingChauffeurId, setEditingChauffeurId] = useState<number | null>(null);
-  const [searchText, setSearchText] = useState('');
+  const [erreur, setErreur] = useState(false);
+  const [q, setQ] = useState('');
+  const [filtre, setFiltre] = useState<Filtre>('tous');
+  const [formulaire, setFormulaire] = useState<{ visible: boolean; id: number | null }>({ visible: false, id: null });
 
-  useEffect(() => {
-    chargerChauffeurs();
-  }, []);
-
-  const chargerChauffeurs = async () => {
+  const charger = useCallback(async () => {
+    setErreur(false);
     try {
-      setLoading(true);
-      const response = await chauffeurService.obtenirListeChauffeurs();
-      
-      if (response.data) {
-        const data = Array.isArray(response.data) ? response.data : [];
-        setChauffeurs(data);
-      } else {
-        setChauffeurs([]);
-      }
-    } catch (error: any) {
-      console.error('Erreur:', error);
-      showDialog({
-        title: 'Erreur',
-        message: 'Impossible de charger les chauffeurs',
-        type: 'danger',
-        confirmText: 'OK',
-        onConfirm: () => {},
-        onCancel: () => {}
-      });
-      setChauffeurs([]);
-    } finally {
-      setLoading(false);
+      const [rc, rv] = await Promise.all([chauffeurService.obtenirListeChauffeurs(), voitureService.obtenirListeVoitures().catch(() => null)]);
+      // Les chauffeurs supprimés (statut 3) restent en base : on les masque
+      setChauffeurs((Array.isArray(rc?.data) ? rc.data : []).filter((c: any) => Number(c.chauff_statut) !== 3));
+      setVoitures(Array.isArray(rv?.data) ? (rv as any).data : []);
+    } catch {
+      setErreur(true);
     }
-  };
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await chargerChauffeurs();
-    setRefreshing(false);
   }, []);
 
-  const handleOpenDetail = (chauffeurId: number) => {
-    setSelectedChauffeurId(chauffeurId);
-    setShowDetailModal(true);
-  };
-
-  const handleOpenForm = (chauffeurId?: number) => {
-    setEditingChauffeurId(chauffeurId || null);
-    setShowFormModal(true);
-  };
-
-  const handleFormSuccess = () => {
-    chargerChauffeurs();
-  };
-
-  if (loading) {
-    return (
-      <View className="flex-1 justify-center items-center bg-slate-50">
-        <View style={{ width: 56, height: 56, borderRadius: 28, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
-          <LinearGradient colors={['#1e40af', '#3b82f6']} style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}>
-            <ActivityIndicator size="large" color="#fff" />
-          </LinearGradient>
-        </View>
-        <Text className="text-slate-500 mt-4 text-sm">Chargement des chauffeurs...</Text>
-      </View>
-    );
-  }
-
-  const chauffeursFiltres = chauffeurs.filter(c =>
-    `${c.chauff_nom} ${c.chauff_prenom} ${c.chauff_cin}`
-      .toLowerCase()
-      .includes(searchText.toLowerCase())
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      charger().finally(() => setLoading(false));
+    }, [charger])
   );
 
-  const getStatutBadge = (statut: number) => {
-    if (statut === 1) {
-      return { colors: ['#059669', '#10b981'] as const, label: 'Actif', icon: 'checkmark-circle' as const };
-    }
-    return { colors: ['#dc2626', '#ef4444'] as const, label: 'Inactif', icon: 'close-circle' as const };
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await charger();
+    setRefreshing(false);
   };
 
-  const actifsCount = chauffeurs.filter(c => c.chauff_statut === 1).length;
-  const inactifsCount = chauffeurs.length - actifsCount;
-  const getInitials = (nom: string, prenom: string) =>
-    `${(nom || '')[0] || ''}${(prenom || '')[0] || ''}`.toUpperCase();
+  const vehiculeDe = (id: any) => voitures.find((v) => String(v.chauff_id) === String(id))?.voit_matricule;
+  const actifs = chauffeurs.filter((c) => Number(c.chauff_statut) === 1).length;
+  const texte = q.trim().toLowerCase();
+  const liste = chauffeurs
+    .filter((c) => (filtre === 'tous' ? true : filtre === 'actifs' ? Number(c.chauff_statut) === 1 : Number(c.chauff_statut) !== 1))
+    .filter((c) => !texte || `${c.chauff_prenom} ${c.chauff_nom} ${c.chauff_cin}`.toLowerCase().includes(texte))
+    .sort((a, b) => Number(b.chauff_statut === 1) - Number(a.chauff_statut === 1) || `${a.chauff_prenom}`.localeCompare(`${b.chauff_prenom}`));
 
   return (
-    <View className="flex-1 bg-slate-50">
-      <DialogComponent />
+    <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
+      <EnTete titre="Chauffeurs" sousTitre={loading ? undefined : `${actifs} actif${actifs > 1 ? 's' : ''} sur ${chauffeurs.length}`} gauche="menu" onGauche={onMenu} />
       <ScrollView
-        className="flex-1"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />}
+        contentContainerStyle={{ padding: 16, paddingBottom: 96, gap: 12 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={couleurs.ocean800} colors={[couleurs.ocean800]} />}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Header */}
-        <View className="mx-4 mt-5 rounded-3xl overflow-hidden" style={{ elevation: 4 }}>
-          <LinearGradient colors={['#1e40af', '#3b82f6', '#60a5fa']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} className="p-5">
-            <View className="flex-row items-center justify-between mb-4">
-              <View className="flex-row items-center flex-1">
-                <View className="bg-white/20 rounded-2xl p-3 mr-4">
-                  <Ionicons name="people" size={28} color="#fff" />
-                </View>
-                <View>
-                  <Text className="text-white text-2xl font-bold">Chauffeurs</Text>
-                  <Text className="text-blue-100 text-sm mt-0.5">{chauffeurs.length} chauffeur(s) enregistré(s)</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                className="bg-white rounded-2xl p-3"
-                onPress={() => handleOpenForm()}
-                activeOpacity={0.8}
-                style={{ elevation: 2 }}
-              >
-                <Ionicons name="add" size={24} color="#1e40af" />
-              </TouchableOpacity>
-            </View>
-            {/* Mini stats */}
-            <View className="flex-row mt-1">
-              <View className="bg-white/15 rounded-xl px-4 py-2 mr-3 flex-row items-center">
-                <View className="bg-emerald-400 rounded-full w-2.5 h-2.5 mr-2" />
-                <Text className="text-white text-sm font-medium">{actifsCount} Actifs</Text>
-              </View>
-              <View className="bg-white/15 rounded-xl px-4 py-2 flex-row items-center">
-                <View className="bg-red-400 rounded-full w-2.5 h-2.5 mr-2" />
-                <Text className="text-white text-sm font-medium">{inactifsCount} Inactifs</Text>
-              </View>
-            </View>
-          </LinearGradient>
+        <Recherche valeur={q} onChange={setQ} placeholder="Nom ou numéro de CIN" />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {([
+            ['tous', 'Tous'],
+            ['actifs', 'Actifs'],
+            ['inactifs', 'Inactifs'],
+          ] as [Filtre, string][]).map(([v, l]) => (
+            <Puce key={v} libelle={l} active={filtre === v} onPress={() => setFiltre(v)} />
+          ))}
         </View>
 
-        {/* Barre de recherche */}
-        <View className="mx-4 mt-4 bg-white rounded-2xl flex-row items-center px-4 py-1" style={{ elevation: 2 }}>
-          <Ionicons name="search" size={20} color="#94a3b8" />
-          <TextInput
-            className="flex-1 ml-3 text-slate-800 text-base py-3"
-            placeholder="Rechercher par nom, CIN..."
-            value={searchText}
-            onChangeText={setSearchText}
-            placeholderTextColor="#94a3b8"
-          />
-          {searchText.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchText('')} className="p-1">
-              <Ionicons name="close-circle" size={20} color="#94a3b8" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Liste des chauffeurs */}
-        <View className="px-4 mt-4 pb-6">
-          {chauffeursFiltres.length === 0 ? (
-            <View className="bg-white rounded-3xl p-10 items-center" style={{ elevation: 2 }}>
-              <View className="bg-slate-100 rounded-full p-5 mb-4">
-                <Ionicons name="person-outline" size={48} color="#94a3b8" />
-              </View>
-              <Text className="text-slate-800 font-bold text-lg">Aucun chauffeur trouvé</Text>
-              <Text className="text-slate-600 text-sm mt-2 text-center leading-5">
-                {searchText.length > 0 
-                  ? 'Aucun chauffeur ne correspond à votre recherche'
-                  : 'Appuyez sur + pour ajouter votre premier chauffeur'}
-              </Text>
-            </View>
-          ) : (
-            chauffeursFiltres.map((chauffeur) => {
-              const badge = getStatutBadge(chauffeur.chauff_statut);
-              const initials = getInitials(chauffeur.chauff_nom, chauffeur.chauff_prenom);
-              return (
-                <TouchableOpacity
-                  key={chauffeur.chauff_id}
-                  className="bg-white rounded-2xl p-4 mb-3"
-                  onPress={() => handleOpenDetail(chauffeur.chauff_id)}
-                  activeOpacity={0.7}
-                  style={{ elevation: 2 }}
-                >
-                  <View className="flex-row items-center">
-                    {/* Avatar with gradient initials */}
-                    <View className="rounded-2xl w-14 h-14 overflow-hidden mr-4">
-                      <LinearGradient
-                        colors={['#1e40af', '#3b82f6']}
-                        className="w-full h-full items-center justify-center"
-                      >
-                        <Text className="text-white font-bold text-lg">{initials}</Text>
-                      </LinearGradient>
-                    </View>
-                    
-                    <View className="flex-1">
-                      <Text className="text-slate-900 font-bold text-base">
-                        {chauffeur.chauff_nom} {chauffeur.chauff_prenom}
-                      </Text>
-                      <View className="flex-row items-center mt-1">
-                        <Ionicons name="id-card-outline" size={14} color="#475569" />
-                        <Text className="text-slate-700 text-sm font-medium ml-1.5">
-                          {chauffeur.chauff_cin}
-                        </Text>
-                        <Text className="text-slate-500 mx-2">•</Text>
-                        <Ionicons name="calendar-outline" size={14} color="#475569" />
-                        <Text className="text-slate-700 text-sm font-medium ml-1">
-                          {chauffeur.chauff_age} ans
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Status badge with gradient */}
-                    <View className="rounded-xl overflow-hidden">
-                      <LinearGradient
-                        colors={[...badge.colors]}
-                        className="px-3 py-1.5 flex-row items-center"
-                      >
-                        <Ionicons name={badge.icon} size={12} color="#fff" style={{ marginRight: 4 }} />
-                        <Text className="text-white text-xs font-bold">{badge.label}</Text>
-                      </LinearGradient>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
-          )}
-        </View>
+        {loading ? (
+          <Skeleton height={300} borderRadius={16} />
+        ) : erreur ? (
+          <Carte style={{ alignItems: 'center', gap: 8, paddingVertical: 24 }}>
+            <Ionicons name="cloud-offline-outline" size={30} color={couleurs.danger} />
+            <Texte variante="legende" centre>Impossible de charger les chauffeurs.</Texte>
+          </Carte>
+        ) : liste.length === 0 ? (
+          <View style={{ alignItems: 'center', paddingVertical: 36, gap: 6 }}>
+            <Ionicons name="people-outline" size={36} color={couleurs.grisClair} />
+            <Texte graisse="tresGras" taille={15}>Aucun chauffeur</Texte>
+            <Texte variante="legende" centre>{texte || filtre !== 'tous' ? 'Aucun chauffeur ne correspond.' : 'Touchez « Ajouter » pour enregistrer votre premier chauffeur.'}</Texte>
+          </View>
+        ) : (
+          <Carte padding={0} style={{ overflow: 'hidden' }}>
+            {liste.map((c, i) => (
+              <LigneChauffeur key={c.chauff_id} c={c} vehicule={vehiculeDe(c.chauff_id)} premiere={i === 0} onPress={() => setFormulaire({ visible: true, id: c.chauff_id })} />
+            ))}
+          </Carte>
+        )}
       </ScrollView>
 
-      {/* Modal de détails */}
-      <ChauffeurDetailModal
-        visible={showDetailModal}
-        chauffeurId={selectedChauffeurId}
-        onClose={() => {
-          setShowDetailModal(false);
-          setSelectedChauffeurId(null);
-        }}
-        onEdit={handleOpenForm}
-        onRefresh={chargerChauffeurs}
-      />
-
-      {/* Modal de formulaire */}
-      <ChauffeurFormModal
-        visible={showFormModal}
-        chauffeurId={editingChauffeurId}
-        onClose={() => {
-          setShowFormModal(false);
-          setEditingChauffeurId(null);
-        }}
-        onSuccess={handleFormSuccess}
-      />
+      <BoutonAjout libelle="Ajouter" onPress={() => setFormulaire({ visible: true, id: null })} />
+      <FormulaireChauffeur visible={formulaire.visible} chauffeurId={formulaire.id} onClose={() => setFormulaire({ visible: false, id: null })} onSuccess={charger} />
     </View>
   );
 }

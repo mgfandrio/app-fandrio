@@ -1,55 +1,53 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Platform, TouchableOpacity, RefreshControl, Alert, Modal } from 'react-native';
+import { View, ScrollView, ActivityIndicator, RefreshControl, Pressable, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
-import { DashboardHeader } from '@/app/components/dashboard/DashboardHeader';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Skeleton } from '@/app/components/common/Skeleton';
-import { SideMenu } from '@/app/components/dashboard/SideMenu';
 import { reservationService } from '@/app/services/reservations/reservationService';
-import { useNotifications } from '@/app/hooks/useNotifications';
-import { useUser } from '@/app/hooks/useUser';
+import { Bouton, BoutonIcone, Carte, FeuilleModale, Pastille, Segmente, Texte } from '@/app/components/ui';
+import { couleurs, formatAriary } from '@/app/theme/ocean';
+import { dateDepuisJJMMAAAA, statutBillet, vignetteDate } from '@/app/utils/statutBillet';
 
+type Onglet = 'avenir' | 'passe' | 'annule';
+
+const RACCOURCIS = [
+  { libelle: 'Factures', icone: 'receipt-outline' as const, route: '/screens/dashboard/utilisateur/reservations/clientFactures' },
+  { libelle: 'Remboursements', icone: 'refresh-outline' as const, route: '/screens/dashboard/utilisateur/reservations/clientRemboursements' },
+  { libelle: 'Historique', icone: 'time-outline' as const, route: '/screens/dashboard/utilisateur/reservations/history' },
+];
+
+const formatDateFr = (d: Date) =>
+  `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+
+/** Onglet « Billets » : prochain voyage, raccourcis et liste des réservations. */
 export default function ReservationScreen() {
   const router = useRouter();
-
-  const MENU_ITEMS = [
-    { label: 'Voyages', icon: 'map-outline', onPress: () => router.push('/screens/dashboard/utilisateur/reservations/history') },
-    { label: 'Trajet', icon: 'trail-sign-outline' },
-    { label: 'Facture', icon: 'document-text-outline', onPress: () => router.push('/screens/dashboard/utilisateur/reservations/clientFactures') },
-    { label: 'Remboursements', icon: 'cash-outline', onPress: () => router.push('/screens/dashboard/utilisateur/reservations/clientRemboursements') },
-    { label: 'Paramètre', icon: 'settings-outline' },
-  ];
-
-  const { user } = useUser();
-  const [menuVisible, setMenuVisible] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [dashboardData, setDashboardData] = useState<any>(null);
+  const [onglet, setOnglet] = useState<Onglet>('avenir');
+
+  // Filtre par date de réservation
   const [showDateModal, setShowDateModal] = useState(false);
-  const [showNativePicker, setShowNativePicker] = useState(false);
-  const [pickerTarget, setPickerTarget] = useState<'exact' | 'debut' | 'fin'>('exact');
-  const [dateMode, setDateMode] = useState<'exact' | 'range'>('exact');
-  const [dateExacte, setDateExacte] = useState<Date | null>(null);
+  const [pickerTarget, setPickerTarget] = useState<'debut' | 'fin' | null>(null);
   const [dateDebut, setDateDebut] = useState<Date | null>(null);
   const [dateFin, setDateFin] = useState<Date | null>(null);
+  const [filtreActif, setFiltreActif] = useState(false);
+
+  // QR code
   const [qrModalVisible, setQrModalVisible] = useState(false);
   const [qrLoading, setQrLoading] = useState(false);
   const [qrString, setQrString] = useState('');
   const [qrNumero, setQrNumero] = useState('');
-  const insets = useSafeAreaInsets();
-  const { unreadCount } = useNotifications();
 
   const fetchData = useCallback(async () => {
     try {
       const dashResp = await reservationService.obtenirDashboard();
-
-      if (dashResp && dashResp.statut) {
-        setDashboardData(dashResp.data);
-      }
+      if (dashResp && dashResp.statut) setDashboardData(dashResp.data);
     } catch (e) {
       console.warn('Error loading reservation data:', e);
     } finally {
@@ -61,10 +59,6 @@ export default function ReservationScreen() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  const handleDateSelect = useCallback(() => {
-    setShowDateModal(true);
-  }, []);
 
   const openQrModal = async (resId: number) => {
     setQrModalVisible(true);
@@ -88,525 +82,292 @@ export default function ReservationScreen() {
     }
   };
 
-  const formatDateDisplay = (d: Date) => {
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
-  };
+  const ouvrirDetail = (id: any) =>
+    router.push({ pathname: '/screens/dashboard/utilisateur/reservations/reservationDetail', params: { id: String(id) } });
 
-  const handleNativeDateChange = useCallback((event: any, selectedDate?: Date) => {
-    setShowNativePicker(false);
-    if (!selectedDate) return;
+  const historique: any[] = Array.isArray(dashboardData?.historique) ? dashboardData.historique : [];
 
-    if (pickerTarget === 'exact') {
-      setDateExacte(selectedDate);
-    } else if (pickerTarget === 'debut') {
-      setDateDebut(selectedDate);
-      // Si la date fin est avant la date début, la corriger
-      if (dateFin && selectedDate > dateFin) setDateFin(null);
-    } else if (pickerTarget === 'fin') {
-      setDateFin(selectedDate);
-      // Si la date début est après la date fin, la corriger
-      if (dateDebut && selectedDate < dateDebut) setDateDebut(null);
-    }
-  }, [pickerTarget, dateDebut, dateFin]);
+  // Filtre par date de réservation (début et/ou fin)
+  const historiqueFiltre = historique.filter((res) => {
+    if (!filtreActif) return true;
+    const d = dateDepuisJJMMAAAA(res?.date_reservation);
+    if (!d) return false;
+    if (dateDebut && d < new Date(dateDebut.getFullYear(), dateDebut.getMonth(), dateDebut.getDate())) return false;
+    if (dateFin && d > new Date(dateFin.getFullYear(), dateFin.getMonth(), dateFin.getDate())) return false;
+    return true;
+  });
 
-  const openNativePicker = (target: 'exact' | 'debut' | 'fin') => {
-    setPickerTarget(target);
-    setShowNativePicker(true);
-  };
+  const parOnglet = historiqueFiltre.filter((res) => statutBillet(res?.statut, res?.date).groupe === onglet);
 
-  const applyDateFilter = () => {
-    if (dateMode === 'exact' && dateExacte) {
-      setSearchValue(formatDateDisplay(dateExacte));
-    } else if (dateMode === 'range' && dateDebut && dateFin) {
-      setSearchValue(`${formatDateDisplay(dateDebut)} → ${formatDateDisplay(dateFin)}`);
-    } else if (dateMode === 'range' && dateDebut) {
-      setSearchValue(`À partir du ${formatDateDisplay(dateDebut)}`);
-    } else if (dateMode === 'range' && dateFin) {
-      setSearchValue(`Jusqu'au ${formatDateDisplay(dateFin)}`);
-    }
-    setShowDateModal(false);
-  };
+  // Prochain voyage confirmé (le plus proche dans le temps)
+  const prochain = historique
+    .filter((res) => res?.statut === 2 && statutBillet(2, res?.date).groupe === 'avenir')
+    .sort((a, b) => (dateDepuisJJMMAAAA(a.date)?.getTime() || 0) - (dateDepuisJJMMAAAA(b.date)?.getTime() || 0))[0];
 
-  const clearDateFilter = () => {
-    setSearchValue('');
-    setDateExacte(null);
-    setDateDebut(null);
-    setDateFin(null);
-    setDateMode('exact');
-    setShowDateModal(false);
-  };
+  const compteur = (g: Onglet) => historiqueFiltre.filter((r) => statutBillet(r?.statut, r?.date).groupe === g).length;
 
-  const formatMontant = (montant: any) => {
-    try {
-      if (montant === null || montant === undefined) return '0';
-      return new Intl.NumberFormat('fr-FR').format(Number(montant));
-    } catch {
-      return String(montant || 0);
-    }
-  };
-
-  if (loading) {
-    return (
-      <View className="flex-1 bg-gray-50">
-        <DashboardHeader
-          user={user}
-          insets={insets}
-          onMenuPress={() => setMenuVisible(true)}
-          onFilterPress={handleDateSelect}
-          searchPlaceholder="Filtrer par date..."
-          searchValue={searchValue}
-          onSearchPress={handleDateSelect}
-          onResetPress={searchValue ? () => clearDateFilter() : undefined}
-          searchIcon="calendar-outline"
-          notificationCount={unreadCount}
-        />
-
-        <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ paddingBottom: 40 }}
-          showsVerticalScrollIndicator={false}
-        >
-          <View className="px-6 pt-6">
-            {/* Titre */}
-            <View className="mb-6">
-              <Skeleton width={200} height={28} borderRadius={8} />
-              <Skeleton width={240} height={16} borderRadius={6} style={{ marginTop: 8 }} />
-            </View>
-
-            {/* Section 1: Mini Dashboard (rangée de stats) */}
-            <View className="flex-row justify-between mb-8">
-              {[0, 1, 2].map((i) => (
-                <View
-                  key={i}
-                  className={`bg-white rounded-3xl p-4 shadow-sm border border-gray-100 items-center justify-center flex-1 ${i === 0 ? 'mr-2' : i === 1 ? 'mx-2' : 'ml-2'}`}
-                >
-                  <Skeleton width={40} height={40} borderRadius={20} style={{ marginBottom: 8 }} />
-                  <Skeleton width={32} height={22} borderRadius={6} />
-                  <Skeleton width={56} height={12} borderRadius={4} style={{ marginTop: 6 }} />
-                </View>
-              ))}
-            </View>
-
-            {/* Section 2: Historique Recent */}
-            <View className="mb-8">
-              <View className="flex-row justify-between items-center mb-4">
-                <Skeleton width={180} height={20} borderRadius={6} />
-                <Skeleton width={60} height={16} borderRadius={6} />
-              </View>
-
-              {[0, 1, 2, 3, 4].map((i) => (
-                <View key={i} className="bg-white rounded-3xl p-5 mb-4 shadow-sm border border-gray-100">
-                  <View className="flex-row justify-between items-start mb-3">
-                    <View className="flex-1">
-                      <Skeleton width={"70%"} height={16} borderRadius={6} />
-                      <Skeleton width={"55%"} height={13} borderRadius={5} style={{ marginTop: 6 }} />
-                      <Skeleton width={"45%"} height={11} borderRadius={5} style={{ marginTop: 6 }} />
-                      <Skeleton width={"35%"} height={11} borderRadius={5} style={{ marginTop: 6 }} />
-                    </View>
-                    <Skeleton width={80} height={26} borderRadius={13} />
-                  </View>
-
-                  <View className="flex-row justify-between items-center pt-3 border-t border-gray-50">
-                    <Skeleton width={90} height={16} borderRadius={6} />
-                    <Skeleton width={90} height={32} borderRadius={12} />
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-        </ScrollView>
-      </View>
-    );
-  }
-
-  const stats = dashboardData?.stats || {};
-  const historique = Array.isArray(dashboardData?.historique) ? dashboardData.historique : [];
-
-  // Filtrer l'historique par date sélectionnée (exacte ou plage)
-  const filteredHistorique = (() => {
-    if (!searchValue.trim()) return historique;
-
-    // Parser une date DD/MM/YYYY en objet comparable
-    const parseDate = (str: string) => {
-      const parts = str.split('/');
-      if (parts.length !== 3) return null;
-      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-    };
-
-    // Extraire la partie date (DD/MM/YYYY) de date_reservation (DD/MM/YYYY HH:mm)
-    const getDatePart = (dateRes: string) => dateRes ? dateRes.split(' ')[0] : '';
-
-    if (dateMode === 'exact' && dateExacte) {
-      const target = formatDateDisplay(dateExacte);
-      return historique.filter((res: any) => getDatePart(res?.date_reservation) === target);
-    }
-
-    if (dateMode === 'range') {
-      return historique.filter((res: any) => {
-        if (!res?.date_reservation) return false;
-        const resDate = parseDate(getDatePart(res.date_reservation));
-        if (!resDate) return false;
-        if (dateDebut && resDate < new Date(dateDebut.getFullYear(), dateDebut.getMonth(), dateDebut.getDate())) return false;
-        if (dateFin && resDate > new Date(dateFin.getFullYear(), dateFin.getMonth(), dateFin.getDate())) return false;
-        return true;
-      });
-    }
-
-    return historique;
-  })();
+  const libelleFiltre = filtreActif
+    ? dateDebut && dateFin
+      ? `${formatDateFr(dateDebut)} → ${formatDateFr(dateFin)}`
+      : dateDebut
+        ? `Depuis le ${formatDateFr(dateDebut)}`
+        : `Jusqu'au ${formatDateFr(dateFin!)}`
+    : '';
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <DashboardHeader
-        user={user}
-        insets={insets}
-        onMenuPress={() => setMenuVisible(true)}
-        onFilterPress={handleDateSelect}
-        searchPlaceholder="Filtrer par date..."
-        searchValue={searchValue}
-        onSearchPress={handleDateSelect}
-        onResetPress={searchValue ? () => clearDateFilter() : undefined}
-        searchIcon="calendar-outline"
-        notificationCount={unreadCount}
-      />
-
-      {showNativePicker && (() => {
-        try {
-          const DateTimePicker = require('@react-native-community/datetimepicker').default;
-          const currentValue = pickerTarget === 'exact'
-            ? (dateExacte || new Date())
-            : pickerTarget === 'debut'
-              ? (dateDebut || new Date())
-              : (dateFin || new Date());
-          return (
-            <DateTimePicker
-              testID="dateTimePicker"
-              value={currentValue}
-              mode="date"
-              is24Hour={true}
-              display="default"
-              onChange={handleNativeDateChange}
-            />
-          );
-        } catch (e) {
-          console.warn('DateTimePicker error:', e);
-          return null;
-        }
-      })()}
-
-      {/* Modal de sélection de date */}
-      <Modal visible={showDateModal} transparent animationType="slide" onRequestClose={() => setShowDateModal(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingTop: 20, paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
-            {/* Header */}
-            <View className="flex-row justify-between items-center mb-5">
-              <Text style={{ color: '#1e3a8a', fontSize: 20, fontWeight: 'bold' }}>Filtrer par date</Text>
-              <TouchableOpacity onPress={() => setShowDateModal(false)} style={{ backgroundColor: '#f3f4f6', padding: 8, borderRadius: 20 }}>
-                <Ionicons name="close" size={22} color="#64748b" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Mode switcher */}
-            <View className="flex-row bg-slate-100 rounded-2xl p-1 mb-6">
-              <TouchableOpacity
-                onPress={() => setDateMode('exact')}
-                className="flex-1 items-center rounded-xl py-3"
-                style={{ backgroundColor: dateMode === 'exact' ? '#ffffff' : 'transparent', elevation: dateMode === 'exact' ? 2 : 0 }}
-              >
-                <View className="flex-row items-center">
-                  <Ionicons name="calendar" size={16} color={dateMode === 'exact' ? '#1e3a8a' : '#94a3b8'} />
-                  <Text className="ml-1.5 font-semibold text-sm" style={{ color: dateMode === 'exact' ? '#1e3a8a' : '#94a3b8' }}>Date précise</Text>
-                </View>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setDateMode('range')}
-                className="flex-1 items-center rounded-xl py-3"
-                style={{ backgroundColor: dateMode === 'range' ? '#ffffff' : 'transparent', elevation: dateMode === 'range' ? 2 : 0 }}
-              >
-                <View className="flex-row items-center">
-                  <Ionicons name="calendar-outline" size={16} color={dateMode === 'range' ? '#1e3a8a' : '#94a3b8'} />
-                  <Text className="ml-1.5 font-semibold text-sm" style={{ color: dateMode === 'range' ? '#1e3a8a' : '#94a3b8' }}>Plage de dates</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            {/* Contenu selon le mode */}
-            {dateMode === 'exact' ? (
-              <View className="mb-6">
-                <Text className="text-slate-600 font-semibold text-sm mb-3 ml-1">Sélectionner la date</Text>
-                <TouchableOpacity
-                  onPress={() => openNativePicker('exact')}
-                  className="flex-row items-center bg-slate-50 rounded-2xl px-4 py-4"
-                  style={{ borderWidth: 1, borderColor: dateExacte ? '#3b82f6' : '#e2e8f0' }}
-                  activeOpacity={0.7}
-                >
-                  <View className="bg-blue-100 rounded-full p-2 mr-3">
-                    <Ionicons name="calendar" size={20} color="#2563eb" />
-                  </View>
-                  <Text className={`flex-1 text-base ${dateExacte ? 'text-slate-800 font-medium' : 'text-slate-400'}`}>
-                    {dateExacte ? formatDateDisplay(dateExacte) : 'Choisir une date'}
-                  </Text>
-                  {dateExacte && (
-                    <TouchableOpacity onPress={() => setDateExacte(null)} className="p-1">
-                      <Ionicons name="close-circle" size={18} color="#94a3b8" />
-                    </TouchableOpacity>
-                  )}
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View className="mb-6">
-                <Text className="text-slate-600 font-semibold text-sm mb-3 ml-1">Date de début</Text>
-                <TouchableOpacity
-                  onPress={() => openNativePicker('debut')}
-                  className="flex-row items-center bg-slate-50 rounded-2xl px-4 py-4 mb-4"
-                  style={{ borderWidth: 1, borderColor: dateDebut ? '#3b82f6' : '#e2e8f0' }}
-                  activeOpacity={0.7}
-                >
-                  <View className="bg-blue-100 rounded-full p-2 mr-3">
-                    <Ionicons name="arrow-forward-circle" size={20} color="#2563eb" />
-                  </View>
-                  <Text className={`flex-1 text-base ${dateDebut ? 'text-slate-800 font-medium' : 'text-slate-400'}`}>
-                    {dateDebut ? formatDateDisplay(dateDebut) : 'Date de début'}
-                  </Text>
-                  {dateDebut && (
-                    <TouchableOpacity onPress={() => setDateDebut(null)} className="p-1">
-                      <Ionicons name="close-circle" size={18} color="#94a3b8" />
-                    </TouchableOpacity>
-                  )}
-                </TouchableOpacity>
-
-                {/* Séparateur visuel */}
-                <View className="flex-row items-center justify-center mb-4">
-                  <View className="bg-slate-200 h-px flex-1" />
-                  <View className="bg-slate-100 rounded-full px-3 py-1 mx-3">
-                    <Ionicons name="arrow-down" size={14} color="#94a3b8" />
-                  </View>
-                  <View className="bg-slate-200 h-px flex-1" />
-                </View>
-
-                <Text className="text-slate-600 font-semibold text-sm mb-3 ml-1">Date de fin</Text>
-                <TouchableOpacity
-                  onPress={() => openNativePicker('fin')}
-                  className="flex-row items-center bg-slate-50 rounded-2xl px-4 py-4"
-                  style={{ borderWidth: 1, borderColor: dateFin ? '#10b981' : '#e2e8f0' }}
-                  activeOpacity={0.7}
-                >
-                  <View className="bg-emerald-100 rounded-full p-2 mr-3">
-                    <Ionicons name="flag" size={20} color="#10b981" />
-                  </View>
-                  <Text className={`flex-1 text-base ${dateFin ? 'text-slate-800 font-medium' : 'text-slate-400'}`}>
-                    {dateFin ? formatDateDisplay(dateFin) : 'Date de fin'}
-                  </Text>
-                  {dateFin && (
-                    <TouchableOpacity onPress={() => setDateFin(null)} className="p-1">
-                      <Ionicons name="close-circle" size={18} color="#94a3b8" />
-                    </TouchableOpacity>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Boutons */}
-            <View className="flex-row">
-              <TouchableOpacity
-                onPress={clearDateFilter}
-                className="flex-1 items-center py-4 bg-slate-100 rounded-2xl mr-3"
-              >
-                <Text className="text-slate-500 font-bold">Réinitialiser</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={applyDateFilter}
-                disabled={dateMode === 'exact' ? !dateExacte : (!dateDebut && !dateFin)}
-                className="flex-[2] rounded-2xl overflow-hidden"
-                style={{ opacity: (dateMode === 'exact' ? !!dateExacte : (!!dateDebut || !!dateFin)) ? 1 : 0.5 }}
-              >
-                <LinearGradient
-                  colors={['#1e40af', '#3b82f6']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  className="py-4 items-center flex-row justify-center"
-                >
-                  <Ionicons name="search" size={18} color="#fff" style={{ marginRight: 6 }} />
-                  <Text className="text-white font-bold text-base">Appliquer</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <SideMenu
-        visible={menuVisible}
-        onClose={() => setMenuVisible(false)}
-        items={MENU_ITEMS}
-      />
-
+    <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
+      <StatusBar barStyle="dark-content" backgroundColor={couleurs.fond} />
       <ScrollView
-        className="flex-1"
-        contentContainerStyle={{
-          paddingBottom: 40
-        }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingTop: insets.top + 16, paddingHorizontal: 16, paddingBottom: 24, gap: 14 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => {
-            setRefreshing(true);
-            fetchData();
-          }} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); fetchData(); }}
+            tintColor={couleurs.ocean800}
+            colors={[couleurs.ocean800]}
+          />
         }
       >
-        <View className="px-6 pt-6">
-          <View className="mb-6">
-            <Text style={{ color: '#1e3a8a' }} className="text-2xl font-bold">Mes Réservations</Text>
-            <Text className="text-gray-700 mt-1">Gérez vos réservations de voyage</Text>
+        {/* Titre */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
+          <View style={{ flex: 1 }}>
+            <Texte variante="titre">Mes billets</Texte>
+            <Texte variante="legende" taille={13}>
+              {loading ? ' ' : `${dashboardData?.stats?.total_reservations || 0} voyage${(dashboardData?.stats?.total_reservations || 0) > 1 ? 's' : ''} avec FANDRIO`}
+            </Texte>
           </View>
+          <BoutonIcone icone="calendar-outline" libelle="Filtrer par date de réservation" onPress={() => setShowDateModal(true)} />
+        </View>
 
-          {/* Section 1: Mini Dashboard */}
-          <View className="flex-row justify-between mb-8">
-            <View className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 items-center justify-center flex-1 mr-2">
-              <View className="w-10 h-10 bg-blue-50 rounded-full items-center justify-center mb-2">
-                <Ionicons name="receipt-outline" size={20} color="#1e3a8a" />
-              </View>
-              <Text className="text-gray-900 font-bold text-lg">{stats.total_reservations || 0}</Text>
-              <Text className="text-gray-700 text-xs uppercase font-bold text-center">Total Réservé</Text>
-            </View>
-
-            <View className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 items-center justify-center flex-1 mx-2">
-              <View className="w-10 h-10 bg-orange-50 rounded-full items-center justify-center mb-2">
-                <Ionicons name="time-outline" size={20} color="#f97316" />
-              </View>
-              <Text className="text-gray-900 font-bold text-lg">{stats.voyages_en_cours || 0}</Text>
-              <Text className="text-gray-700 text-xs uppercase font-bold text-center">Validé</Text>
-            </View>
-
-            <View className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 items-center justify-center flex-1 ml-2">
-              <View className="w-10 h-10 bg-red-50 rounded-full items-center justify-center mb-2">
-                <Ionicons name="close-circle-outline" size={20} color="#ef4444" />
-              </View>
-              <Text className="text-gray-900 font-bold text-lg">{stats.voyages_annules || 0}</Text>
-              <Text className="text-gray-700 text-xs uppercase font-bold text-center">Annulés</Text>
-            </View>
+        {loading ? (
+          <View style={{ gap: 12 }}>
+            <Skeleton height={150} borderRadius={20} />
+            <Skeleton height={76} borderRadius={16} />
+            {[0, 1, 2].map((i) => <Skeleton key={i} height={72} borderRadius={16} />)}
           </View>
+        ) : (
+          <>
+            {/* Prochain voyage */}
+            {prochain ? (
+              <Carte marine onPress={() => ouvrirDetail(prochain.id)} accessibilityLabel={`Prochain voyage : ${prochain.trajet}, le ${prochain.date} à ${prochain.heure}`} style={{ gap: 12 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Texte graisse="gras" taille={12} couleur={couleurs.texteSurMarine}>Prochain voyage</Texte>
+                  <Pastille libelle="Confirmé" tonalite="succes" />
+                </View>
+                <Texte graisse="tresGras" taille={19} couleur="#FFFFFF" numberOfLines={2}>{prochain.trajet}</Texte>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)', gap: 10 }}>
+                  <Texte graisse="gras" taille={13} couleur="#FFFFFF" style={{ flex: 1 }}>
+                    {prochain.date} · {prochain.heure} · {prochain.nb_voyageurs} voyageur{prochain.nb_voyageurs > 1 ? 's' : ''}
+                  </Texte>
+                  <Pressable
+                    onPress={() => openQrModal(prochain.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Afficher le QR code"
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, paddingHorizontal: 12, borderRadius: 10, backgroundColor: '#FFFFFF' }}
+                  >
+                    <Ionicons name="qr-code-outline" size={16} color={couleurs.ocean950} />
+                    <Texte graisse="tresGras" taille={13} couleur={couleurs.ocean950}>QR code</Texte>
+                  </Pressable>
+                </View>
+              </Carte>
+            ) : (
+              <Carte style={{ alignItems: 'center', gap: 8, paddingVertical: 22 }}>
+                <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: couleurs.ocean50, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="ticket-outline" size={26} color={couleurs.ocean800} />
+                </View>
+                <Texte graisse="tresGras" taille={15}>Aucun voyage à venir</Texte>
+                <Texte variante="legende" centre>Réservez votre place en quelques secondes.</Texte>
+                <Bouton titre="Réserver un voyage" compact icone="search" onPress={() => router.push('/screens/dashboard/utilisateur/(tabs)/accueil')} style={{ marginTop: 6 }} />
+              </Carte>
+            )}
 
-          {/* Section 2: Historique Recent */}
-          <View className="mb-8">
-            <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-gray-900 font-bold text-lg">Dernières réservations</Text>
-              <TouchableOpacity onPress={() => router.push('/screens/dashboard/utilisateur/reservations/history')}>
-                <Text style={{ color: '#1e3a8a' }} className="font-bold text-sm">Voir tout</Text>
-              </TouchableOpacity>
-            </View>
+            {/* Raccourcis */}
+            <Carte padding={0} style={{ flexDirection: 'row' }}>
+              {RACCOURCIS.map((r, i) => (
+                <Pressable
+                  key={r.libelle}
+                  onPress={() => router.push(r.route as any)}
+                  accessibilityRole="button"
+                  style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: 12, borderLeftWidth: i === 0 ? 0 : 1, borderLeftColor: couleurs.separateur }}
+                >
+                  <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: couleurs.ocean50, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name={r.icone} size={20} color={couleurs.ocean800} />
+                  </View>
+                  <Texte graisse="gras" taille={12} couleur={couleurs.encreDouce}>{r.libelle}</Texte>
+                </Pressable>
+              ))}
+            </Carte>
 
-            {filteredHistorique.length === 0 ? (
-              <View className="bg-white rounded-3xl p-8 items-center justify-center border border-dashed border-gray-200">
-                <Text className="text-gray-600 text-sm font-medium">{searchValue ? 'Aucune réservation pour cette date' : 'Aucune réservation récente'}</Text>
+            {/* Filtre actif */}
+            {filtreActif && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, paddingLeft: 14, borderRadius: 12, backgroundColor: couleurs.ocean50 }}>
+                <Ionicons name="calendar" size={16} color={couleurs.ocean800} />
+                <Texte graisse="gras" taille={13} couleur={couleurs.ocean950} style={{ flex: 1 }}>Réservés : {libelleFiltre}</Texte>
+                <Pressable
+                  onPress={() => { setFiltreActif(false); setDateDebut(null); setDateFin(null); }}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel="Retirer le filtre de date"
+                >
+                  <Ionicons name="close-circle" size={20} color={couleurs.ocean800} />
+                </Pressable>
+              </View>
+            )}
+
+            <Segmente<Onglet>
+              libelleAccessible="Filtrer les billets"
+              valeur={onglet}
+              onChange={setOnglet}
+              options={[
+                { valeur: 'avenir', libelle: 'À venir', compteur: compteur('avenir') },
+                { valeur: 'passe', libelle: 'Passés' },
+                { valeur: 'annule', libelle: 'Annulés' },
+              ]}
+            />
+
+            {/* Liste */}
+            {parOnglet.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: 24, gap: 6 }}>
+                <Ionicons name="ticket-outline" size={32} color={couleurs.grisClair} />
+                <Texte variante="legende" centre>
+                  {filtreActif
+                    ? 'Aucun billet pour ces dates.'
+                    : onglet === 'avenir' ? 'Aucun billet à venir.' : onglet === 'passe' ? 'Aucun voyage passé.' : 'Aucun billet annulé.'}
+                </Texte>
               </View>
             ) : (
-              filteredHistorique.map((res: any, index: number) => (
-                <View key={res?.id || index} className="bg-white rounded-3xl p-5 mb-4 shadow-sm border border-gray-100">
-                  <View className="flex-row justify-between items-start mb-3">
-                    <View className="flex-1">
-                      <Text className="text-gray-900 font-bold text-base">{res?.trajet || 'Trajet inconnu'}</Text>
-                      <Text className="text-gray-700 text-sm font-medium mt-1">Voyage : {res?.date || 'N/A'} • {res?.heure || 'N/A'}</Text>
-                      <Text className="text-gray-600 text-xs mt-1">Réservé le {res?.date_reservation || 'N/A'}</Text>
-                      <View className="flex-row items-center mt-1">
-                        <Text className="text-gray-600 text-xs italic">N° {res?.numero || 'N/A'}</Text>
+              <Carte padding={0}>
+                {parOnglet.map((res, index) => {
+                  const s = statutBillet(res?.statut, res?.date);
+                  const v = vignetteDate(res?.date);
+                  return (
+                    <Pressable
+                      key={res?.id || index}
+                      onPress={() => ouvrirDetail(res.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${res?.trajet}, ${res?.date} à ${res?.heure}, ${s.libelle}`}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, paddingHorizontal: 14, borderTopWidth: index === 0 ? 0 : 1, borderTopColor: couleurs.separateur }}
+                    >
+                      <View style={{ width: 48, height: 52, borderRadius: 12, backgroundColor: couleurs.ocean50, alignItems: 'center', justifyContent: 'center' }}>
+                        <Texte variante="montant" taille={17} couleur={couleurs.ocean950}>{v.jour}</Texte>
+                        <Texte graisse="tresGras" taille={10} couleur={couleurs.ocean800}>{v.mois}</Texte>
                       </View>
-                    </View>
-                    <View className={`px-3 py-1.5 rounded-full ${res?.statut === 2 ? 'bg-green-100' : res?.statut === 1 ? 'bg-orange-100' : res?.statut === 3 ? 'bg-gray-200' : 'bg-red-100'}`}>
-                      <Text className={`text-xs font-bold uppercase ${res?.statut === 2 ? 'text-green-700' : res?.statut === 1 ? 'text-orange-700' : res?.statut === 3 ? 'text-gray-700' : 'text-red-700'}`}>
-                        {res?.statut === 2 ? 'Confirmée' : res?.statut === 1 ? 'En attente' : res?.statut === 3 ? 'Terminée' : 'Annulée'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View className="flex-row justify-between items-center pt-3 border-t border-gray-50">
-                    <Text style={{ color: '#1e3a8a' }} className="font-bold text-base">
-                      {formatMontant(res?.montant)} Ar
-                    </Text>
-                    <View className="flex-row items-center">
-                      {res?.statut === 2 && (
-                        <TouchableOpacity
-                          onPress={() => openQrModal(res.id)}
-                          className="w-10 h-10 bg-green-100 rounded-xl items-center justify-center mr-2"
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="qr-code" size={22} color="#22c55e" />
-                        </TouchableOpacity>
+                      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                        <Texte graisse="tresGras" taille={14} numberOfLines={1}>{res?.trajet || 'Trajet'}</Texte>
+                        <Texte variante="legende" numberOfLines={1}>
+                          {res?.heure} · N° {res?.numero} · {formatAriary(Number(res?.montant) || 0)} Ar
+                        </Texte>
+                        <Pastille libelle={s.libelle} tonalite={s.tonalite} />
+                      </View>
+                      {res?.statut === 2 && s.groupe === 'avenir' ? (
+                        <BoutonIcone icone="qr-code-outline" libelle="Afficher le QR code" onPress={() => openQrModal(res.id)} />
+                      ) : (
+                        <Ionicons name="chevron-forward" size={18} color={couleurs.grisClair} />
                       )}
-                      <TouchableOpacity
-                        className="bg-blue-50 px-4 py-2 rounded-xl"
-                        onPress={() => router.push({ pathname: '/screens/dashboard/utilisateur/reservations/reservationDetail', params: { id: String(res?.id) } })}
-                      >
-                        <Text style={{ color: '#1e3a8a' }} className="text-xs font-bold">Voir détail</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              ))
+                    </Pressable>
+                  );
+                })}
+              </Carte>
             )}
-          </View>
-
-          {/* Section 3: Faire une réservation */}
-          <View className="bg-[#1e3a8a] rounded-[40px] p-8 shadow-xl items-center mb-10 overflow-hidden relative">
-            <View className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full" />
-            <View className="absolute -bottom-10 -left-10 w-24 h-24 bg-white/5 rounded-full" />
-
-            <View className="w-16 h-16 bg-white/20 rounded-2xl items-center justify-center mb-4">
-              <Ionicons name="add-circle-outline" size={40} color="#ffffff" />
-            </View>
-
-            <Text className="text-white font-bold text-2xl text-center mb-2">Prêt pour votre prochain voyage ?</Text>
-            <Text className="text-blue-100 text-center mb-6 opacity-80">Réservez votre place en quelques clics</Text>
-
-            <TouchableOpacity
-              className="bg-white px-8 py-4 rounded-2xl shadow-lg"
-              onPress={() => router.push('/screens/dashboard/utilisateur/reservations/reserver')}
-            >
-              <Text style={{ color: '#1e3a8a' }} className="font-extrabold text-lg">Faire une réservation</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+          </>
+        )}
       </ScrollView>
 
-      {/* QR Code Modal */}
-      <Modal visible={qrModalVisible} transparent animationType="fade" onRequestClose={() => setQrModalVisible(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }}>
-          <View className="bg-white rounded-[32px] p-8 mx-8 items-center" style={{ minWidth: 300 }}>
-            {qrLoading ? (
-              <View className="py-10 items-center">
-                <ActivityIndicator size="large" color="#1e3a8a" />
-                <Text className="text-gray-600 mt-4 text-sm">Chargement du QR...</Text>
+      {/* QR code */}
+      <FeuilleModale visible={qrModalVisible} onClose={() => setQrModalVisible(false)} titre="QR code d'embarquement" sousTitre={qrNumero ? `Billet ${qrNumero}` : undefined}>
+        <View style={{ alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: insets.bottom + 28 }}>
+          {qrLoading ? (
+            <View style={{ height: 240, alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+              <ActivityIndicator color={couleurs.ocean800} />
+              <Texte variante="legende">Chargement du QR code…</Texte>
+            </View>
+          ) : qrString ? (
+            <>
+              <View style={{ padding: 14, borderRadius: 18, borderWidth: 1, borderColor: couleurs.ligne }}>
+                <QRCode value={qrString} size={230} color={couleurs.ocean950} backgroundColor="#FFFFFF" />
               </View>
-            ) : qrString ? (
-              <>
-                <View className="w-14 h-14 bg-green-100 rounded-full items-center justify-center mb-4">
-                  <Ionicons name="qr-code" size={28} color="#22c55e" />
-                </View>
-                <Text className="text-gray-900 font-bold text-lg mb-1">QR Code</Text>
-                <Text className="text-gray-600 text-sm mb-5">Ticket N° {qrNumero}</Text>
-                <View className="bg-white p-4 rounded-2xl border border-gray-100">
-                  <QRCode value={qrString} size={220} backgroundColor="#ffffff" />
-                </View>
-                <Text className="text-gray-700 text-xs text-center mt-4">Présentez ce code lors de l'embarquement</Text>
-              </>
-            ) : (
-              <View className="py-10 items-center">
-                <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
-                <Text className="text-gray-500 mt-3 text-sm">QR code indisponible</Text>
-              </View>
-            )}
-            <TouchableOpacity
-              onPress={() => setQrModalVisible(false)}
-              className="mt-6 bg-gray-100 px-8 py-3 rounded-2xl"
-            >
-              <Text className="text-gray-700 font-bold">Fermer</Text>
-            </TouchableOpacity>
-          </View>
+              <Texte variante="legende" centre>Présentez ce code au chauffeur à l'embarquement.</Texte>
+            </>
+          ) : (
+            <View style={{ height: 200, alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Ionicons name="alert-circle-outline" size={36} color={couleurs.danger} />
+              <Texte variante="legende">QR code indisponible pour ce billet.</Texte>
+            </View>
+          )}
         </View>
-      </Modal>
+      </FeuilleModale>
+
+      {/* Filtre par date de réservation */}
+      <FeuilleModale
+        visible={showDateModal}
+        onClose={() => setShowDateModal(false)}
+        titre="Filtrer par date"
+        sousTitre="Date à laquelle vous avez réservé"
+        pied={
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Bouton
+              titre="Réinitialiser"
+              variante="secondaire"
+              style={{ flex: 1 }}
+              onPress={() => { setDateDebut(null); setDateFin(null); setFiltreActif(false); setShowDateModal(false); }}
+            />
+            <Bouton
+              titre="Appliquer"
+              style={{ flex: 1.6 }}
+              desactive={!dateDebut && !dateFin}
+              onPress={() => { setFiltreActif(true); setShowDateModal(false); }}
+            />
+          </View>
+        }
+      >
+        <View style={{ paddingHorizontal: 20, paddingBottom: 8, gap: 10 }}>
+          {([
+            { cle: 'debut', libelle: 'Du', valeur: dateDebut, effacer: () => setDateDebut(null) },
+            { cle: 'fin', libelle: 'Au (facultatif)', valeur: dateFin, effacer: () => setDateFin(null) },
+          ] as const).map((c) => (
+            <Pressable
+              key={c.cle}
+              onPress={() => setPickerTarget(c.cle)}
+              accessibilityRole="button"
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 54, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1.5, borderColor: c.valeur ? couleurs.ocean800 : couleurs.champ }}
+            >
+              <Ionicons name="calendar-outline" size={19} color={couleurs.ocean800} />
+              <View style={{ flex: 1 }}>
+                <Texte variante="legende" taille={11}>{c.libelle}</Texte>
+                <Texte graisse="gras" taille={15} couleur={c.valeur ? couleurs.encre : '#8A99AD'}>
+                  {c.valeur ? formatDateFr(c.valeur) : 'Choisir une date'}
+                </Texte>
+              </View>
+              {c.valeur && (
+                <Pressable onPress={c.effacer} hitSlop={10} accessibilityLabel="Effacer">
+                  <Ionicons name="close-circle" size={19} color={couleurs.grisClair} />
+                </Pressable>
+              )}
+            </Pressable>
+          ))}
+        </View>
+        {pickerTarget && (
+          <DateTimePicker
+            value={(pickerTarget === 'debut' ? dateDebut : dateFin) || new Date()}
+            mode="date"
+            display="default"
+            onChange={(_e: any, d?: Date) => {
+              const cible = pickerTarget;
+              setPickerTarget(null);
+              if (!d) return;
+              if (cible === 'debut') {
+                setDateDebut(d);
+                if (dateFin && d > dateFin) setDateFin(null);
+              } else {
+                setDateFin(d);
+                if (dateDebut && d < dateDebut) setDateDebut(null);
+              }
+            }}
+          />
+        )}
+      </FeuilleModale>
     </View>
   );
 }

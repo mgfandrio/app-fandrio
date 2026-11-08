@@ -1,47 +1,50 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl, Modal } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, FlatList, ActivityIndicator, RefreshControl, StatusBar, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { reservationService } from '@/app/services/reservations/reservationService';
 import { genererBilletPdf } from '@/app/utils/genererBilletPdf';
 import { Skeleton } from '@/app/components/common/Skeleton';
+import { Bouton, Carte, EnTete, FeuilleModale, Pastille, Segmente, Texte } from '@/app/components/ui';
+import { couleurs, formatAriary } from '@/app/theme/ocean';
+import { statutBillet } from '@/app/utils/statutBillet';
 
-const STATUS_MAP: Record<number, { label: string; color: string; bg: string; icon: string }> = {
-    1: { label: 'En attente', color: '#f97316', bg: '#fff7ed', icon: 'time-outline' },
-    2: { label: 'Confirmée', color: '#22c55e', bg: '#f0fdf4', icon: 'checkmark-circle-outline' },
-    3: { label: 'Terminée', color: '#6b7280', bg: '#f3f4f6', icon: 'flag-outline' },
-    4: { label: 'Annulée', color: '#ef4444', bg: '#fef2f2', icon: 'close-circle-outline' },
-};
+type Filtre = 'toutes' | 'avenir' | 'passe';
 
+/** Ligne libellé / valeur dans le détail d'une facture. */
+function Ligne({ libelle, valeur, fort }: { libelle: string; valeur?: string; fort?: boolean }) {
+    return (
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+            <Texte graisse="moyen" taille={13.5} couleur={couleurs.gris}>{libelle}</Texte>
+            <Texte graisse={fort ? 'tresGras' : 'gras'} taille={fort ? 18 : 13.5} style={{ flexShrink: 1, textAlign: 'right' }}>{valeur || '—'}</Texte>
+        </View>
+    );
+}
+
+/** Factures du client : seules les réservations payées (statut 2) ont une facture. */
 export default function ClientFacturesScreen() {
     const router = useRouter();
+    const insets = useSafeAreaInsets();
     const [loading, setLoading] = useState(true);
+    const [chargementSuite, setChargementSuite] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [reservations, setReservations] = useState<any[]>([]);
     const [pagination, setPagination] = useState<any>(null);
-    const [page, setPage] = useState(1);
-    const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-    const [invoiceLoading, setInvoiceLoading] = useState(false);
+    const [filtre, setFiltre] = useState<Filtre>('toutes');
+    const [facture, setFacture] = useState<any>(null);
+    const [factureChargement, setFactureChargement] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
-    const [filter, setFilter] = useState<'all' | 'confirmed' | 'terminated'>('all');
     const [downloadingPdf, setDownloadingPdf] = useState(false);
     const qrRef = useRef<any>(null);
 
-    const fetchFactures = useCallback(async (pageNumber = 1, isRefreshing = false) => {
-        if (!isRefreshing && pageNumber === 1) setLoading(true);
+    const fetchFactures = useCallback(async (pageNumber = 1) => {
         try {
             const response = await reservationService.obtenirToutesReservations(pageNumber);
             if (response.statut) {
-                // Only show reservations with payment (statut 2, 3 = confirmed/terminated)
-                const allItems = response.data.items;
-                if (pageNumber === 1) {
-                    setReservations(allItems);
-                } else {
-                    setReservations(prev => [...prev, ...allItems]);
-                }
+                const items = response.data.items || [];
+                setReservations((prev) => (pageNumber === 1 ? items : [...prev, ...items]));
                 setPagination(response.data.pagination);
             }
         } catch (error) {
@@ -49,72 +52,53 @@ export default function ClientFacturesScreen() {
         } finally {
             setLoading(false);
             setRefreshing(false);
+            setChargementSuite(false);
         }
     }, []);
 
     useEffect(() => {
-        fetchFactures();
+        fetchFactures(1);
     }, [fetchFactures]);
 
     const onRefresh = () => {
         setRefreshing(true);
-        setPage(1);
-        fetchFactures(1, true);
+        fetchFactures(1);
     };
 
     const loadMore = () => {
-        if (pagination && pagination.current_page < pagination.last_page && !loading) {
-            const nextPage = page + 1;
-            setPage(nextPage);
-            fetchFactures(nextPage);
-        }
+        if (!pagination || chargementSuite || loading || pagination.current_page >= pagination.last_page) return;
+        setChargementSuite(true);
+        fetchFactures(pagination.current_page + 1);
     };
 
-    const formatMontant = (montant: any) => {
-        try {
-            if (montant === null || montant === undefined) return '0';
-            return new Intl.NumberFormat('fr-FR').format(Number(montant));
-        } catch {
-            return String(montant || 0);
-        }
-    };
-
-    const loadInvoiceDetail = async (resId: number) => {
-        setInvoiceLoading(true);
+    const ouvrirFacture = async (resId: number) => {
+        setFacture(null);
+        setFactureChargement(true);
         setModalVisible(true);
         try {
             const response = await reservationService.obtenirFacture(resId);
-            if (response.statut) {
-                setSelectedInvoice(response.data);
-            }
+            if (response.statut) setFacture(response.data);
         } catch (error) {
             console.error('Error loading invoice:', error);
         } finally {
-            setInvoiceLoading(false);
+            setFactureChargement(false);
         }
     };
 
-    const closeModal = () => {
+    const fermer = () => {
         setModalVisible(false);
-        setSelectedInvoice(null);
         qrRef.current = null;
     };
 
-    /**
-     * Récupère le QR code en data URL via la ref de <QRCode>, puis génère/partage le PDF.
-     */
+    /** Récupère le QR code en data URL via la ref de <QRCode>, puis génère et partage le PDF. */
     const handleDownloadPdf = async () => {
-        if (!selectedInvoice || downloadingPdf) return;
+        if (!facture || downloadingPdf) return;
         setDownloadingPdf(true);
-
         const qrDataUrl = await new Promise<string>((resolve) => {
             if (qrRef.current && typeof qrRef.current.toDataURL === 'function') {
                 try {
-                    qrRef.current.toDataURL((data: string) => {
-                        resolve(data ? `data:image/png;base64,${data}` : '');
-                    });
-                    // Filet de sécurité si toDataURL ne répond pas
-                    setTimeout(() => resolve(''), 1500);
+                    qrRef.current.toDataURL((data: string) => resolve(data ? `data:image/png;base64,${data}` : ''));
+                    setTimeout(() => resolve(''), 1500); // filet de sécurité
                 } catch {
                     resolve('');
                 }
@@ -122,367 +106,219 @@ export default function ClientFacturesScreen() {
                 resolve('');
             }
         });
-
-        await genererBilletPdf(
-            {
-                reservation: {
-                    numero: selectedInvoice.reservation.numero,
-                    statut: selectedInvoice.reservation.statut,
-                    montant: selectedInvoice.reservation.montant,
-                    date_reservation: selectedInvoice.reservation.date_reservation,
-                    paiement: selectedInvoice.reservation.paiement,
-                },
-                voyage: selectedInvoice.voyage,
-                voyageurs: selectedInvoice.voyageurs,
-            },
-            qrDataUrl
-        );
-        setDownloadingPdf(false);
-    };
-
-    const getQrString = (qrData: string) => {
         try {
-            return qrData ? atob(qrData) : '';
-        } catch {
-            return qrData;
+            await genererBilletPdf(
+                {
+                    reservation: {
+                        numero: facture.reservation.numero,
+                        statut: facture.reservation.statut,
+                        montant: facture.reservation.montant,
+                        date_reservation: facture.reservation.date_reservation,
+                        paiement: facture.reservation.paiement,
+                    },
+                    voyage: facture.voyage,
+                    voyageurs: facture.voyageurs,
+                },
+                qrDataUrl
+            );
+        } finally {
+            setDownloadingPdf(false);
         }
     };
 
-    const filteredReservations = reservations.filter(res => {
-        if (filter === 'confirmed') return res.statut === 2;
-        if (filter === 'terminated') return res.statut === 3;
-        return [2, 3].includes(res.statut); // Only show paid invoices
-    });
+    const qrString = (() => {
+        const brut = facture?.reservation?.qr_data;
+        if (!brut) return '';
+        try {
+            return atob(brut);
+        } catch {
+            return brut;
+        }
+    })();
+
+    const payees = reservations.filter((r) => r.statut === 2);
+    const affichees = payees.filter((r) => filtre === 'toutes' || statutBillet(r.statut, r.date).groupe === filtre);
+    const totalPaye = payees.reduce((s, r) => s + Number(r.montant || 0), 0);
+    const toutCharge = !pagination || pagination.current_page >= pagination.last_page;
+
+    const statutFacture = facture ? statutBillet(facture.reservation.statut, facture.voyage?.date) : null;
 
     return (
-        <SafeAreaView className="flex-1 bg-gray-50">
-            {/* Header */}
-            <View className="bg-white border-b border-gray-100 px-6 py-4 flex-row items-center justify-between">
-                <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center bg-gray-50 rounded-full">
-                    <Ionicons name="arrow-back" size={24} color="#1e3a8a" />
-                </TouchableOpacity>
-                <Text className="text-xl font-bold text-blue-900">Mes Factures</Text>
-                <View className="w-10" />
-            </View>
+        <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
+            <StatusBar barStyle="dark-content" backgroundColor={couleurs.surface} />
+            <EnTete titre="Factures" sousTitre="Réservations payées" />
 
-            {/* Hero Stats */}
-            <LinearGradient colors={['#1e3a8a', '#1e40af', '#2563eb']} className="mx-5 mt-5 rounded-[28px] overflow-hidden">
-                <View className="p-5">
-                    <View className="flex-row items-center mb-3">
-                        <View className="w-10 h-10 bg-white/20 rounded-full items-center justify-center">
-                            <Ionicons name="receipt-outline" size={20} color="#ffffff" />
-                        </View>
-                        <Text className="text-white font-bold text-lg ml-3">Récapitulatif</Text>
-                    </View>
-                    <View className="flex-row justify-between">
-                        <View className="flex-1 items-center">
-                            <Text className="text-blue-200 text-[10px] uppercase font-bold">Factures</Text>
-                            <Text className="text-white font-bold text-xl">{reservations.filter(r => [2, 3].includes(r.statut)).length}</Text>
-                        </View>
-                        <View className="w-px bg-white/20" />
-                        <View className="flex-1 items-center">
-                            <Text className="text-blue-200 text-[10px] uppercase font-bold">Total payé</Text>
-                            <Text className="text-white font-bold text-lg">
-                                {formatMontant(reservations.filter(r => [2, 3].includes(r.statut)).reduce((sum, r) => sum + Number(r.montant || 0), 0))} Ar
-                            </Text>
-                        </View>
-                    </View>
-                </View>
-            </LinearGradient>
-
-            {/* Filters */}
-            <View className="flex-row mx-5 mt-4 mb-2">
-                {([
-                    { key: 'all', label: 'Toutes' },
-                    { key: 'confirmed', label: 'Confirmées' },
-                    { key: 'terminated', label: 'Terminées' },
-                ] as const).map(f => (
-                    <TouchableOpacity
-                        key={f.key}
-                        onPress={() => setFilter(f.key)}
-                        className={`mr-2 px-4 py-2 rounded-full ${filter === f.key ? 'bg-blue-900' : 'bg-white border border-gray-200'}`}
-                    >
-                        <Text className={`text-xs font-bold ${filter === f.key ? 'text-white' : 'text-gray-600'}`}>{f.label}</Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-
-            {loading && page === 1 ? (
-                <View className="flex-1" style={{ paddingHorizontal: 20, paddingTop: 4 }}>
-                    {[...Array(5)].map((_, i) => (
-                        <View key={i} className="bg-white rounded-3xl p-5 mb-3 shadow-sm border border-gray-100">
-                            {/* Top row : avatar + titre / numéro + badge */}
-                            <View className="flex-row justify-between items-start mb-3">
-                                <View className="flex-row items-center flex-1">
-                                    <Skeleton width={40} height={40} borderRadius={20} style={{ marginRight: 12 }} />
-                                    <View className="flex-1">
-                                        <Skeleton width="70%" height={14} borderRadius={6} />
-                                        <Skeleton width="40%" height={10} borderRadius={5} style={{ marginTop: 6 }} />
-                                    </View>
-                                </View>
-                                <Skeleton width={72} height={22} borderRadius={11} style={{ marginLeft: 8 }} />
-                            </View>
-
-                            {/* Bottom row : date/voyageurs + montant */}
-                            <View className="flex-row justify-between items-center pt-3 border-t border-gray-50">
-                                <View>
-                                    <Skeleton width={120} height={10} borderRadius={5} />
-                                    <Skeleton width={80} height={10} borderRadius={5} style={{ marginTop: 6 }} />
-                                </View>
-                                <Skeleton width={90} height={16} borderRadius={6} />
-                            </View>
-                        </View>
-                    ))}
+            {loading ? (
+                <View style={{ padding: 16, gap: 10 }}>
+                    <Skeleton height={92} borderRadius={20} />
+                    <Skeleton height={46} borderRadius={14} />
+                    {[1, 2, 3, 4].map((i) => <Skeleton key={i} height={76} borderRadius={16} />)}
                 </View>
             ) : (
-                <ScrollView
-                    className="flex-1"
-                    contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-                    onMomentumScrollEnd={loadMore}
-                >
-                    {filteredReservations.length === 0 ? (
-                        <View className="items-center justify-center py-20">
-                            <Ionicons name="document-text-outline" size={64} color="#d1d5db" />
-                            <Text className="text-gray-400 mt-4 text-base">Aucune facture trouvée</Text>
+                <FlatList
+                    data={affichees}
+                    keyExtractor={(r) => String(r.id)}
+                    contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24, gap: 10, flexGrow: 1 }}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={couleurs.ocean800} colors={[couleurs.ocean800]} />}
+                    onEndReached={loadMore}
+                    onEndReachedThreshold={0.4}
+                    showsVerticalScrollIndicator={false}
+                    ListHeaderComponent={
+                        <View style={{ gap: 12, marginBottom: 2 }}>
+                            <Carte marine style={{ flexDirection: 'row' }}>
+                                <View style={{ flex: 1, gap: 2 }}>
+                                    <Texte graisse="gras" taille={10.5} couleur={couleurs.texteSurMarine} style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>Factures</Texte>
+                                    <Texte variante="montant" taille={22} couleur="#FFFFFF">{payees.length}{toutCharge ? '' : '+'}</Texte>
+                                </View>
+                                <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.14)', marginHorizontal: 14 }} />
+                                <View style={{ flex: 2, gap: 2 }}>
+                                    <Texte graisse="gras" taille={10.5} couleur={couleurs.texteSurMarine} style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>Total payé</Texte>
+                                    <Texte variante="montant" taille={22} couleur="#FFFFFF">{formatAriary(totalPaye)} Ar</Texte>
+                                </View>
+                            </Carte>
+                            <Segmente<Filtre>
+                                libelleAccessible="Filtrer les factures"
+                                valeur={filtre}
+                                onChange={setFiltre}
+                                options={[
+                                    { valeur: 'toutes', libelle: 'Toutes' },
+                                    { valeur: 'avenir', libelle: 'À venir' },
+                                    { valeur: 'passe', libelle: 'Effectuées' },
+                                ]}
+                            />
                         </View>
-                    ) : (
-                        filteredReservations.map((res: any) => {
-                            const statusInfo = STATUS_MAP[res.statut] || STATUS_MAP[2];
-                            return (
-                                <TouchableOpacity
-                                    key={res.id}
-                                    className="bg-white rounded-3xl p-5 mb-3 shadow-sm border border-gray-100"
-                                    onPress={() => loadInvoiceDetail(res.id)}
-                                    activeOpacity={0.7}
-                                >
-                                    <View className="flex-row justify-between items-start mb-3">
-                                        <View className="flex-row items-center flex-1">
-                                            <View style={{ backgroundColor: statusInfo.bg }} className="w-10 h-10 rounded-full items-center justify-center mr-3">
-                                                <Ionicons name="receipt-outline" size={18} color={statusInfo.color} />
-                                            </View>
-                                            <View className="flex-1">
-                                                <Text className="text-gray-900 font-bold text-sm">{res.trajet}</Text>
-                                                <Text className="text-gray-400 text-[10px] mt-0.5">N° {res.numero}</Text>
-                                            </View>
-                                        </View>
-                                        <View style={{ backgroundColor: statusInfo.bg }} className="px-2.5 py-1 rounded-full">
-                                            <Text style={{ color: statusInfo.color }} className="text-[10px] font-bold uppercase">
-                                                {statusInfo.label}
-                                            </Text>
-                                        </View>
-                                    </View>
-
-                                    <View className="flex-row justify-between items-center pt-3 border-t border-gray-50">
-                                        <View>
-                                            <Text className="text-gray-400 text-[10px]">{res.date} • {res.heure}</Text>
-                                            <Text className="text-gray-500 text-[10px]">{res.nb_voyageurs} voyageur(s)</Text>
-                                        </View>
-                                        <View className="flex-row items-center">
-                                            <Text style={{ color: '#1e3a8a' }} className="font-bold text-base mr-2">
-                                                {formatMontant(res.montant)} Ar
-                                            </Text>
-                                            <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
-                                        </View>
-                                    </View>
-                                </TouchableOpacity>
-                            );
-                        })
-                    )}
-
-                    {loading && page > 1 && (
-                        <View className="py-4">
-                            <ActivityIndicator size="small" color="#1e3a8a" />
+                    }
+                    ListEmptyComponent={
+                        <View style={{ alignItems: 'center', paddingVertical: 40, gap: 6 }}>
+                            <Ionicons name="document-text-outline" size={40} color={couleurs.grisClair} />
+                            <Texte graisse="tresGras" taille={15}>Aucune facture</Texte>
+                            <Texte variante="legende" centre>Les factures apparaissent une fois la réservation payée.</Texte>
                         </View>
-                    )}
-                </ScrollView>
+                    }
+                    ListFooterComponent={chargementSuite ? <ActivityIndicator color={couleurs.ocean800} style={{ paddingVertical: 12 }} /> : null}
+                    renderItem={({ item: res }) => {
+                        const statut = statutBillet(res.statut, res.date);
+                        return (
+                            <Carte
+                                onPress={() => ouvrirFacture(res.id)}
+                                accessibilityLabel={`Facture ${res.numero}, ${res.trajet}, ${formatAriary(Number(res.montant) || 0)} ariary`}
+                                style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+                            >
+                                <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: couleurs.ocean50, alignItems: 'center', justifyContent: 'center' }}>
+                                    <Ionicons name="receipt-outline" size={20} color={couleurs.ocean800} />
+                                </View>
+                                <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                                    <Texte graisse="tresGras" taille={14.5} numberOfLines={1}>{res.trajet}</Texte>
+                                    <Texte variante="legende" numberOfLines={1}>
+                                        {res.date} · {res.nb_voyageurs} voyageur{res.nb_voyageurs > 1 ? 's' : ''} · N° {res.numero}
+                                    </Texte>
+                                </View>
+                                <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                                    <Texte variante="montant" taille={14.5} couleur={couleurs.ocean800}>{formatAriary(Number(res.montant) || 0)} Ar</Texte>
+                                    <Pastille libelle={statut.libelle} tonalite={statut.tonalite} point={false} />
+                                </View>
+                            </Carte>
+                        );
+                    }}
+                />
             )}
 
-            {/* Invoice Detail Modal */}
-            <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeModal}>
-                <SafeAreaView className="flex-1 bg-gray-50">
-                    {/* Modal Header */}
-                    <View className="bg-white border-b border-gray-100 px-6 py-4 flex-row items-center justify-between">
-                        <TouchableOpacity onPress={closeModal} className="w-10 h-10 items-center justify-center bg-gray-50 rounded-full">
-                            <Ionicons name="close" size={24} color="#1e3a8a" />
-                        </TouchableOpacity>
-                        <Text className="text-xl font-bold text-blue-900">Facture</Text>
-                        <View className="w-10" />
-                    </View>
-
-                    {invoiceLoading ? (
-                        <View className="flex-1 justify-center items-center">
-                            <ActivityIndicator size="large" color="#1e3a8a" />
-                            <Text className="text-gray-400 mt-4 text-sm">Chargement de la facture...</Text>
+            <FeuilleModale
+                visible={modalVisible}
+                onClose={fermer}
+                hauteur="pleine"
+                titre={facture ? `Facture ${facture.reservation.numero}` : 'Facture'}
+                sousTitre={facture?.reservation?.date_reservation ? `Réservé le ${facture.reservation.date_reservation}` : undefined}
+                pied={
+                    facture ? (
+                        <View style={{ gap: 8 }}>
+                            <Bouton
+                                titre={downloadingPdf ? 'Génération du PDF…' : 'Télécharger le PDF'}
+                                icone="download-outline"
+                                chargement={downloadingPdf}
+                                onPress={handleDownloadPdf}
+                            />
+                            <Bouton
+                                titre="Voir le billet"
+                                variante="secondaire"
+                                onPress={() => {
+                                    fermer();
+                                    router.push({ pathname: '/screens/dashboard/utilisateur/reservations/reservationDetail', params: { id: String(facture.reservation.id) } });
+                                }}
+                            />
                         </View>
-                    ) : selectedInvoice ? (
-                        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-                            {/* Invoice Header */}
-                            <LinearGradient colors={['#1e3a8a', '#1e40af']} className="mx-5 mt-5 rounded-[28px] overflow-hidden">
-                                <View className="p-6 items-center">
-                                    <Text className="text-blue-200 text-xs font-bold uppercase mb-1">Facture N°</Text>
-                                    <Text className="text-white text-2xl font-bold">{selectedInvoice.reservation.numero}</Text>
-                                    <View className="mt-3 flex-row items-center">
-                                        <View className="bg-white/20 px-3 py-1.5 rounded-full flex-row items-center">
-                                            <Ionicons
-                                                name={(STATUS_MAP[selectedInvoice.reservation.statut]?.icon || 'ellipse-outline') as any}
-                                                size={14}
-                                                color="#ffffff"
-                                            />
-                                            <Text className="text-white text-xs font-bold ml-1">
-                                                {STATUS_MAP[selectedInvoice.reservation.statut]?.label || 'Inconnu'}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                </View>
-                            </LinearGradient>
-
-                            {/* QR Code - Only for confirmed reservations */}
-                            {selectedInvoice.reservation.statut === 2 && selectedInvoice.reservation.qr_data && (
-                                <View className="mx-5 mt-5 bg-white rounded-[28px] p-6 border border-gray-100 shadow-sm items-center">
-                                    <View className="flex-row items-center mb-4">
-                                        <Ionicons name="qr-code-outline" size={20} color="#1e3a8a" />
-                                        <Text className="text-blue-900 font-bold text-base ml-2">QR Code</Text>
-                                    </View>
-                                    <View className="bg-white p-4 rounded-2xl border border-gray-100">
-                                        <QRCode
-                                            value={getQrString(selectedInvoice.reservation.qr_data)}
-                                            size={180}
-                                            backgroundColor="#ffffff"
-                                            getRef={(c: any) => (qrRef.current = c)}
-                                        />
-                                    </View>
-                                    <Text className="text-gray-400 text-[10px] text-center mt-3">Présentez ce code lors de l'embarquement</Text>
-                                </View>
-                            )}
-
-                            {/* Voyage Info */}
-                            <View className="mx-5 mt-5 bg-white rounded-[28px] p-5 border border-gray-100 shadow-sm">
-                                <View className="flex-row items-center mb-4">
-                                    <View className="w-8 h-8 bg-blue-50 rounded-full items-center justify-center">
-                                        <Ionicons name="bus-outline" size={16} color="#1e3a8a" />
-                                    </View>
-                                    <Text className="text-gray-900 font-bold text-base ml-3">Voyage</Text>
-                                </View>
-
-                                <View className="space-y-2">
-                                    <View className="flex-row justify-between py-2 border-b border-gray-50">
-                                        <Text className="text-gray-500 text-sm">Trajet</Text>
-                                        <Text className="text-gray-900 font-bold text-sm">{selectedInvoice.voyage.depart} → {selectedInvoice.voyage.arrivee}</Text>
-                                    </View>
-                                    <View className="flex-row justify-between py-2 border-b border-gray-50">
-                                        <Text className="text-gray-500 text-sm">Date</Text>
-                                        <Text className="text-gray-900 font-bold text-sm">{selectedInvoice.voyage.date} à {selectedInvoice.voyage.heure}</Text>
-                                    </View>
-                                    <View className="flex-row justify-between py-2 border-b border-gray-50">
-                                        <Text className="text-gray-500 text-sm">Compagnie</Text>
-                                        <Text className="text-gray-900 font-bold text-sm">{selectedInvoice.voyage.compagnie}</Text>
-                                    </View>
-                                    <View className="flex-row justify-between py-2">
-                                        <Text className="text-gray-500 text-sm">Véhicule</Text>
-                                        <Text className="text-gray-900 font-bold text-sm">{selectedInvoice.voyage.matricule}</Text>
-                                    </View>
-                                </View>
+                    ) : undefined
+                }
+            >
+                {factureChargement ? (
+                    <View style={{ padding: 20, gap: 12 }}>
+                        <Skeleton height={120} borderRadius={18} />
+                        <Skeleton height={160} borderRadius={16} />
+                    </View>
+                ) : facture ? (
+                    <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 4, gap: 14 }} showsVerticalScrollIndicator={false}>
+                        {/* Trajet */}
+                        <Carte marine style={{ gap: 10 }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Texte graisse="gras" taille={12.5} couleur={couleurs.texteSurMarine}>{facture.voyage.compagnie}</Texte>
+                                {statutFacture && <Pastille libelle={statutFacture.libelle} tonalite={statutFacture.tonalite} />}
                             </View>
+                            <Texte graisse="tresGras" taille={18} couleur="#FFFFFF">{facture.voyage.depart} → {facture.voyage.arrivee}</Texte>
+                            <Texte graisse="moyen" taille={13} couleur={couleurs.texteSurMarine}>
+                                {facture.voyage.date} à {facture.voyage.heure} · {facture.voyage.matricule}
+                            </Texte>
+                        </Carte>
 
-                            {/* Voyageurs */}
-                            {selectedInvoice.voyageurs && selectedInvoice.voyageurs.length > 0 && (
-                                <View className="mx-5 mt-5 bg-white rounded-[28px] p-5 border border-gray-100 shadow-sm">
-                                    <View className="flex-row items-center mb-4">
-                                        <View className="w-8 h-8 bg-orange-50 rounded-full items-center justify-center">
-                                            <Ionicons name="people-outline" size={16} color="#f97316" />
-                                        </View>
-                                        <Text className="text-gray-900 font-bold text-base ml-3">Voyageurs ({selectedInvoice.voyageurs.length})</Text>
-                                    </View>
+                        {/* QR (sert aussi à l'image du PDF) */}
+                        {facture.reservation.statut === 2 && !!qrString && (
+                            <View style={{ alignItems: 'center', gap: 8 }}>
+                                <View style={{ padding: 12, borderRadius: 16, borderWidth: 1, borderColor: couleurs.ligne, backgroundColor: '#FFFFFF' }}>
+                                    <QRCode value={qrString} size={168} color={couleurs.ocean950} backgroundColor="#FFFFFF" getRef={(c: any) => (qrRef.current = c)} />
+                                </View>
+                                {statutFacture?.groupe === 'avenir' && <Texte variante="legende" centre>Présentez ce code au chauffeur à l'embarquement.</Texte>}
+                            </View>
+                        )}
 
-                                    {selectedInvoice.voyageurs.map((v: any, i: number) => (
-                                        <View key={i} className={`flex-row items-center py-2.5 ${i < selectedInvoice.voyageurs.length - 1 ? 'border-b border-gray-50' : ''}`}>
-                                            <View className="w-7 h-7 bg-gray-100 rounded-full items-center justify-center mr-3">
-                                                <Text className="text-gray-600 font-bold text-[10px]">{i + 1}</Text>
+                        {/* Voyageurs */}
+                        {(facture.voyageurs || []).length > 0 && (
+                            <View style={{ gap: 8 }}>
+                                <Texte variante="etiquette" style={{ marginLeft: 2 }}>Voyageurs ({facture.voyageurs.length})</Texte>
+                                <Carte padding={0}>
+                                    {facture.voyageurs.map((v: any, i: number) => (
+                                        <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, paddingHorizontal: 14, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: couleurs.separateur }}>
+                                            <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: couleurs.ocean800, alignItems: 'center', justifyContent: 'center' }}>
+                                                <Texte graisse="tresGras" taille={13.5} couleur="#FFFFFF">{v.siege}</Texte>
                                             </View>
-                                            <Text className="text-gray-900 font-bold text-sm flex-1">{v.nom}</Text>
-                                            <View className="bg-blue-50 px-2.5 py-1 rounded-full">
-                                                <Text className="text-blue-900 text-[10px] font-bold">Siège {v.siege}</Text>
-                                            </View>
+                                            <Texte graisse="gras" taille={14} style={{ flex: 1 }} numberOfLines={1}>{v.nom}</Texte>
                                         </View>
                                     ))}
-                                </View>
-                            )}
+                                </Carte>
+                            </View>
+                        )}
 
-                            {/* Payment Summary */}
-                            <View className="mx-5 mt-5 bg-white rounded-[28px] p-5 border border-gray-100 shadow-sm">
-                                <View className="flex-row items-center mb-4">
-                                    <View className="w-8 h-8 bg-green-50 rounded-full items-center justify-center">
-                                        <Ionicons name="wallet-outline" size={16} color="#22c55e" />
-                                    </View>
-                                    <Text className="text-gray-900 font-bold text-base ml-3">Paiement</Text>
-                                </View>
-
-                                {selectedInvoice.reservation.paiement && (
-                                    <View className="space-y-2">
-                                        <View className="flex-row justify-between py-2 border-b border-gray-50">
-                                            <Text className="text-gray-500 text-sm">Mode</Text>
-                                            <Text className="text-gray-900 font-bold text-sm">{selectedInvoice.reservation.paiement.type}</Text>
-                                        </View>
-                                        <View className="flex-row justify-between py-2 border-b border-gray-50">
-                                            <Text className="text-gray-500 text-sm">Référence</Text>
-                                            <Text className="text-gray-900 font-bold text-sm">{selectedInvoice.reservation.paiement.numero}</Text>
-                                        </View>
-                                    </View>
+                        {/* Paiement */}
+                        <View style={{ gap: 8 }}>
+                            <Texte variante="etiquette" style={{ marginLeft: 2 }}>Paiement</Texte>
+                            <Carte style={{ gap: 9 }}>
+                                {facture.reservation.paiement && (
+                                    <>
+                                        <Ligne libelle="Mode" valeur={facture.reservation.paiement.type} />
+                                        <Ligne libelle="Référence" valeur={facture.reservation.paiement.numero} />
+                                    </>
                                 )}
-
-                                <View className="flex-row justify-between items-center mt-4 pt-4 border-t border-gray-100">
-                                    <Text className="text-gray-900 font-bold text-lg">Montant Total</Text>
-                                    <Text className="text-blue-900 font-bold text-xl">{formatMontant(selectedInvoice.reservation.montant)} Ar</Text>
+                                <View style={{ paddingTop: facture.reservation.paiement ? 9 : 0, borderTopWidth: facture.reservation.paiement ? 1 : 0, borderTopColor: couleurs.separateur }}>
+                                    <Ligne libelle="Total" valeur={`${formatAriary(Number(facture.reservation.montant) || 0)} Ar`} fort />
                                 </View>
-
-                                <View className="flex-row justify-between py-2 mt-2">
-                                    <Text className="text-gray-400 text-xs">Date de réservation</Text>
-                                    <Text className="text-gray-500 text-xs">{selectedInvoice.reservation.date_reservation}</Text>
-                                </View>
-                            </View>
-
-                            {/* Actions : Télécharger PDF + Voir détail */}
-                            <View className="mx-5 mt-5 mb-5">
-                                <TouchableOpacity
-                                    className="bg-blue-50 border border-blue-200 w-full py-4 rounded-2xl items-center flex-row justify-center mb-3"
-                                    onPress={handleDownloadPdf}
-                                    disabled={downloadingPdf}
-                                    activeOpacity={0.7}
-                                >
-                                    {downloadingPdf ? (
-                                        <>
-                                            <ActivityIndicator size="small" color="#1e3a8a" />
-                                            <Text className="text-blue-900 font-bold text-base ml-2">Génération du PDF...</Text>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Ionicons name="download-outline" size={20} color="#1e3a8a" />
-                                            <Text className="text-blue-900 font-bold text-base ml-2">Télécharger / Partager le PDF</Text>
-                                        </>
-                                    )}
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    className="bg-blue-900 w-full py-4 rounded-2xl items-center flex-row justify-center"
-                                    onPress={() => {
-                                        closeModal();
-                                        router.push({ pathname: '/screens/dashboard/utilisateur/reservations/reservationDetail', params: { id: String(selectedInvoice.reservation.id) } });
-                                    }}
-                                >
-                                    <Ionicons name="open-outline" size={18} color="#ffffff" />
-                                    <Text className="text-white font-bold text-base ml-2">Voir détail complet</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </ScrollView>
-                    ) : (
-                        <View className="flex-1 justify-center items-center">
-                            <Ionicons name="alert-circle-outline" size={64} color="#ef4444" />
-                            <Text className="text-gray-500 mt-4">Impossible de charger la facture</Text>
+                            </Carte>
                         </View>
-                    )}
-                </SafeAreaView>
-            </Modal>
-        </SafeAreaView>
+                    </ScrollView>
+                ) : (
+                    <View style={{ alignItems: 'center', padding: 32, gap: 8 }}>
+                        <Ionicons name="alert-circle-outline" size={44} color={couleurs.danger} />
+                        <Texte variante="legende" centre>Impossible de charger la facture. Vérifiez votre connexion.</Texte>
+                    </View>
+                )}
+            </FeuilleModale>
+        </View>
     );
 }

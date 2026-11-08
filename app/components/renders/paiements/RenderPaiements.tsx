@@ -1,301 +1,175 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useState } from 'react';
-import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
-} from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { useConfirmDialog } from '../../common/ConfirmDialog';
+import React, { useEffect, useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, Switch, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import compagnieService from '../../../services/compagnies/compagnieService';
-import { ModePaiementDetail } from '../../../types/compagnie';
+import { couleurs } from '../../../theme/ocean';
+import { useConfirmDialog } from '../../common/ConfirmDialog';
+import { Skeleton } from '../../common/Skeleton';
+import { Bouton, Carte, ChampSaisie, EnTete, Texte } from '../../ui';
 
-const PAYMENT_METHODS = [
-    { id: 2, nom: 'MVola', prefixes: ['034', '038'], colors: ['#dc2626', '#ef4444'] as [string, string], icon: 'phone-portrait' as const },
-    { id: 1, nom: 'Orange Money', prefixes: ['032', '037'], colors: ['#ea580c', '#f97316'] as [string, string], icon: 'phone-portrait' as const },
-    { id: 3, nom: 'Airtel Money', prefixes: ['033'], colors: ['#dc2626', '#b91c1c'] as [string, string], icon: 'phone-portrait' as const },
+const OPERATEURS = [
+  { id: 2, nom: 'MVola', initiales: 'MV', prefixes: ['034', '038'] },
+  { id: 1, nom: 'Orange Money', initiales: 'OM', prefixes: ['032', '037'] },
+  { id: 3, nom: 'Airtel Money', initiales: 'AM', prefixes: ['033'] },
 ];
 
-export const RenderPaiements = () => {
-    const { showDialog, DialogComponent } = useConfirmDialog();
-    const [loading, setLoading] = useState(false);
-    const [saving, setSaving] = useState(false);
-    const [modesPaiement, setModesPaiement] = useState<ModePaiementDetail[]>([]);
-    const [compId, setCompId] = useState<number | null>(null);
+type Mode = { actif: boolean; numero: string; titulaire: string };
 
-    useEffect(() => {
-        const loadInitialData = async () => {
-            setLoading(true);
-            try {
-                const userJson = await SecureStore.getItemAsync('fandrioUser');
-                if (userJson) {
-                    const user = JSON.parse(userJson);
-                    const companyId = user.compagnie_id || user.comp_id;
-                    setCompId(companyId);
+/** « Modes de paiement » : opérateurs acceptés et numéros qui reçoivent l'argent. */
+export const RenderPaiements = ({ onMenu }: { onMenu?: () => void }) => {
+  const insets = useSafeAreaInsets();
+  const { showDialog, DialogComponent } = useConfirmDialog();
+  const [loading, setLoading] = useState(true);
+  const [envoi, setEnvoi] = useState(false);
+  const [modes, setModes] = useState<Record<number, Mode>>(() =>
+    Object.fromEntries(OPERATEURS.map((o) => [o.id, { actif: false, numero: '', titulaire: '' }]))
+  );
+  const [initial, setInitial] = useState('');
 
-                    if (companyId) {
-                        const response = await compagnieService.getCompagniePublic(companyId);
-                        if (response.statut && 'data' in response && response.data) {
-                            const compagnie = response.data;
-                            if (compagnie.modes_paiement_acceptes) {
-                                const selectedModes = compagnie.modes_paiement_acceptes.map(m => ({
-                                    id: m.id,
-                                    numero: m.numero || '',
-                                    titulaire: m.titulaire || '',
-                                }));
-                                setModesPaiement(selectedModes);
-                            }
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error('Error loading company payment data:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
+  const message = (title: string, msg: string, type: 'success' | 'danger' | 'warning' = 'danger') =>
+    showDialog({ title, message: msg, type, confirmText: 'OK', onConfirm: () => {}, onCancel: () => {} });
 
-        loadInitialData();
-    }, []);
-
-    const handleSave = async () => {
-        setSaving(true);
-        const response = await compagnieService.updateModesPaiement(modesPaiement);
-        setSaving(false);
-
-        if (response.statut) {
-            showDialog({
-                title: 'Succès',
-                message: 'Vos modes de paiement ont été mis à jour.',
-                type: 'success',
-                confirmText: 'OK',
-            });
-        } else {
-            showDialog({
-                title: 'Erreur',
-                message: response.message || 'Une erreur est survenue lors de la mise à jour.',
-                type: 'danger',
-                confirmText: 'Réessayer',
-            });
-        }
-    };
-
-    if (loading) {
-        return (
-            <View className="flex-1 items-center justify-center bg-slate-50">
-                <View style={{ width: 56, height: 56, borderRadius: 28, overflow: 'hidden' }}>
-                    <LinearGradient colors={['#059669', '#10b981']} style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}>
-                        <ActivityIndicator size="large" color="#fff" />
-                    </LinearGradient>
-                </View>
-                <Text className="mt-4 text-slate-500 text-sm">Chargement de vos modes de paiement...</Text>
-            </View>
+  useEffect(() => {
+    (async () => {
+      try {
+        const u = JSON.parse((await SecureStore.getItemAsync('fandrioUser')) || '{}');
+        const id = u.compagnie_id || u.comp_id;
+        if (!id) return;
+        const r: any = await compagnieService.getCompagniePublic(id);
+        const acceptes: any[] = r?.data?.modes_paiement_acceptes || [];
+        const suivant = Object.fromEntries(
+          OPERATEURS.map((o) => {
+            const m = acceptes.find((a) => Number(a.id) === o.id);
+            return [o.id, { actif: !!m, numero: m?.numero || '', titulaire: m?.titulaire || '' }];
+          })
         );
+        setModes(suivant);
+        setInitial(JSON.stringify(suivant));
+      } catch {
+        message('Chargement impossible', 'Impossible de lire vos modes de paiement.');
+      } finally {
+        setLoading(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const maj = (id: number, champ: Partial<Mode>) => setModes((m) => ({ ...m, [id]: { ...m[id], ...champ } }));
+
+  const erreurNumero = (o: (typeof OPERATEURS)[number], numero: string) => {
+    const n = numero.replace(/\s/g, '');
+    if (!n) return undefined;
+    if (n.length !== 10) return 'Le numéro doit avoir 10 chiffres.';
+    if (!o.prefixes.some((p) => n.startsWith(p))) return `Un numéro ${o.nom} commence par ${o.prefixes.join(' ou ')}.`;
+    return undefined;
+  };
+
+  const actifs = OPERATEURS.filter((o) => modes[o.id]?.actif);
+  const modifie = JSON.stringify(modes) !== initial;
+
+  const enregistrer = async () => {
+    for (const o of actifs) {
+      const m = modes[o.id];
+      if (!m.numero.trim() || !m.titulaire.trim()) return message('Informations manquantes', `Indiquez le numéro et le titulaire du compte ${o.nom}.`, 'warning');
+      const e = erreurNumero(o, m.numero);
+      if (e) return message('Numéro invalide', e, 'warning');
     }
+    setEnvoi(true);
+    try {
+      const r: any = await compagnieService.updateModesPaiement(
+        actifs.map((o) => ({ id: o.id, numero: modes[o.id].numero.replace(/\s/g, ''), titulaire: modes[o.id].titulaire.trim() }))
+      );
+      if (r?.statut) {
+        setInitial(JSON.stringify(modes));
+        message('Modes de paiement enregistrés', 'Vos clients voient maintenant ces moyens de paiement.', 'success');
+      } else {
+        message('Enregistrement impossible', r?.message || 'Une erreur est survenue.');
+      }
+    } finally {
+      setEnvoi(false);
+    }
+  };
 
-    return (
-        <View className="flex-1 bg-slate-50">
-            <DialogComponent />
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-                className="flex-1"
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-            >
-            <ScrollView className="flex-1" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                {/* Hero Header */}
-                <View className="mx-4 mt-5 rounded-3xl overflow-hidden" style={{ elevation: 4 }}>
-                    <LinearGradient colors={['#059669', '#10b981', '#34d399']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} className="p-5">
-                        <View className="flex-row items-center">
-                            <View className="bg-white/20 rounded-2xl p-3 mr-4">
-                                <Ionicons name="card" size={28} color="#fff" />
-                            </View>
-                            <View className="flex-1">
-                                <Text className="text-white text-2xl font-bold">Paiements</Text>
-                                <Text className="text-emerald-100 text-sm mt-0.5">
-                                    Gérez les modes de paiement pour vos clients
-                                </Text>
-                            </View>
-                        </View>
-                        <View className="flex-row mt-4">
-                            <View className="bg-white/15 rounded-xl px-4 py-2 flex-row items-center">
-                                <Ionicons name="checkmark-circle" size={16} color="#fff" style={{ marginRight: 6 }} />
-                                <Text className="text-white text-sm font-medium">{modesPaiement.length} mode(s) activé(s)</Text>
-                            </View>
-                        </View>
-                    </LinearGradient>
-                </View>
-
-                {/* Selector section */}
-                <View className="mx-4 mt-4 bg-white rounded-2xl p-4" style={{ elevation: 2 }}>
-                    <Text className="text-slate-800 font-bold text-base mb-3">Choisir les opérateurs</Text>
-                    <View className="flex-row flex-wrap">
-                        {PAYMENT_METHODS.map((method) => {
-                            const isSelected = modesPaiement.some(m => m.id === method.id);
-                            return (
-                                <TouchableOpacity
-                                    key={method.id}
-                                    className="mr-3 mb-3"
-                                    onPress={() => {
-                                        if (isSelected) {
-                                            setModesPaiement(modesPaiement.filter(m => m.id !== method.id));
-                                        } else {
-                                            setModesPaiement([...modesPaiement, { id: method.id, numero: '', titulaire: '' }]);
-                                        }
-                                    }}
-                                    disabled={saving}
-                                    activeOpacity={0.8}
-                                >
-                                    {isSelected ? (
-                                        <View className="rounded-2xl overflow-hidden">
-                                            <LinearGradient
-                                                colors={method.colors}
-                                                className="px-4 py-3 flex-row items-center"
-                                            >
-                                                <Ionicons name="checkmark-circle" size={18} color="#fff" style={{ marginRight: 8 }} />
-                                                <Text className="text-white font-bold">{method.nom}</Text>
-                                            </LinearGradient>
-                                        </View>
-                                    ) : (
-                                        <View className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 flex-row items-center">
-                                            <Ionicons name="add-circle-outline" size={18} color="#94a3b8" style={{ marginRight: 8 }} />
-                                            <Text className="text-slate-500 font-semibold">{method.nom}</Text>
-                                        </View>
-                                    )}
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
-                </View>
-
-                {/* Payment form cards */}
-                <View className="px-4 mt-4 pb-4">
-                    {modesPaiement.length > 0 ? (
-                        modesPaiement.map((mode) => {
-                            const methodConfig = PAYMENT_METHODS.find(m => m.id === mode.id);
-                            if (!methodConfig) return null;
-                            return (
-                                <View key={mode.id} className="bg-white rounded-2xl mb-4 overflow-hidden" style={{ elevation: 2 }}>
-                                    {/* Colored accent bar */}
-                                    <LinearGradient
-                                        colors={methodConfig.colors}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 0 }}
-                                        style={{ height: 3 }}
-                                    />
-                                    <View className="p-5">
-                                        <View className="flex-row items-center justify-between mb-5">
-                                            <View className="flex-row items-center">
-                                                <View className="rounded-xl overflow-hidden mr-3">
-                                                    <LinearGradient colors={methodConfig.colors} className="w-10 h-10 items-center justify-center">
-                                                        <Ionicons name="wallet" size={20} color="#fff" />
-                                                    </LinearGradient>
-                                                </View>
-                                                <View>
-                                                    <Text className="font-bold text-lg text-slate-800">{methodConfig.nom}</Text>
-                                                    <Text className="text-slate-700 text-xs font-medium">Préfixes: {methodConfig.prefixes.join(' / ')}</Text>
-                                                </View>
-                                            </View>
-                                            <TouchableOpacity
-                                                onPress={() => setModesPaiement(modesPaiement.filter(m => m.id !== mode.id))}
-                                                className="bg-red-50 rounded-xl p-2.5"
-                                                activeOpacity={0.7}
-                                            >
-                                                <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                                            </TouchableOpacity>
-                                        </View>
-
-                                        <View className="mb-4">
-                                            <Text className="text-sm font-semibold text-slate-600 mb-2 ml-1">
-                                                Numéro de téléphone
-                                            </Text>
-                                            <View className="bg-slate-50 border border-slate-200 rounded-xl flex-row items-center px-4">
-                                                <Ionicons name="call-outline" size={18} color="#94a3b8" />
-                                                <TextInput
-                                                    className="flex-1 ml-3 py-3.5 text-slate-800 text-base"
-                                                    value={mode.numero}
-                                                    onChangeText={(text) => {
-                                                        const newModes = modesPaiement.map(m =>
-                                                            m.id === mode.id ? { ...m, numero: text } : m
-                                                        );
-                                                        setModesPaiement(newModes);
-                                                    }}
-                                                    placeholder="03X XX XXX XX"
-                                                    placeholderTextColor="#94a3b8"
-                                                    keyboardType="phone-pad"
-                                                    maxLength={10}
-                                                />
-                                            </View>
-                                        </View>
-
-                                        <View>
-                                            <Text className="text-sm font-semibold text-slate-600 mb-2 ml-1">
-                                                Titulaire du compte
-                                            </Text>
-                                            <View className="bg-slate-50 border border-slate-200 rounded-xl flex-row items-center px-4">
-                                                <Ionicons name="person-outline" size={18} color="#94a3b8" />
-                                                <TextInput
-                                                    className="flex-1 ml-3 py-3.5 text-slate-800 text-base"
-                                                    value={mode.titulaire}
-                                                    onChangeText={(text) => {
-                                                        const newModes = modesPaiement.map(m =>
-                                                            m.id === mode.id ? { ...m, titulaire: text } : m
-                                                        );
-                                                        setModesPaiement(newModes);
-                                                    }}
-                                                    placeholder="Nom complet"
-                                                    placeholderTextColor="#94a3b8"
-                                                />
-                                            </View>
-                                        </View>
-                                    </View>
-                                </View>
-                            );
-                        })
-                    ) : (
-                        <View className="bg-white rounded-3xl p-10 items-center" style={{ elevation: 2 }}>
-                            <View className="bg-slate-100 rounded-full p-5 mb-4">
-                                <Ionicons name="card-outline" size={48} color="#94a3b8" />
-                            </View>
-                            <Text className="text-slate-800 font-bold text-lg">Aucun mode sélectionné</Text>
-                            <Text className="text-slate-700 text-sm mt-2 text-center leading-5 font-medium">
-                                Choisissez un opérateur ci-dessus pour{"\n"}configurer vos modes de paiement
-                            </Text>
-                        </View>
-                    )}
-                </View>
-            </ScrollView>
-            </KeyboardAvoidingView>
-
-            {/* Save button */}
-            <View className="px-4 pb-8 pt-3 bg-slate-50">
-                <TouchableOpacity
-                    onPress={handleSave}
-                    disabled={saving}
-                    activeOpacity={0.8}
-                >
-                    <View className="rounded-2xl overflow-hidden" style={{ elevation: 4 }}>
-                        <LinearGradient
-                            colors={saving ? ['#94a3b8', '#94a3b8'] : ['#059669', '#10b981']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            className="py-4 flex-row items-center justify-center"
-                        >
-                            {saving ? (
-                                <ActivityIndicator color="#fff" size="small" style={{ marginRight: 10 }} />
-                            ) : (
-                                <Ionicons name="save" size={20} color="#fff" style={{ marginRight: 10 }} />
-                            )}
-                            <Text className="text-white font-bold text-lg">Enregistrer les modifications</Text>
-                        </LinearGradient>
-                    </View>
-                </TouchableOpacity>
-            </View>
+  return (
+    <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
+      <DialogComponent />
+      <EnTete titre="Modes de paiement" sousTitre="Ce que vos clients peuvent utiliser" gauche="menu" onGauche={onMenu} />
+      {loading ? (
+        <View style={{ padding: 16, gap: 12 }}>
+          {[1, 2, 3].map((i) => <Skeleton key={i} height={130} borderRadius={16} />)}
         </View>
-    );
+      ) : (
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+                padding: 12,
+                paddingHorizontal: 14,
+                borderRadius: 14,
+                backgroundColor: actifs.length ? couleurs.succesFond : couleurs.alerteFond,
+              }}
+            >
+              <Ionicons name={actifs.length ? 'shield-checkmark-outline' : 'alert-circle-outline'} size={22} color={actifs.length ? couleurs.succes : couleurs.alerte} />
+              <Texte graisse="gras" taille={13} couleur={actifs.length ? couleurs.succes : couleurs.alerte} style={{ flex: 1, lineHeight: 18 }}>
+                {actifs.length
+                  ? 'Paiement en ligne activé. Les billets sont confirmés automatiquement.'
+                  : 'Aucun moyen de paiement actif : vos clients ne peuvent pas payer leurs billets.'}
+              </Texte>
+            </View>
+
+            {OPERATEURS.map((o) => {
+              const m = modes[o.id];
+              return (
+                <Carte key={o.id} style={{ gap: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: couleurs.ocean50, alignItems: 'center', justifyContent: 'center' }}>
+                      <Texte graisse="tresGras" taille={13} couleur={couleurs.ocean950}>{o.initiales}</Texte>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Texte graisse="tresGras" taille={15}>{o.nom}</Texte>
+                      <Texte graisse="moyen" taille={12} couleur={couleurs.gris}>
+                        {m.actif ? (m.numero ? m.numero : 'Numéro à renseigner') : 'Non accepté'}
+                      </Texte>
+                    </View>
+                    <Switch
+                      value={m.actif}
+                      onValueChange={(v) => maj(o.id, { actif: v })}
+                      trackColor={{ true: couleurs.ocean800, false: couleurs.champ }}
+                      thumbColor="#FFFFFF"
+                      accessibilityLabel={`Accepter ${o.nom}`}
+                    />
+                  </View>
+                  {m.actif && (
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <View style={{ flex: 1 }}>
+                        <ChampSaisie
+                          libelle="Numéro"
+                          value={m.numero}
+                          onChangeText={(t) => maj(o.id, { numero: t.replace(/[^\d\s]/g, '').slice(0, 13) })}
+                          keyboardType="phone-pad"
+                          placeholder={`${o.prefixes[0]} 00 000 00`}
+                          erreur={erreurNumero(o, m.numero)}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <ChampSaisie libelle="Titulaire" value={m.titulaire} onChangeText={(t) => maj(o.id, { titulaire: t })} placeholder="Nom du compte" autoCapitalize="words" />
+                      </View>
+                    </View>
+                  )}
+                </Carte>
+              );
+            })}
+          </ScrollView>
+          <View style={{ backgroundColor: couleurs.surface, borderTopWidth: 1, borderTopColor: couleurs.ligne, paddingHorizontal: 16, paddingTop: 12, paddingBottom: Math.max(insets.bottom, 12) }}>
+            <Bouton titre="Enregistrer" onPress={enregistrer} chargement={envoi} desactive={!modifie} />
+          </View>
+        </KeyboardAvoidingView>
+      )}
+    </View>
+  );
 };

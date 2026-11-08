@@ -1,385 +1,355 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
-import React, { useCallback, useRef, useState } from 'react';
-import {
-    ActivityIndicator,
-    RefreshControl,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
-} from 'react-native';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, SectionList, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { voyageService } from '../services/voyages/voyageService';
-import { Voyage } from '../types/voyage';
-import CategorieBadge from './common/CategorieBadge';
-import { PlacesBadge } from './common/PlacesBadge';
-import { useConfirmDialog } from './common/ConfirmDialog';
-import { VoyageDetailModal } from './modals/VoyageDetailModal';
-import { VoyageFormModal } from './modals/VoyageFormModal';
-import { VoyageMultipleModal } from './modals/VoyageMultipleModal';
-import { estEnPause, getVoyageStatut, statutValeur } from '../utils/voyageStatut';
+import { couleurs, dateLocaleISO, ombres } from '../theme/ocean';
+import { dateVoyage, infoStatutVoyage, libelleType, remplissage, titreJour } from '../utils/voyageStatut';
+import { Skeleton } from './common/Skeleton';
+import { Carte, FeuilleModale, Pastille, Puce, Texte } from './ui';
+import { DetailVoyage } from './voyages/DetailVoyage';
+import { FormulaireVoyage } from './voyages/FormulaireVoyage';
 
-type TabKey = 'tous' | 'programmes' | 'encours' | 'termines' | 'annules';
+type Statut = 1 | 2 | 3 | 4;
+type Periode = 'tout' | 'jour' | 'semaine' | 'mois';
 
-const TABS: { key: TabKey; label: string; colors: [string, string]; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'tous', label: 'Tous', colors: ['#475569', '#64748b'], icon: 'list' },
-  { key: 'programmes', label: 'Programmés', colors: ['#059669', '#10b981'], icon: 'time' },
-  { key: 'encours', label: 'En cours', colors: ['#d97706', '#f59e0b'], icon: 'navigate' },
-  { key: 'termines', label: 'Terminés', colors: ['#475569', '#64748b'], icon: 'checkmark-done-circle' },
-  { key: 'annules', label: 'Annulés', colors: ['#dc2626', '#ef4444'], icon: 'close-circle' },
+const STATUTS: { valeur: Statut; libelle: string; pluriel: string }[] = [
+  { valeur: 1, libelle: 'Programmés', pluriel: 'programmés' },
+  { valeur: 2, libelle: 'En cours', pluriel: 'en cours' },
+  { valeur: 3, libelle: 'Terminés', pluriel: 'terminés' },
+  { valeur: 4, libelle: 'Annulés', pluriel: 'annulés' },
 ];
 
+const PERIODES: { valeur: Periode; libelle: string; suffixe: string }[] = [
+  { valeur: 'tout', libelle: 'Toutes les dates', suffixe: 'au total' },
+  { valeur: 'jour', libelle: "Aujourd'hui", suffixe: "aujourd'hui" },
+  { valeur: 'semaine', libelle: 'Cette semaine', suffixe: 'cette semaine' },
+  { valeur: 'mois', libelle: 'Ce mois', suffixe: 'ce mois-ci' },
+];
+
+const PAR_PAGE = 30;
+
+/** Bornes de la période (Y-m-d), semaine du lundi au dimanche. */
+function bornes(p: Periode): Record<string, string> {
+  if (p === 'tout') return {};
+  const d = new Date();
+  if (p === 'jour') return { date_debut: dateLocaleISO(d), date_fin: dateLocaleISO(d) };
+  if (p === 'semaine') {
+    const lundi = new Date(d);
+    lundi.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    const dimanche = new Date(lundi);
+    dimanche.setDate(lundi.getDate() + 6);
+    return { date_debut: dateLocaleISO(lundi), date_fin: dateLocaleISO(dimanche) };
+  }
+  return { date_debut: dateLocaleISO(new Date(d.getFullYear(), d.getMonth(), 1)), date_fin: dateLocaleISO(new Date(d.getFullYear(), d.getMonth() + 1, 0)) };
+}
+
+function idVoyage(v: any): number {
+  return Number(v.id ?? v.voyage_id ?? v.id_voyage);
+}
+
+/** Une ligne de voyage : heure, trajet, véhicule, remplissage, statut. */
+function LigneVoyage({ v, premiere, onPress }: { v: any; premiere: boolean; onPress: () => void }) {
+  const [presse, setPresse] = useState(false);
+  const r = remplissage(v);
+  const info = infoStatutVoyage(v);
+  const trajet = `${v.trajet?.province_depart || 'Départ'} → ${v.trajet?.province_arrivee || 'Arrivée'}`;
+  const heure = String(v.heure_depart || '').slice(0, 5);
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => setPresse(true)}
+      onPressOut={() => setPresse(false)}
+      accessibilityRole="button"
+      accessibilityLabel={`${heure}, ${trajet}, ${r.pris} places sur ${r.total}, ${info.libelle}`}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderTopWidth: premiere ? 0 : 1, borderTopColor: couleurs.separateur, backgroundColor: presse ? couleurs.ocean50 : 'transparent' }}
+    >
+      <View style={{ width: 50 }}>
+        <Texte variante="montant" taille={16}>{heure}</Texte>
+        <Texte graisse="moyen" taille={11} couleur={couleurs.gris}>{libelleType(v.type)}</Texte>
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Texte graisse="tresGras" taille={13.5} numberOfLines={1}>{trajet}</Texte>
+        <Texte graisse="moyen" taille={11.5} couleur={couleurs.gris} numberOfLines={1}>
+          {[v.voiture?.matricule, [v.voiture?.marque, v.voiture?.modele].filter(Boolean).join(' ')].filter(Boolean).join(' · ')}
+        </Texte>
+        <View style={{ height: 4, borderRadius: 999, backgroundColor: couleurs.ocean50, marginTop: 6, overflow: 'hidden' }}>
+          <View style={{ width: `${r.pct}%`, height: '100%', backgroundColor: r.complet ? couleurs.succes : couleurs.ocean800 }} />
+        </View>
+      </View>
+      <View style={{ alignItems: 'flex-end', gap: 4 }}>
+        <Texte variante="montant" taille={13}>{r.pris}/{r.total}</Texte>
+        <Pastille libelle={info.libelle} tonalite={info.tonalite} />
+      </View>
+    </Pressable>
+  );
+}
+
+/** Onglet « Voyages » de l'admin compagnie : voyages par statut et par jour, programmation. */
 export const RenderVoyages: React.FC = () => {
-  const { showDialog, DialogComponent } = useConfirmDialog();
-  const [voyages, setVoyages] = useState<Voyage[]>([]);
-  const [loading, setLoading] = useState(false);
+  const insets = useSafeAreaInsets();
+  const [statut, setStatut] = useState<Statut>(1);
+  const [periode, setPeriode] = useState<Periode>('tout');
+  const [voyages, setVoyages] = useState<any[]>([]);
+  const [page, setPage] = useState({ courante: 1, derniere: 1 });
+  const [compteurs, setCompteurs] = useState<Record<number, number>>({});
+  const [loading, setLoading] = useState(true);
+  const [suite, setSuite] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [searchText, setSearchText] = useState('');
-  const [detailModalVisible, setDetailModalVisible] = useState(false);
-  const [formModalVisible, setFormModalVisible] = useState(false);
-  const [selectedVoyage, setSelectedVoyage] = useState<Voyage | null>(null);
-  const [multiModalVisible, setMultiModalVisible] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabKey>('programmes');
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [feuillePeriode, setFeuillePeriode] = useState(false);
+  const [detail, setDetail] = useState<any | null>(null);
+  const [formulaire, setFormulaire] = useState<{ visible: boolean; id: number | null }>({ visible: false, id: null });
+  const requete = useRef(0);
 
-  // Optimisation : cache TTL pour éviter les double-fetch lors de navigations rapides
-  const lastFetchRef = useRef<number>(0);
-  const CACHE_TTL_MS = 10_000; // 10 secondes
+  const filtres = useCallback(
+    (s: Statut, p: Periode, numero: number, parPage = PAR_PAGE) => ({
+      statut: s,
+      ...bornes(p),
+      page: numero,
+      per_page: parPage,
+      sort_field: 'voyage_date',
+      // À venir : du plus proche au plus lointain ; passés : du plus récent au plus ancien
+      sort_direction: s === 1 || s === 2 ? 'asc' : 'desc',
+    }),
+    []
+  );
 
-  const chargerVoyages = useCallback(async (silent = false) => {
-    // Ne pas afficher le spinner si on a déjà des données (refresh silencieux)
-    if (!silent) setLoading(true);
-    try {
-      const response = await voyageService.obtenirVoyages();
-
-      let voyagesList: Voyage[] = [];
-
-      if (response.statut === true && response.data) {
-        voyagesList = Array.isArray(response.data) ? response.data : [];
-      } else if (Array.isArray(response)) {
-        voyagesList = response;
-      } else if (response.data && Array.isArray(response.data)) {
-        voyagesList = response.data;
+  const charger = useCallback(
+    async (s: Statut, p: Periode, numero = 1) => {
+      const n = ++requete.current;
+      if (numero === 1) setErreur(null);
+      const r = await voyageService.obtenirVoyagesPage(filtres(s, p, numero));
+      if (n !== requete.current) return; // une requête plus récente a été lancée
+      if (!r.statut) {
+        if (numero === 1) setErreur(r.message || 'Impossible de charger les voyages.');
+      } else {
+        setVoyages((prev) => (numero === 1 ? r.voyages : [...prev, ...r.voyages]));
+        setPage({ courante: r.pagination.current_page, derniere: r.pagination.last_page });
+        setCompteurs((c) => ({ ...c, [s]: r.pagination.total }));
       }
+    },
+    [filtres]
+  );
 
-      setVoyages(voyagesList);
-      lastFetchRef.current = Date.now();
-    } catch (error: any) {
-      console.error('Erreur chargerVoyages:', error);
-      // Ne pas afficher d'erreur sur un refresh silencieux (UX)
-      if (!silent) {
-        showDialog({
-          title: 'Erreur',
-          message: error?.message || 'Une erreur est survenue',
-          type: 'danger',
-          confirmText: 'OK',
-          onConfirm: () => {},
-          onCancel: () => {},
-        });
-        setVoyages([]);
-      }
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, [showDialog]);
+  /** Nombre de voyages de chaque statut sur la période (pour les puces). */
+  const chargerCompteurs = useCallback(
+    async (p: Periode) => {
+      const res = await Promise.all(STATUTS.map((x) => voyageService.obtenirVoyagesPage(filtres(x.valeur, p, 1, 1))));
+      const c: Record<number, number> = {};
+      res.forEach((r, i) => {
+        if (r.statut) c[STATUTS[i].valeur] = r.pagination.total;
+      });
+      setCompteurs(c);
+    },
+    [filtres]
+  );
 
-  // Recharge à chaque focus de l'écran, avec cache TTL pour éviter les requêtes inutiles
+  const toutRecharger = useCallback(
+    async (s: Statut, p: Periode) => {
+      await Promise.all([charger(s, p, 1), chargerCompteurs(p)]);
+    },
+    [charger, chargerCompteurs]
+  );
+
+  // Recharge à chaque retour sur l'écran
   useFocusEffect(
     useCallback(() => {
-      const now = Date.now();
-      const isFirstLoad = lastFetchRef.current === 0;
-      const isStale = now - lastFetchRef.current > CACHE_TTL_MS;
-
-      if (isFirstLoad) {
-        chargerVoyages(false); // Premier chargement avec spinner
-      } else if (isStale) {
-        chargerVoyages(true);  // Refresh silencieux en arrière-plan
-      }
-      // Sinon : data fraîche en cache, rien à faire
-    }, [chargerVoyages])
+      setLoading(true);
+      toutRecharger(statut, periode).finally(() => setLoading(false));
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
   );
+
+  const changerStatut = (s: Statut) => {
+    if (s === statut) return;
+    setStatut(s);
+    setVoyages([]);
+    setLoading(true);
+    charger(s, periode, 1).finally(() => setLoading(false));
+  };
+
+  const changerPeriode = (p: Periode) => {
+    setFeuillePeriode(false);
+    if (p === periode) return;
+    setPeriode(p);
+    setVoyages([]);
+    setLoading(true);
+    toutRecharger(statut, p).finally(() => setLoading(false));
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await chargerVoyages(true);
+    await toutRecharger(statut, periode);
     setRefreshing(false);
   };
 
-  const filteredVoyages = (Array.isArray(voyages) ? voyages : [])
-    .filter((voyage: any) => {
-      const s = statutValeur(voyage);
-      switch (activeTab) {
-        case 'tous': return true;
-        case 'programmes': return s === 1;
-        case 'encours': return s === 2;
-        case 'termines': return s === 3;
-        case 'annules': return s === 4;
-        default: return true;
-      }
-    })
-    .filter((voyage: any) => {
-      const trajetNom = voyage.trajet?.nom || voyage.trajet?.nom_trajet || voyage.trajet?.trajet_nom || '';
-      const dateDepart = voyage.date || voyage.voyage_date || '';
-      const heureDepart = voyage.heure_depart || voyage.voyage_heure_depart || '';
-      const searchLower = searchText.toLowerCase();
-      
-      return (
-        trajetNom.toLowerCase().includes(searchLower) ||
-        dateDepart.toLowerCase().includes(searchLower) ||
-        heureDepart.toLowerCase().includes(searchLower)
-      );
+  const plus = () => {
+    if (suite || loading || page.courante >= page.derniere) return;
+    setSuite(true);
+    charger(statut, periode, page.courante + 1).finally(() => setSuite(false));
+  };
+
+  const apresChangement = () => toutRecharger(statut, periode);
+
+  // Regroupement par jour, heures croissantes dans chaque jour
+  const sections = useMemo(() => {
+    const parJour = new Map<string, any[]>();
+    voyages.forEach((v) => {
+      const cle = String(v.date || '').slice(0, 10);
+      if (!parJour.has(cle)) parJour.set(cle, []);
+      parJour.get(cle)!.push(v);
     });
+    return Array.from(parJour.entries()).map(([cle, data]) => {
+      const d = dateVoyage(cle);
+      return { titre: d ? titreJour(d) : cle, data: [...data].sort((a, b) => String(a.heure_depart).localeCompare(String(b.heure_depart))) };
+    });
+  }, [voyages]);
 
-  const handleOpenDetail = (voyage: Voyage) => {
-    setSelectedVoyage(voyage);
-    setDetailModalVisible(true);
-  };
-
-  const handleOpenForm = (voyage?: Voyage) => {
-    setSelectedVoyage(voyage || null);
-    setFormModalVisible(true);
-  };
-
-  const getCounts = () => {
-    const all = Array.isArray(voyages) ? voyages : [];
-    return {
-      tous: all.length,
-      programmes: all.filter((v: any) => statutValeur(v) === 1).length,
-      encours: all.filter((v: any) => statutValeur(v) === 2).length,
-      termines: all.filter((v: any) => statutValeur(v) === 3).length,
-      annules: all.filter((v: any) => statutValeur(v) === 4).length,
-    };
-  };
-  const counts = getCounts();
+  const infoStatut = STATUTS.find((s) => s.valeur === statut)!;
+  const infoPeriode = PERIODES.find((p) => p.valeur === periode)!;
+  const total = compteurs[statut];
 
   return (
-    <View className="flex-1 bg-slate-50">
-      <DialogComponent />
-
-      <ScrollView
-        className="flex-1"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ea580c" />}
+    <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
+      <SectionList
+        sections={sections}
+        keyExtractor={(v) => String(idVoyage(v))}
+        stickySectionHeadersEnabled={false}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: insets.top + 14, paddingBottom: 100, flexGrow: 1 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={couleurs.ocean800} colors={[couleurs.ocean800]} />}
+        onEndReached={plus}
+        onEndReachedThreshold={0.4}
         showsVerticalScrollIndicator={false}
-      >
-        {/* Hero Header */}
-        <View className="mx-4 mt-5 rounded-3xl overflow-hidden" style={{ elevation: 4 }}>
-          <LinearGradient colors={['#c2410c', '#ea580c', '#fb923c']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} className="p-5">
-            <View className="flex-row items-center justify-between mb-4">
-              <View className="flex-row items-center flex-1">
-                <View className="bg-white/20 rounded-2xl p-3 mr-4">
-                  <Ionicons name="navigate" size={28} color="#fff" />
-                </View>
-                <View>
-                  <Text className="text-white text-2xl font-bold">Voyages</Text>
-                  <Text className="text-white text-sm font-medium mt-0.5">{voyages.length} voyage(s) au total</Text>
-                </View>
+        ListHeaderComponent={
+          <View style={{ gap: 14, marginBottom: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Texte variante="titre" taille={26}>Voyages</Texte>
+                <Texte graisse="moyen" taille={13} couleur={couleurs.gris}>
+                  {total === undefined ? ' ' : `${total} ${infoStatut.pluriel} ${infoPeriode.suffixe}`}
+                </Texte>
               </View>
-              <View className="flex-row items-center" style={{ gap: 8 }}>
-                <TouchableOpacity
-                  className="bg-white/20 rounded-2xl p-3"
-                  onPress={() => setMultiModalVisible(true)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="layers" size={22} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  className="bg-white rounded-2xl p-3"
-                  onPress={() => handleOpenForm()}
-                  activeOpacity={0.8}
-                  style={{ elevation: 2 }}
-                >
-                  <Ionicons name="add" size={24} color="#c2410c" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </LinearGradient>
-        </View>
-
-        {/* Filter Tabs - Pill style */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mt-4 px-4">
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.key;
-            return (
-              <TouchableOpacity
-                key={tab.key}
-                onPress={() => setActiveTab(tab.key)}
-                className="mr-2"
-                activeOpacity={0.8}
+              <Pressable
+                onPress={() => setFeuillePeriode(true)}
+                accessibilityRole="button"
+                accessibilityLabel={`Période : ${infoPeriode.libelle}`}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 44, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, borderColor: couleurs.ocean100, backgroundColor: couleurs.surface }}
               >
-                {isActive ? (
-                  <View className="rounded-2xl overflow-hidden">
-                    <LinearGradient
-                      colors={tab.colors}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      className="px-4 py-2.5 flex-row items-center"
-                    >
-                      <Ionicons name={tab.icon} size={14} color="#fff" style={{ marginRight: 6 }} />
-                      <Text className="text-white font-bold text-sm">{tab.label}</Text>
-                      <View className="bg-white/30 rounded-full px-2 py-0.5 ml-2">
-                        <Text className="text-white text-xs font-bold">{counts[tab.key]}</Text>
-                      </View>
-                    </LinearGradient>
-                  </View>
-                ) : (
-                  <View className="bg-white rounded-2xl px-4 py-2.5 flex-row items-center" style={{ elevation: 1 }}>
-                    <Text className="text-slate-700 font-semibold text-sm">{tab.label}</Text>
-                    <View className="bg-slate-100 rounded-full px-2 py-0.5 ml-2">
-                      <Text className="text-slate-700 text-xs font-bold">{counts[tab.key]}</Text>
-                    </View>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        {/* Barre de recherche */}
-        <View className="mx-4 mt-4 bg-white rounded-2xl flex-row items-center px-4 py-1" style={{ elevation: 2 }}>
-          <Ionicons name="search" size={20} color="#94a3b8" />
-          <TextInput
-            className="flex-1 ml-3 text-slate-800 text-base py-3"
-            placeholder="Rechercher un voyage..."
-            value={searchText}
-            onChangeText={setSearchText}
-            placeholderTextColor="#94a3b8"
-          />
-          {searchText.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchText('')} className="p-1">
-              <Ionicons name="close-circle" size={20} color="#94a3b8" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Liste des voyages */}
-        <View className="px-4 mt-4 pb-6">
-          {loading ? (
-            <View className="items-center justify-center py-20">
-              <View style={{ width: 56, height: 56, borderRadius: 28, overflow: 'hidden' }}>
-                <LinearGradient colors={['#c2410c', '#ea580c']} style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}>
-                  <ActivityIndicator size="large" color="#fff" />
-                </LinearGradient>
-              </View>
+                <Ionicons name="calendar-outline" size={18} color={couleurs.ocean800} />
+                <Texte graisse="tresGras" taille={13} couleur={couleurs.ocean800}>{infoPeriode.libelle}</Texte>
+              </Pressable>
             </View>
-          ) : filteredVoyages.length === 0 ? (
-            <View className="bg-white rounded-3xl p-10 items-center" style={{ elevation: 2 }}>
-              <View className="bg-slate-100 rounded-full p-5 mb-4">
-                <Ionicons name="navigate-outline" size={48} color="#94a3b8" />
-              </View>
-              <Text className="text-slate-800 font-bold text-lg">Aucun voyage trouvé</Text>
-              <Text className="text-slate-600 text-sm mt-2 text-center leading-5">
-                {searchText.length > 0 
-                  ? 'Aucun voyage ne correspond à votre recherche'
-                  : 'Appuyez sur + pour programmer un nouveau voyage'}
-              </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+              {STATUTS.map((s) => (
+                <Puce key={s.valeur} libelle={s.libelle} compteur={compteurs[s.valeur] || undefined} active={statut === s.valeur} onPress={() => changerStatut(s.valeur)} />
+              ))}
+            </ScrollView>
+          </View>
+        }
+        renderSectionHeader={({ section }) => (
+          <Texte graisse="gras" taille={11} couleur={couleurs.gris} style={{ textTransform: 'uppercase', letterSpacing: 0.9, marginTop: 12, marginBottom: 8, marginLeft: 2 }}>
+            {section.titre}
+          </Texte>
+        )}
+        renderItem={({ item, index, section }) => (
+          <View
+            style={{
+              backgroundColor: couleurs.surface,
+              borderLeftWidth: 1,
+              borderRightWidth: 1,
+              borderColor: couleurs.ligne,
+              borderTopWidth: index === 0 ? 1 : 0,
+              borderBottomWidth: index === section.data.length - 1 ? 1 : 0,
+              borderTopLeftRadius: index === 0 ? 16 : 0,
+              borderTopRightRadius: index === 0 ? 16 : 0,
+              borderBottomLeftRadius: index === section.data.length - 1 ? 16 : 0,
+              borderBottomRightRadius: index === section.data.length - 1 ? 16 : 0,
+              overflow: 'hidden',
+            }}
+          >
+            <LigneVoyage v={item} premiere={index === 0} onPress={() => setDetail(item)} />
+          </View>
+        )}
+        ListEmptyComponent={
+          loading ? (
+            <View style={{ gap: 10, marginTop: 12 }}>
+              <Skeleton height={14} width={160} borderRadius={6} />
+              <Skeleton height={150} borderRadius={16} />
+              <Skeleton height={14} width={140} borderRadius={6} />
+              <Skeleton height={76} borderRadius={16} />
             </View>
+          ) : erreur ? (
+            <Carte style={{ alignItems: 'center', gap: 8, paddingVertical: 24, marginTop: 12 }}>
+              <Ionicons name="cloud-offline-outline" size={30} color={couleurs.danger} />
+              <Texte variante="legende" centre>{erreur}</Texte>
+            </Carte>
           ) : (
-            filteredVoyages.map((voyage: any) => {
-              const badge = getVoyageStatut(voyage);
-              const enPause = estEnPause(voyage);
-              const trajetNom = voyage.trajet?.nom || voyage.trajet?.nom_trajet || voyage.trajet?.trajet_nom || 'Trajet sans nom';
-              const depart = voyage.trajet?.province_depart || 'Départ';
-              const arrivee = voyage.trajet?.province_arrivee || 'Arrivée';
+            <View style={{ alignItems: 'center', paddingVertical: 40, gap: 6 }}>
+              <Ionicons name="bus-outline" size={36} color={couleurs.grisClair} />
+              <Texte graisse="tresGras" taille={15}>Aucun voyage {infoStatut.pluriel}</Texte>
+              <Texte variante="legende" centre>{statut === 1 ? 'Touchez « Programmer » pour ouvrir un voyage aux réservations.' : 'Changez de période pour voir plus de voyages.'}</Texte>
+            </View>
+          )
+        }
+        ListFooterComponent={suite ? <ActivityIndicator color={couleurs.ocean800} style={{ paddingVertical: 14 }} /> : null}
+      />
 
-              return (
-                <TouchableOpacity
-                  key={voyage.id || voyage.id_voyage || voyage.voyage_id || Math.random().toString()}
-                  className="bg-white rounded-2xl mb-3 overflow-hidden"
-                  onPress={() => handleOpenDetail(voyage)}
-                  activeOpacity={0.7}
-                  style={{ elevation: 2 }}
-                >
-                  {/* Colored top accent bar */}
-                  <LinearGradient
-                    colors={[...badge.colors]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={{ height: 3 }}
-                  />
-                  <View className="p-4">
-                    {/* Header: route name + badge */}
-                    <View className="flex-row items-start justify-between mb-3">
-                      <View className="flex-1 mr-3">
-                        <View className="flex-row items-center flex-wrap">
-                          <Text className="text-slate-900 font-bold text-base mr-2">{trajetNom}</Text>
-                          <CategorieBadge categorie={(voyage as any).categorie || voyage.trajet?.categorie} />
-                        </View>
-                        <View className="flex-row items-center mt-1 flex-wrap">
-                          <Ionicons name="location" size={14} color="#ea580c" />
-                          <Text className="text-slate-800 text-sm font-medium ml-1">{depart}</Text>
-                          <Ionicons name="arrow-forward" size={12} color="#64748b" style={{ marginHorizontal: 6 }} />
-                          <Ionicons name="flag" size={14} color="#059669" />
-                          <Text className="text-slate-800 text-sm font-medium ml-1">{arrivee}</Text>
-                        </View>
-                      </View>
-                      <View className="items-end">
-                        <View className="rounded-xl overflow-hidden">
-                          <LinearGradient colors={[...badge.colors]} className="px-3 py-1.5 flex-row items-center">
-                            <Ionicons name={badge.icon as any} size={12} color="#fff" style={{ marginRight: 4 }} />
-                            <Text className="text-white text-xs font-bold">{badge.label}</Text>
-                          </LinearGradient>
-                        </View>
-                        {enPause && (
-                          <View className="bg-amber-100 rounded-lg px-2 py-0.5 flex-row items-center mt-1.5">
-                            <Ionicons name="pause-circle" size={11} color="#b45309" style={{ marginRight: 3 }} />
-                            <Text className="text-amber-700 text-[10px] font-bold">En pause</Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-
-                    {/* Info row */}
-                    <View className="flex-row items-center justify-between pt-3 border-t border-slate-100">
-                      <View className="flex-row items-center">
-                        <View className="bg-orange-50 rounded-lg px-3 py-1.5 flex-row items-center mr-2">
-                          <Ionicons name="calendar-outline" size={14} color="#ea580c" />
-                          <Text className="text-orange-700 text-xs font-semibold ml-1.5">{voyage.date || voyage.voyage_date || '-'}</Text>
-                        </View>
-                        <View className="bg-blue-50 rounded-lg px-3 py-1.5 flex-row items-center mr-2">
-                          <Ionicons name="time-outline" size={14} color="#3b82f6" />
-                          <Text className="text-blue-700 text-xs font-semibold ml-1.5">{voyage.heure_depart || voyage.voyage_heure_depart || '-'}</Text>
-                        </View>
-                        <PlacesBadge
-                          places={voyage.places_disponibles ?? voyage.places_disponibles_restantes}
-                          estComplet={(voyage as any).est_complet}
-                          size="md"
-                        />
-                      </View>
-                      <Ionicons name="chevron-forward" size={20} color="#64748b" />
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
-          )}
-        </View>
-      </ScrollView>
-
-      {/* Modals */}
-      <VoyageDetailModal
-        visible={detailModalVisible}
-        voyageId={selectedVoyage?.id || selectedVoyage?.id_voyage || selectedVoyage?.voyage_id || null}
-        onClose={() => setDetailModalVisible(false)}
-        onEdit={(id) => {
-          setDetailModalVisible(false);
-          const voyageToEdit = voyages.find((v) => (v.id || v.id_voyage || v.voyage_id) === id);
-          handleOpenForm(voyageToEdit);
+      {/* Programmer */}
+      <Pressable
+        onPress={() => setFormulaire({ visible: true, id: null })}
+        accessibilityRole="button"
+        accessibilityLabel="Programmer un voyage"
+        style={{
+          position: 'absolute',
+          bottom: 16,
+          alignSelf: 'center',
+          height: 54,
+          paddingHorizontal: 20,
+          borderRadius: 18,
+          backgroundColor: couleurs.ocean800,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+          ...ombres.bouton,
         }}
-        onRefresh={chargerVoyages}
+      >
+        <Ionicons name="add" size={22} color="#FFFFFF" />
+        <Texte graisse="tresGras" taille={15} couleur="#FFFFFF">Programmer</Texte>
+      </Pressable>
+
+      <FeuilleModale visible={feuillePeriode} onClose={() => setFeuillePeriode(false)} titre="Période">
+        <View style={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 20 }}>
+          {PERIODES.map((p, i) => (
+            <Pressable
+              key={p.valeur}
+              onPress={() => changerPeriode(p.valeur)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: periode === p.valeur }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 15, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: couleurs.separateur }}
+            >
+              <Texte graisse={periode === p.valeur ? 'tresGras' : 'moyen'} taille={15}>{p.libelle}</Texte>
+              {periode === p.valeur && <Ionicons name="checkmark-circle" size={22} color={couleurs.ocean800} />}
+            </Pressable>
+          ))}
+        </View>
+      </FeuilleModale>
+
+      <DetailVoyage
+        visible={!!detail}
+        voyageId={detail ? idVoyage(detail) : null}
+        apercu={detail}
+        onClose={() => setDetail(null)}
+        onModifier={(id) => setFormulaire({ visible: true, id })}
+        onChange={apresChangement}
       />
 
-      <VoyageFormModal
-        visible={formModalVisible}
-        voyageId={selectedVoyage?.id || selectedVoyage?.id_voyage || selectedVoyage?.voyage_id || null}
-        onClose={() => setFormModalVisible(false)}
-        onSuccess={chargerVoyages}
-      />
-
-      <VoyageMultipleModal
-        visible={multiModalVisible}
-        onClose={() => setMultiModalVisible(false)}
-        onSuccess={chargerVoyages}
+      <FormulaireVoyage
+        visible={formulaire.visible}
+        voyageId={formulaire.id}
+        onClose={() => setFormulaire({ visible: false, id: null })}
+        onSuccess={apresChangement}
       />
     </View>
   );

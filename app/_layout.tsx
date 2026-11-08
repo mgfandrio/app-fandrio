@@ -1,6 +1,14 @@
 import { Stack } from "expo-router";
 import "../globals.css";
 import React from "react";
+import * as SplashScreen from "expo-splash-screen";
+import {
+  useFonts,
+  Manrope_500Medium,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+  Manrope_800ExtraBold,
+} from "@expo-google-fonts/manrope";
 import { View, Text, ScrollView, TouchableOpacity } from "react-native";
 import { NetworkProvider } from "./hooks/useNetwork";
 import OfflineBanner from "./components/common/OfflineBanner";
@@ -54,7 +62,24 @@ class ErrorBoundary extends React.Component<
   }
 }
 
+// L'écran de démarrage natif reste affiché pendant le chargement des polices
+// (app/index.tsx le masque ensuite, après son animation).
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
 export default function RootLayout() {
+  // Polices du thème Océan (voir app/theme/ocean.ts -> polices)
+  const [policesChargees, erreurPolices] = useFonts({
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    Manrope_800ExtraBold,
+  });
+
+  // En cas d'échec de chargement, on continue avec la police système
+  if (!policesChargees && !erreurPolices) {
+    return null;
+  }
+
   return (
     <ErrorBoundary>
       <NetworkProvider>

@@ -1,43 +1,92 @@
-import React, { useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useEffect, useCallback, useState } from 'react';
+import { View, ScrollView, RefreshControl, Pressable, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNotifications } from '@/app/hooks/useNotifications';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
+import { useNotifications } from '@/app/hooks/useNotifications';
+import { Skeleton } from '@/app/components/common/Skeleton';
+import { Bouton, EnTete, Texte } from '@/app/components/ui';
+import { couleurs, tonalites, Tonalite } from '@/app/theme/ocean';
 
-const getNotifIcon = (type: number) => {
+type NomIcone = keyof typeof Ionicons.glyphMap;
+
+/** Icône et tonalité selon le type de notification (1 confirmée, 2 rappel, 3 annulée, 4 billet). */
+const getNotifIcon = (type: number): { nom: NomIcone; tonalite: Tonalite } => {
     switch (type) {
-        case 1: return { name: 'checkmark-circle', color: '#22c55e', bg: '#dcfce7' };
-        case 2: return { name: 'alarm', color: '#f59e0b', bg: '#fef3c7' };
-        case 3: return { name: 'close-circle', color: '#ef4444', bg: '#fee2e2' };
-        case 4: return { name: 'ticket', color: '#3b82f6', bg: '#dbeafe' };
-        default: return { name: 'notifications', color: '#6b7280', bg: '#f3f4f6' };
+        case 1: return { nom: 'checkmark-circle', tonalite: 'succes' };
+        case 2: return { nom: 'alarm', tonalite: 'alerte' };
+        case 3: return { nom: 'close-circle', tonalite: 'danger' };
+        case 4: return { nom: 'ticket', tonalite: 'info' };
+        default: return { nom: 'notifications', tonalite: 'neutre' };
     }
 };
 
 const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
+    const diffMs = Date.now() - date.getTime();
     const diffMin = Math.floor(diffMs / 60000);
     const diffH = Math.floor(diffMs / 3600000);
     const diffD = Math.floor(diffMs / 86400000);
 
-    if (diffMin < 1) return 'À l\'instant';
+    if (diffMin < 1) return "À l'instant";
     if (diffMin < 60) return `Il y a ${diffMin} min`;
-    if (diffH < 24) return `Il y a ${diffH}h`;
-    if (diffD < 7) return `Il y a ${diffD}j`;
+    if (diffH < 24) return `Il y a ${diffH} h`;
+    if (diffD < 7) return `Il y a ${diffD} j`;
     return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 };
 
+/** Une notification : fond légèrement bleuté et point tant qu'elle n'est pas lue. */
+function LigneNotification({ notif, onPress }: { notif: any; onPress: () => void }) {
+    const [presse, setPresse] = useState(false);
+    const icone = getNotifIcon(notif.notif_type);
+    const t = tonalites[icone.tonalite];
+    const nonLue = notif.notif_statut !== 3;
+    return (
+        <Pressable
+            onPress={onPress}
+            onPressIn={() => setPresse(true)}
+            onPressOut={() => setPresse(false)}
+            accessibilityRole="button"
+            accessibilityLabel={`${nonLue ? 'Non lue. ' : ''}${notif.notif_titre}. ${notif.notif_message}`}
+            style={{
+                flexDirection: 'row',
+                gap: 12,
+                padding: 14,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: nonLue ? couleurs.ocean200 : couleurs.ligne,
+                backgroundColor: presse ? couleurs.ocean50 : nonLue ? '#F5F9FE' : couleurs.surface,
+            }}
+        >
+            <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: t.fond, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={icone.nom} size={21} color={t.texte} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Texte graisse={nonLue ? 'tresGras' : 'gras'} taille={14.5} couleur={nonLue ? couleurs.encre : couleurs.encreDouce} numberOfLines={1} style={{ flex: 1 }}>
+                        {notif.notif_titre}
+                    </Texte>
+                    {nonLue && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: couleurs.ocean500 }} />}
+                </View>
+                <Texte graisse="moyen" taille={13} couleur={couleurs.encreDouce} numberOfLines={3} style={{ lineHeight: 19 }}>
+                    {notif.notif_message}
+                </Texte>
+                <Texte variante="legende" taille={11.5}>{formatDate(notif.created_at)}</Texte>
+            </View>
+        </Pressable>
+    );
+}
+
 export default function NotificationsScreen() {
     const router = useRouter();
+    const insets = useSafeAreaInsets();
     const { notifications, loading, unreadCount, fetchNotifications, markAsRead, markAllAsRead } = useNotifications();
-    const [refreshing, setRefreshing] = React.useState(false);
+    const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
         fetchNotifications(1);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const onRefresh = async () => {
@@ -49,21 +98,16 @@ export default function NotificationsScreen() {
     const handleNotificationPress = useCallback(async (notif: any) => {
         if (notif.notif_statut !== 3) markAsRead(notif.notif_id);
 
-        // Notifications liées à une réservation (type 1,2,3,4)
+        // Notifications liées à une réservation (types 1 à 4)
         if (notif.res_id) {
             try {
                 const userJson = await SecureStore.getItemAsync('fandrioUser');
                 const user = userJson ? JSON.parse(userJson) : null;
 
                 if (user?.role === 2) {
-                    // Admin compagnie → aller au dashboard tab réservations
-                    router.replace({
-                        pathname: '/screens/dashboard/compagnies/dashboardCompagnie',
-                        params: { tab: 'reservations' },
-                    });
+                    router.replace({ pathname: '/screens/dashboard/compagnies/dashboardCompagnie', params: { tab: 'reservations' } });
                 } else if (user?.role === 1) {
-                    // Client → aller à l'onglet réservation
-                    router.replace('/screens/dashboard/utilisateur/(tabs)/reservation');
+                    router.push({ pathname: '/screens/dashboard/utilisateur/reservations/reservationDetail', params: { id: String(notif.res_id) } });
                 }
             } catch (e) {
                 console.warn('Navigation error:', e);
@@ -72,88 +116,36 @@ export default function NotificationsScreen() {
     }, [markAsRead, router]);
 
     return (
-        <SafeAreaView className="flex-1 bg-gray-50">
+        <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
             <Stack.Screen options={{ headerShown: false }} />
-
-            {/* Header */}
-            <View className="bg-white px-5 py-4 border-b border-gray-100 flex-row items-center justify-between">
-                <View className="flex-row items-center">
-                    <TouchableOpacity onPress={() => router.back()} className="mr-3">
-                        <Ionicons name="arrow-back" size={24} color="#1e293b" />
-                    </TouchableOpacity>
-                    <Text className="text-2xl font-bold text-gray-900">Notifications</Text>
-                    {unreadCount > 0 && (
-                        <View className="bg-red-500 rounded-full px-2.5 py-1 ml-2">
-                            <Text className="text-white text-xs font-bold">{unreadCount}</Text>
-                        </View>
-                    )}
-                </View>
-                {unreadCount > 0 && (
-                    <TouchableOpacity onPress={markAllAsRead} className="bg-blue-50 rounded-full px-3 py-1.5">
-                        <Text className="text-blue-700 font-bold text-sm">Tout marquer lu</Text>
-                    </TouchableOpacity>
-                )}
-            </View>
+            <StatusBar barStyle="dark-content" backgroundColor={couleurs.surface} />
+            <EnTete
+                titre="Notifications"
+                sousTitre={unreadCount > 0 ? `${unreadCount} non lue${unreadCount > 1 ? 's' : ''}` : 'Tout est lu'}
+                droite={unreadCount > 0 ? <Bouton titre="Tout lire" variante="lien" compact onPress={markAllAsRead} /> : undefined}
+            />
 
             <ScrollView
-                className="flex-1"
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1e3a8a']} />}
+                contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24, gap: 8, flexGrow: 1 }}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={couleurs.ocean800} colors={[couleurs.ocean800]} />}
+                showsVerticalScrollIndicator={false}
             >
                 {loading && notifications.length === 0 ? (
-                    <View className="items-center justify-center py-20">
-                        <ActivityIndicator size="large" color="#1e3a8a" />
-                    </View>
+                    [1, 2, 3, 4, 5].map((i) => <Skeleton key={i} height={92} borderRadius={16} />)
                 ) : notifications.length === 0 ? (
-                    <View className="items-center justify-center py-20">
-                        <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
-                            <Ionicons name="notifications-off-outline" size={40} color="#9ca3af" />
+                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 6 }}>
+                        <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: couleurs.ocean50, alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+                            <Ionicons name="notifications-off-outline" size={32} color={couleurs.ocean800} />
                         </View>
-                        <Text className="text-gray-700 font-bold text-base">Aucune notification</Text>
-                        <Text className="text-gray-600 text-sm mt-1 text-center px-8 font-medium">Vous serez notifié des mises à jour importantes.</Text>
+                        <Texte graisse="tresGras" taille={15}>Aucune notification</Texte>
+                        <Texte variante="legende" centre>Vous serez prévenu des confirmations, rappels et annulations.</Texte>
                     </View>
                 ) : (
-                    <View className="p-4" style={{ gap: 8 }}>
-                        {notifications.map((notif: any) => {
-                            const icon = getNotifIcon(notif.notif_type);
-                            const isUnread = notif.notif_statut !== 3;
-                            return (
-                                <TouchableOpacity
-                                    key={notif.notif_id}
-                                    className={`bg-white rounded-2xl p-4 flex-row border ${isUnread ? 'border-blue-200 bg-blue-50/40' : 'border-gray-100'}`}
-                                    onPress={() => handleNotificationPress(notif)}
-                                    activeOpacity={0.7}
-                                >
-                                    <View
-                                        className="w-12 h-12 rounded-xl items-center justify-center mr-3"
-                                        style={{ backgroundColor: icon.bg }}
-                                    >
-                                        <Ionicons name={icon.name as any} size={24} color={icon.color} />
-                                    </View>
-                                    <View className="flex-1">
-                                        <View className="flex-row items-center justify-between mb-1">
-                                            <Text className={`font-bold text-base flex-1 mr-2 ${isUnread ? 'text-gray-900' : 'text-gray-700'}`} numberOfLines={1}>
-                                                {notif.notif_titre}
-                                            </Text>
-                                            {isUnread && (
-                                                <View className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                                            )}
-                                        </View>
-                                        <Text className="text-gray-700 text-sm leading-5 font-medium" numberOfLines={3}>
-                                            {notif.notif_message}
-                                        </Text>
-                                        <View className="flex-row items-center mt-2">
-                                            <Ionicons name="time-outline" size={12} color="#475569" />
-                                            <Text className="text-gray-700 text-xs ml-1 font-medium">
-                                                {formatDate(notif.created_at)}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
+                    notifications.map((notif: any) => (
+                        <LigneNotification key={notif.notif_id} notif={notif} onPress={() => handleNotificationPress(notif)} />
+                    ))
                 )}
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 }

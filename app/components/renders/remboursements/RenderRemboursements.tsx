@@ -1,456 +1,224 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import {
-    View,
-    Text,
-    ScrollView,
-    ActivityIndicator,
-    TouchableOpacity,
-    RefreshControl,
-    TextInput,
-    Modal,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-} from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { remboursementAdminService } from '@/app/services/remboursements/remboursementAdminService';
+import { useConfirmDialog } from '@/app/components/common/ConfirmDialog';
+import { Skeleton } from '@/app/components/common/Skeleton';
+import { Bouton, Carte, ChampSaisie, EnTete, FeuilleModale, Segmente, Texte } from '@/app/components/ui';
+import { couleurs, formatAriary, tonalites } from '@/app/theme/ocean';
 
-type FiltreStatut = 'en_attente' | 'traites' | 'refuses';
+type Filtre = 'en_attente' | 'traites' | 'refuses';
 
-interface Stats {
-    en_attente: { nombre: number; montant: number };
-    traites: { nombre: number; montant: number };
-    refuses: { nombre: number; montant: number };
-}
-
-interface Remboursement {
-    res_id: number;
-    res_numero: string;
-    client: { util_id: number; nom: string; email: string; telephone?: string };
-    voyage: { trajet: string; date: string; heure: string };
-    montant: number;
-    statut: number;
-    date_traitement: string | null;
-    reference: string | null;
-    note: string | null;
-    date_annulation: string;
-}
-
-const formatMontant = (m: number) => {
-    try {
-        return new Intl.NumberFormat('fr-FR').format(Math.round(m));
-    } catch {
-        return String(m);
-    }
+const MOTIFS: Record<string, { libelle: string; ton: 'alerte' | 'danger' }> = {
+  paiement_tardif: { libelle: 'Paiement reçu après le délai', ton: 'alerte' },
+  voyage_annule: { libelle: 'Voyage annulé', ton: 'danger' },
 };
 
-export const RenderRemboursements = () => {
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [filtre, setFiltre] = useState<FiltreStatut>('en_attente');
-    const [search, setSearch] = useState('');
-    const [items, setItems] = useState<Remboursement[]>([]);
-    const [stats, setStats] = useState<Stats | null>(null);
+function Etiquette({ motif }: { motif?: string }) {
+  const m = MOTIFS[motif || ''] || MOTIFS.voyage_annule;
+  const t = tonalites[m.ton];
+  return (
+    <View style={{ alignSelf: 'flex-start', height: 22, paddingHorizontal: 8, borderRadius: 8, backgroundColor: t.fond, justifyContent: 'center' }}>
+      <Texte graisse="gras" taille={11} couleur={t.texte}>{m.libelle}</Texte>
+    </View>
+  );
+}
 
-    // Modal traiter / refuser
-    const [actionModal, setActionModal] = useState<{
-        visible: boolean;
-        type: 'traite' | 'refus' | null;
-        remb: Remboursement | null;
-    }>({ visible: false, type: null, remb: null });
-    const [reference, setReference] = useState('');
-    const [note, setNote] = useState('');
-    const [submitting, setSubmitting] = useState(false);
+function Ligne({ libelle, valeur }: { libelle: string; valeur?: string | null }) {
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+      <Texte graisse="moyen" taille={12.5} couleur={couleurs.gris}>{libelle}</Texte>
+      <Texte graisse="gras" taille={12.5} style={{ flexShrink: 1, textAlign: 'right' }}>{valeur || '—'}</Texte>
+    </View>
+  );
+}
 
-    const charger = useCallback(async () => {
-        try {
-            const [listeRes, statsRes] = await Promise.all([
-                remboursementAdminService.obtenirListe({ statut: filtre, search: search.trim() || undefined }),
-                remboursementAdminService.obtenirStatistiques(),
-            ]);
-            if (listeRes.statut && listeRes.data) setItems(listeRes.data.items || []);
-            if (statsRes.statut && statsRes.data) setStats(statsRes.data);
-        } catch (e) {
-            console.error('Chargement remboursements:', e);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, [filtre, search]);
+/** Onglet « Remboursements » : demandes à traiter, traitées et refusées. */
+export const RenderRemboursements = ({ onMenu }: { onMenu?: () => void }) => {
+  const { showDialog, DialogComponent } = useConfirmDialog();
+  const [filtre, setFiltre] = useState<Filtre>('en_attente');
+  const [items, setItems] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [ouvert, setOuvert] = useState<number | null>(null);
+  const [references, setReferences] = useState<Record<number, string>>({});
+  const [envoi, setEnvoi] = useState<number | null>(null);
+  const [refus, setRefus] = useState<any | null>(null);
+  const [motifRefus, setMotifRefus] = useState('');
 
-    useEffect(() => {
-        setLoading(true);
-        charger();
-    }, [filtre]);
+  const message = (title: string, msg: string, type: 'success' | 'danger' | 'warning' = 'danger') =>
+    showDialog({ title, message: msg, type, confirmText: 'OK', onConfirm: () => {}, onCancel: () => {} });
 
-    const onRefresh = () => {
-        setRefreshing(true);
-        charger();
-    };
+  const charger = useCallback(async (f: Filtre) => {
+    const [l, s] = await Promise.all([remboursementAdminService.obtenirListe({ statut: f, per_page: 50 }).catch(() => null), remboursementAdminService.obtenirStatistiques().catch(() => null)]);
+    const liste = l?.statut && l.data ? l.data.items || [] : [];
+    setItems(liste);
+    if (s?.statut && s.data) setStats(s.data);
+    // La première demande à traiter est dépliée
+    setOuvert(f === 'en_attente' && liste[0] ? liste[0].res_id : null);
+  }, []);
 
-    const ouvrirAction = (type: 'traite' | 'refus', r: Remboursement) => {
-        setActionModal({ visible: true, type, remb: r });
-        setReference('');
-        setNote('');
-    };
+  useEffect(() => {
+    setLoading(true);
+    charger(filtre).finally(() => setLoading(false));
+  }, [filtre, charger]);
 
-    const fermerAction = () => {
-        if (submitting) return;
-        setActionModal({ visible: false, type: null, remb: null });
-        setReference('');
-        setNote('');
-    };
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await charger(filtre);
+    setRefreshing(false);
+  };
 
-    const soumettreAction = async () => {
-        if (!actionModal.remb || !actionModal.type) return;
+  const marquerRembourse = async (r: any) => {
+    const reference = (references[r.res_id] || '').trim();
+    if (reference.length < 3) return message('Référence manquante', 'Saisissez la référence du transfert mobile money.', 'warning');
+    setEnvoi(r.res_id);
+    try {
+      const res = await remboursementAdminService.marquerTraite(r.res_id, { reference });
+      if (res?.statut) {
+        message('Remboursement enregistré', `${r.client?.nom || 'Le client'} est prévenu par notification.`, 'success');
+        await charger(filtre);
+      } else message('Action impossible', res?.message || 'Une erreur est survenue.');
+    } finally {
+      setEnvoi(null);
+    }
+  };
 
-        if (actionModal.type === 'traite') {
-            if (!reference.trim() || reference.trim().length < 3) {
-                Alert.alert('Référence requise', 'Veuillez saisir la référence de la transaction (mobile money, etc.).');
-                return;
-            }
-        } else {
-            if (!note.trim() || note.trim().length < 5) {
-                Alert.alert('Motif requis', 'Veuillez expliquer le motif du refus (5 caractères minimum).');
-                return;
-            }
-        }
+  const confirmerRefus = async () => {
+    if (motifRefus.trim().length < 5) return message('Motif trop court', 'Expliquez le motif du refus en quelques mots.', 'warning');
+    const r = refus;
+    setEnvoi(r.res_id);
+    try {
+      const res = await remboursementAdminService.refuser(r.res_id, { motif: motifRefus.trim() });
+      if (res?.statut) {
+        setRefus(null);
+        await charger(filtre);
+      } else message('Action impossible', res?.message || 'Une erreur est survenue.');
+    } finally {
+      setEnvoi(null);
+    }
+  };
 
-        setSubmitting(true);
-        try {
-            const res =
-                actionModal.type === 'traite'
-                    ? await remboursementAdminService.marquerTraite(actionModal.remb.res_id, {
-                          reference: reference.trim(),
-                          note: note.trim() || undefined,
-                      })
-                    : await remboursementAdminService.refuser(actionModal.remb.res_id, {
-                          motif: note.trim(),
-                      });
+  const aRendre = Number(stats?.en_attente?.montant) || 0;
+  const nbATraiter = Number(stats?.en_attente?.nombre) || 0;
 
-            if (res?.statut) {
-                Alert.alert(
-                    'Succès',
-                    actionModal.type === 'traite'
-                        ? 'Remboursement marqué comme traité. Le client a été notifié.'
-                        : 'Remboursement refusé. Le client a été notifié.'
-                );
-                fermerAction();
-                setLoading(true);
-                charger();
-            } else {
-                Alert.alert('Erreur', res?.message || 'Opération impossible.');
-            }
-        } catch (e: any) {
-            Alert.alert('Erreur', e.message || 'Opération impossible.');
-        } finally {
-            setSubmitting(false);
-        }
-    };
+  return (
+    <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
+      <DialogComponent />
+      <EnTete titre="Remboursements" sousTitre={stats ? (aRendre ? `${formatAriary(aRendre)} Ar à rendre` : 'Rien à rendre') : undefined} gauche="menu" onGauche={onMenu} />
+      <ScrollView
+        contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 28 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={couleurs.ocean800} colors={[couleurs.ocean800]} />}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Segmente<Filtre>
+          libelleAccessible="Statut"
+          valeur={filtre}
+          onChange={setFiltre}
+          options={[
+            { valeur: 'en_attente', libelle: 'À traiter', compteur: nbATraiter || undefined },
+            { valeur: 'traites', libelle: 'Traités' },
+            { valeur: 'refuses', libelle: 'Refusés' },
+          ]}
+        />
 
-    return (
-        <View className="flex-1 bg-gray-50">
-            {/* Hero stats */}
-            <ScrollView
-                className="flex-1"
-                contentContainerStyle={{ paddingBottom: 40 }}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            >
-                <LinearGradient
-                    colors={['#1e3a8a', '#1d4ed8', '#2563eb']}
-                    className="mx-5 mt-5 rounded-[28px] overflow-hidden"
-                >
-                    <View className="p-5">
-                        <View className="flex-row items-center mb-4">
-                            <View className="w-11 h-11 bg-white/20 rounded-full items-center justify-center">
-                                <Ionicons name="cash-outline" size={22} color="#ffffff" />
-                            </View>
-                            <View className="ml-3 flex-1">
-                                <Text className="text-white text-base font-bold">Remboursements</Text>
-                                <Text className="text-white/80 text-sm">Voyages annulés à régulariser</Text>
-                            </View>
-                        </View>
-                        <View className="flex-row mt-2">
-                            <View className="flex-1">
-                                <Text className="text-white/80 text-xs uppercase font-bold">À traiter</Text>
-                                <Text className="text-white text-2xl font-extrabold">
-                                    {stats?.en_attente.nombre ?? 0}
-                                </Text>
-                                <Text className="text-yellow-200 text-sm font-bold mt-0.5">
-                                    {formatMontant(stats?.en_attente.montant ?? 0)} Ar
-                                </Text>
-                            </View>
-                            <View className="w-px bg-white/20 mx-3" />
-                            <View className="flex-1">
-                                <Text className="text-white/80 text-xs uppercase font-bold">Traités</Text>
-                                <Text className="text-white text-2xl font-extrabold">
-                                    {stats?.traites.nombre ?? 0}
-                                </Text>
-                                <Text className="text-green-200 text-sm font-bold mt-0.5">
-                                    {formatMontant(stats?.traites.montant ?? 0)} Ar
-                                </Text>
-                            </View>
-                        </View>
+        {loading ? (
+          [1, 2].map((i) => <Skeleton key={i} height={130} borderRadius={16} />)
+        ) : items.length === 0 ? (
+          <View style={{ alignItems: 'center', paddingVertical: 36, gap: 6 }}>
+            <Ionicons name="checkmark-done-circle-outline" size={38} color={couleurs.grisClair} />
+            <Texte graisse="tresGras" taille={15}>
+              {filtre === 'en_attente' ? 'Aucun remboursement à traiter' : filtre === 'traites' ? 'Aucun remboursement traité' : 'Aucun remboursement refusé'}
+            </Texte>
+          </View>
+        ) : (
+          items.map((r) => {
+            const deplie = ouvert === r.res_id && r.statut === 1;
+            return (
+              <Carte key={r.res_id} style={{ gap: 12, borderColor: deplie ? couleurs.ocean200 : couleurs.ligne }}>
+                <Pressable onPress={() => r.statut === 1 && setOuvert(deplie ? null : r.res_id)} disabled={r.statut !== 1} accessibilityRole="button" style={{ gap: 8 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Texte graisse="tresGras" taille={15} numberOfLines={1}>{r.client?.nom || 'Client'}</Texte>
+                      <Texte graisse="moyen" taille={12} couleur={couleurs.gris} numberOfLines={1}>
+                        {[r.res_numero, r.voyage?.trajet, r.voyage?.date].filter(Boolean).join(' · ')}
+                      </Texte>
                     </View>
-                </LinearGradient>
+                    <Texte variante="montant" taille={17}>{formatAriary(Number(r.montant) || 0)} Ar</Texte>
+                  </View>
+                  <Etiquette motif={r.motif} />
+                </Pressable>
 
-                {/* Recherche */}
-                <View className="mx-5 mt-4 bg-white rounded-2xl border border-gray-200 px-4 py-2 flex-row items-center">
-                    <Ionicons name="search-outline" size={18} color="#6b7280" />
-                    <TextInput
-                        className="flex-1 ml-2 text-sm text-gray-900"
-                        placeholder="Rechercher (n° résa, nom client...)"
-                        placeholderTextColor="#9ca3af"
-                        value={search}
-                        onChangeText={setSearch}
-                        onSubmitEditing={charger}
-                        returnKeyType="search"
-                    />
-                    {search.length > 0 && (
-                        <TouchableOpacity onPress={() => { setSearch(''); setTimeout(charger, 0); }}>
-                            <Ionicons name="close-circle" size={18} color="#9ca3af" />
-                        </TouchableOpacity>
-                    )}
-                </View>
-
-                {/* Filtres */}
-                <View className="flex-row mx-5 mt-3">
-                    {([
-                        { key: 'en_attente', label: 'À traiter', n: stats?.en_attente.nombre ?? 0 },
-                        { key: 'traites', label: 'Traités', n: stats?.traites.nombre ?? 0 },
-                        { key: 'refuses', label: 'Refusés', n: stats?.refuses.nombre ?? 0 },
-                    ] as const).map((f) => {
-                        const actif = filtre === f.key;
-                        return (
-                            <TouchableOpacity
-                                key={f.key}
-                                onPress={() => setFiltre(f.key)}
-                                className={`mr-2 px-3 py-2 rounded-full flex-row items-center ${actif ? 'bg-blue-900' : 'bg-white border border-gray-200'}`}
-                            >
-                                <Text className={`text-xs font-bold ${actif ? 'text-white' : 'text-gray-700'}`}>
-                                    {f.label}
-                                </Text>
-                                {f.n > 0 && (
-                                    <View
-                                        className={`ml-2 px-1.5 rounded-full ${actif ? 'bg-white/30' : 'bg-blue-100'}`}
-                                    >
-                                        <Text
-                                            className={`text-xs font-bold ${actif ? 'text-white' : 'text-blue-900'}`}
-                                        >
-                                            {f.n}
-                                        </Text>
-                                    </View>
-                                )}
-                            </TouchableOpacity>
-                        );
-                    })}
-                </View>
-
-                {/* Liste */}
-                {loading ? (
-                    <View className="py-12 items-center">
-                        <ActivityIndicator size="large" color="#1e3a8a" />
-                    </View>
-                ) : items.length === 0 ? (
-                    <View className="items-center justify-center py-16 px-6">
-                        <Ionicons
-                            name={filtre === 'en_attente' ? 'checkmark-done-circle-outline' : 'document-outline'}
-                            size={64}
-                            color="#d1d5db"
-                        />
-                        <Text className="text-gray-700 text-base font-semibold mt-4 text-center">
-                            {filtre === 'en_attente'
-                                ? 'Aucun remboursement à traiter'
-                                : filtre === 'traites'
-                                ? 'Aucun remboursement traité'
-                                : 'Aucun remboursement refusé'}
-                        </Text>
-                    </View>
-                ) : (
-                    <View className="px-5 mt-4">
-                        {items.map((r) => (
-                            <View
-                                key={r.res_id}
-                                className="bg-white rounded-3xl p-5 mb-3 border border-gray-100 shadow-sm"
-                            >
-                                {/* Client + montant */}
-                                <View className="flex-row justify-between items-start mb-3">
-                                    <View className="flex-1 mr-2">
-                                        <Text className="text-gray-900 font-bold text-base">{r.client.nom}</Text>
-                                        {r.client.telephone && (
-                                            <Text className="text-gray-600 text-xs mt-0.5 font-medium">
-                                                {r.client.telephone}
-                                            </Text>
-                                        )}
-                                        <Text className="text-gray-500 text-xs mt-0.5">N° {r.res_numero}</Text>
-                                    </View>
-                                    <View className="items-end">
-                                        <Text className="text-blue-900 text-lg font-extrabold">
-                                            {formatMontant(r.montant)} Ar
-                                        </Text>
-                                    </View>
-                                </View>
-
-                                {/* Voyage */}
-                                <View className="bg-gray-50 rounded-2xl p-3 mb-3">
-                                    <View className="flex-row items-center">
-                                        <Ionicons name="navigate-outline" size={14} color="#6b7280" />
-                                        <Text className="text-gray-700 text-sm font-semibold ml-2 flex-1">
-                                            {r.voyage.trajet}
-                                        </Text>
-                                    </View>
-                                    <View className="flex-row items-center mt-1">
-                                        <Ionicons name="calendar-outline" size={14} color="#6b7280" />
-                                        <Text className="text-gray-600 text-xs font-medium ml-2">
-                                            {r.voyage.date} • {r.voyage.heure}
-                                        </Text>
-                                    </View>
-                                </View>
-
-                                {/* Détails selon statut */}
-                                {r.statut === 2 && (
-                                    <View className="bg-green-50 border border-green-200 rounded-2xl p-3 mb-3">
-                                        <Text className="text-green-800 text-xs font-bold uppercase mb-1">
-                                            Référence
-                                        </Text>
-                                        <Text className="text-green-900 text-sm font-semibold">
-                                            {r.reference || '—'}
-                                        </Text>
-                                        {r.date_traitement && (
-                                            <Text className="text-green-700 text-xs mt-1">
-                                                Traité le {r.date_traitement}
-                                            </Text>
-                                        )}
-                                    </View>
-                                )}
-                                {r.statut === 3 && (
-                                    <View className="bg-red-50 border border-red-200 rounded-2xl p-3 mb-3">
-                                        <Text className="text-red-800 text-xs font-bold uppercase mb-1">
-                                            Motif du refus
-                                        </Text>
-                                        <Text className="text-red-900 text-sm font-medium">{r.note}</Text>
-                                    </View>
-                                )}
-
-                                {/* Actions (uniquement si en attente) */}
-                                {r.statut === 1 && (
-                                    <View className="flex-row mt-2">
-                                        <TouchableOpacity
-                                            className="flex-1 bg-green-600 rounded-2xl py-3 mr-2 items-center flex-row justify-center"
-                                            onPress={() => ouvrirAction('traite', r)}
-                                            activeOpacity={0.8}
-                                        >
-                                            <Ionicons name="checkmark-circle-outline" size={18} color="#ffffff" />
-                                            <Text className="text-white font-bold text-sm ml-1.5">
-                                                Marquer traité
-                                            </Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            className="bg-red-50 border border-red-200 rounded-2xl py-3 px-4 items-center flex-row justify-center"
-                                            onPress={() => ouvrirAction('refus', r)}
-                                            activeOpacity={0.8}
-                                        >
-                                            <Ionicons name="close-circle-outline" size={18} color="#dc2626" />
-                                            <Text className="text-red-700 font-bold text-sm ml-1.5">Refuser</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
-                            </View>
-                        ))}
-                    </View>
+                {(deplie || r.statut !== 1) && (
+                  <View style={{ gap: 6, padding: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: couleurs.fond }}>
+                    <Ligne libelle="À renvoyer sur" valeur={[r.paiement?.type, r.paiement?.numero || r.client?.telephone].filter(Boolean).join(' · ')} />
+                    <Ligne libelle="Demande du" valeur={r.date_annulation} />
+                    {r.statut === 2 && <Ligne libelle="Référence" valeur={r.reference} />}
+                    {r.statut === 2 && <Ligne libelle="Remboursé le" valeur={r.date_traitement} />}
+                    {r.statut === 3 && <Ligne libelle="Motif du refus" valeur={r.note} />}
+                  </View>
                 )}
-            </ScrollView>
 
-            {/* Modal action (traiter / refuser) */}
-            <Modal
-                visible={actionModal.visible}
-                animationType="slide"
-                transparent
-                onRequestClose={fermerAction}
-            >
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    className="flex-1 bg-black/50 justify-end"
-                >
-                    <View className="bg-white rounded-t-[32px] p-6 pb-10">
-                        <View className="w-12 h-1.5 bg-gray-300 rounded-full self-center mb-5" />
-                        <Text className="text-blue-900 text-xl font-bold mb-1">
-                            {actionModal.type === 'traite' ? 'Marquer comme traité' : 'Refuser le remboursement'}
-                        </Text>
-                        <Text className="text-gray-600 text-sm mb-4">
-                            {actionModal.remb?.client.nom} • {formatMontant(actionModal.remb?.montant ?? 0)} Ar
-                        </Text>
-
-                        {actionModal.type === 'traite' ? (
-                            <>
-                                <Text className="text-gray-700 text-sm font-semibold mb-2">
-                                    Référence de la transaction *
-                                </Text>
-                                <TextInput
-                                    value={reference}
-                                    onChangeText={setReference}
-                                    placeholder="Ex: MVOLA-12345 ou n° transfert"
-                                    placeholderTextColor="#9ca3af"
-                                    className="border border-gray-300 rounded-2xl px-4 py-3 text-base text-gray-900 mb-4"
-                                />
-                                <Text className="text-gray-700 text-sm font-semibold mb-2">
-                                    Note (optionnelle)
-                                </Text>
-                                <TextInput
-                                    value={note}
-                                    onChangeText={setNote}
-                                    placeholder="Information complémentaire..."
-                                    placeholderTextColor="#9ca3af"
-                                    multiline
-                                    numberOfLines={3}
-                                    className="border border-gray-300 rounded-2xl px-4 py-3 text-base text-gray-900 mb-5"
-                                    style={{ minHeight: 80, textAlignVertical: 'top' }}
-                                />
-                            </>
-                        ) : (
-                            <>
-                                <Text className="text-gray-700 text-sm font-semibold mb-2">Motif du refus *</Text>
-                                <TextInput
-                                    value={note}
-                                    onChangeText={setNote}
-                                    placeholder="Expliquez la raison du refus..."
-                                    placeholderTextColor="#9ca3af"
-                                    multiline
-                                    numberOfLines={4}
-                                    className="border border-gray-300 rounded-2xl px-4 py-3 text-base text-gray-900 mb-5"
-                                    style={{ minHeight: 100, textAlignVertical: 'top' }}
-                                />
-                            </>
-                        )}
-
-                        <View className="flex-row">
-                            <TouchableOpacity
-                                onPress={fermerAction}
-                                disabled={submitting}
-                                className="flex-1 bg-gray-100 rounded-2xl py-4 mr-2 items-center"
-                            >
-                                <Text className="text-gray-700 font-bold text-base">Annuler</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={soumettreAction}
-                                disabled={submitting}
-                                className={`flex-1 rounded-2xl py-4 ml-2 items-center flex-row justify-center ${
-                                    actionModal.type === 'traite' ? 'bg-green-600' : 'bg-red-600'
-                                }`}
-                            >
-                                {submitting ? (
-                                    <ActivityIndicator size="small" color="#ffffff" />
-                                ) : (
-                                    <Text className="text-white font-bold text-base">
-                                        {actionModal.type === 'traite' ? 'Confirmer' : 'Refuser'}
-                                    </Text>
-                                )}
-                            </TouchableOpacity>
-                        </View>
+                {deplie && (
+                  <>
+                    <ChampSaisie
+                      libelle="Référence du transfert"
+                      value={references[r.res_id] || ''}
+                      onChangeText={(t) => setReferences((x) => ({ ...x, [r.res_id]: t }))}
+                      placeholder="Ex. : MP261108.0915.B12345"
+                      autoCapitalize="characters"
+                    />
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <Bouton
+                        titre="Refuser"
+                        variante="danger"
+                        compact
+                        style={{ flex: 1 }}
+                        onPress={() => {
+                          setMotifRefus('');
+                          setRefus(r);
+                        }}
+                      />
+                      <Bouton titre="Marquer comme remboursé" compact style={{ flex: 2 }} onPress={() => marquerRembourse(r)} chargement={envoi === r.res_id} />
                     </View>
-                </KeyboardAvoidingView>
-            </Modal>
+                  </>
+                )}
+              </Carte>
+            );
+          })
+        )}
+
+        {filtre === 'en_attente' && (
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+            <Ionicons name="information-circle-outline" size={18} color={couleurs.ocean800} />
+            <Texte graisse="moyen" taille={12.5} couleur={couleurs.gris} style={{ flex: 1, lineHeight: 18 }}>
+              Le client est prévenu par notification dès que vous marquez le remboursement comme fait.
+            </Texte>
+          </View>
+        )}
+      </ScrollView>
+
+      <FeuilleModale
+        visible={!!refus}
+        onClose={() => setRefus(null)}
+        titre="Refuser le remboursement"
+        sousTitre={refus ? `${refus.client?.nom || ''} · ${formatAriary(Number(refus.montant) || 0)} Ar` : undefined}
+        pied={<Bouton titre="Refuser" variante="dangerPlein" onPress={confirmerRefus} chargement={!!refus && envoi === refus.res_id} />}
+      >
+        <View style={{ paddingHorizontal: 20, paddingBottom: 8, gap: 8 }}>
+          <ChampSaisie
+            libelle="Motif du refus"
+            value={motifRefus}
+            onChangeText={setMotifRefus}
+            placeholder="Expliquez la raison au client"
+            multiline
+            style={{ minHeight: 90, textAlignVertical: 'top' }}
+            aide="Le client verra ce motif dans l’application."
+          />
         </View>
-    );
+      </FeuilleModale>
+    </View>
+  );
 };

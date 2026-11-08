@@ -16,6 +16,18 @@ class CommissionService {
   }
 
   /**
+   * Évolution mois par mois : commissions, clients (nouveaux, actifs, perdus), compagnies
+   */
+  async getEvolution(mois = 12) {
+    try {
+      const response = await apiClient.get(`${this.BASE_PATH}/evolution`, { params: { mois } });
+      return handleApiResponse(response);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  }
+
+  /**
    * Récupère la liste des compagnies avec résumé commissions
    */
   async getCompagnies(filtres?: { recherche?: string; frequence?: string; suspendu?: boolean }) {

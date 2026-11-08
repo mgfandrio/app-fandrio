@@ -1,280 +1,223 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import {
-  View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl
-} from 'react-native';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { RefreshControl, ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { reservationAdminService } from '@/app/services/reservations/reservationAdminService';
 import { genererFicheVoyageurs } from '@/app/utils/ficheVoyageurs';
-import { VoyageReservationDetail } from './VoyageReservationDetail';
+import { Skeleton } from '@/app/components/common/Skeleton';
+import { Bouton, Carte, Pastille, Segmente, Texte } from '@/app/components/ui';
+import { DetailVoyage } from '@/app/components/voyages/DetailVoyage';
+import { FormulaireVoyage } from '@/app/components/voyages/FormulaireVoyage';
+import { couleurs, dateLocaleISO, formatAriary } from '@/app/theme/ocean';
+import { dateCourte, dateVoyage, infoStatutVoyage, remplissage } from '@/app/utils/voyageStatut';
 
-const formatMontant = (montant: number) => {
-  return montant.toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' Ar';
-};
+type Statut = 1 | 2 | 3;
 
+const ONGLETS: { valeur: Statut; libelle: string; revenu: string }[] = [
+  { valeur: 1, libelle: 'À venir', revenu: 'Revenu à venir' },
+  { valeur: 2, libelle: 'En cours', revenu: 'Revenu en cours' },
+  { valeur: 3, libelle: 'Terminés', revenu: 'Revenu encaissé' },
+];
+
+const PAGES_MAX = 10;
+
+/** « Aujourd'hui », « Demain » ou « Lun. 9 nov. ». */
+function jourRelatif(iso?: string) {
+  const d = dateVoyage(iso);
+  if (!d) return '';
+  const auj = new Date();
+  const dem = new Date();
+  dem.setDate(dem.getDate() + 1);
+  if (dateLocaleISO(d) === dateLocaleISO(auj)) return "Aujourd'hui";
+  if (dateLocaleISO(d) === dateLocaleISO(dem)) return 'Demain';
+  return dateCourte(d);
+}
+
+/** Carte d'un voyage vendu : départ → arrivée, remplissage, montant, actions. */
+function CarteVoyage({ v, onDetail }: { v: any; onDetail: () => void }) {
+  const [pdf, setPdf] = useState(false);
+  const r = remplissage(v);
+  const info = infoStatutVoyage(v);
+  return (
+    <Carte style={{ gap: 12 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+        <Texte graisse="gras" taille={12.5} couleur={couleurs.gris} numberOfLines={1} style={{ flex: 1 }}>
+          {[jourRelatif(v.date_raw || v.date), v.voiture?.matricule].filter(Boolean).join(' · ')}
+        </Texte>
+        <Pastille libelle={info.libelle} tonalite={info.tonalite} />
+      </View>
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ maxWidth: '42%' }}>
+          <Texte variante="montant" taille={18}>{String(v.heure_depart || '').slice(0, 5)}</Texte>
+          <Texte graisse="moyen" taille={12} couleur={couleurs.gris} numberOfLines={1}>{v.trajet?.province_depart}</Texte>
+        </View>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <View style={{ width: 8, height: 8, borderRadius: 4, borderWidth: 2, borderColor: couleurs.ocean800 }} />
+          <View style={{ flex: 1, borderTopWidth: 2, borderStyle: 'dashed', borderColor: couleurs.ocean100 }} />
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: couleurs.ocean800 }} />
+        </View>
+        <View style={{ maxWidth: '42%', alignItems: 'flex-end' }}>
+          <Texte graisse="tresGras" taille={15} numberOfLines={1}>{v.trajet?.province_arrivee}</Texte>
+          <Texte graisse="moyen" taille={12} couleur={couleurs.gris}>
+            {v.total_voyageurs} voyageur{v.total_voyageurs > 1 ? 's' : ''}
+          </Texte>
+        </View>
+      </View>
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ flex: 1, height: 6, borderRadius: 999, backgroundColor: couleurs.ocean50, overflow: 'hidden' }}>
+          <View style={{ width: `${r.pct}%`, height: '100%', backgroundColor: r.complet ? couleurs.succes : couleurs.ocean800 }} />
+        </View>
+        <Texte graisse="tresGras" taille={12.5}>{r.pris}/{r.total} places</Texte>
+        <Texte graisse="moyen" taille={12.5} couleur={couleurs.gris}>· {formatAriary(Number(v.revenu_total) || 0)} Ar</Texte>
+      </View>
+
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <Bouton
+          titre="Fiche voyageurs"
+          variante="secondaire"
+          icone="document-text-outline"
+          compact
+          chargement={pdf}
+          style={{ flex: 1 }}
+          onPress={async () => {
+            setPdf(true);
+            try {
+              await genererFicheVoyageurs(v);
+            } finally {
+              setPdf(false);
+            }
+          }}
+        />
+        <Bouton titre="Détails" compact onPress={onDetail} style={{ flex: 1 }} />
+      </View>
+    </Carte>
+  );
+}
+
+/** Onglet « Réservations » de l'admin compagnie : billets vendus, voyage par voyage. */
 export const RenderReservations = () => {
+  const insets = useSafeAreaInsets();
+  const [statut, setStatut] = useState<Statut>(1);
   const [voyages, setVoyages] = useState<any[]>([]);
-  const [resume, setResume] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedVoyage, setSelectedVoyage] = useState<any>(null);
-  const [generatingPdfFor, setGeneratingPdfFor] = useState<number | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [detail, setDetail] = useState<any | null>(null);
+  const [edition, setEdition] = useState<number | null>(null);
+  const requete = useRef(0);
 
-  const fetchVoyages = useCallback(async () => {
-    try {
-      const res = await reservationAdminService.obtenirVoyagesAvecReservations();
-      if (res.statut) {
-        setVoyages(Array.isArray(res.data.voyages) ? res.data.voyages : []);
-        setResume(res.data.resume || {});
+  /** Charge toutes les pages du statut (les sommes du résumé portent sur tout). */
+  const charger = useCallback(async (s: Statut) => {
+    const n = ++requete.current;
+    setErreur(null);
+    let tous: any[] = [];
+    for (let page = 1; page <= PAGES_MAX; page++) {
+      const r = await reservationAdminService.obtenirVoyagesAvecReservations(page, s);
+      if (n !== requete.current) return;
+      if (!r.statut) {
+        setErreur(r.message || 'Impossible de charger les réservations.');
+        break;
       }
-    } catch (e) {
-      console.error('Error fetching voyages with reservations:', e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+      tous = tous.concat(r.data.voyages || []);
+      if (!r.data.pagination?.last_page || page >= r.data.pagination.last_page) break;
     }
+    setVoyages(tous);
   }, []);
 
-  useEffect(() => {
-    fetchVoyages();
-  }, [fetchVoyages]);
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      charger(statut).finally(() => setLoading(false));
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+  );
 
-  const onRefresh = () => {
+  const changer = (s: Statut) => {
+    setStatut(s);
+    setVoyages([]);
+    setLoading(true);
+    charger(s).finally(() => setLoading(false));
+  };
+
+  const onRefresh = async () => {
     setRefreshing(true);
-    fetchVoyages();
+    await charger(statut);
+    setRefreshing(false);
   };
 
-  const getStatutLabel = (statut: number, estComplet?: boolean) => {
-    if (statut === 1 && estComplet) return { label: 'Complet', color: '#7c3aed', bg: '#f5f3ff' };
-    switch (statut) {
-      case 1: return { label: 'Programmé', color: '#3b82f6', bg: '#eff6ff' };
-      case 2: return { label: 'En cours', color: '#f59e0b', bg: '#fffbeb' };
-      case 3: return { label: 'Terminé', color: '#10b981', bg: '#ecfdf5' };
-      case 4: return { label: 'Annulé', color: '#ef4444', bg: '#fef2f2' };
-      default: return { label: 'Inconnu', color: '#94a3b8', bg: '#f1f5f9' };
-    }
-  };
+  // À venir et en cours : du plus proche au plus lointain ; terminés : du plus récent
+  const tries = useMemo(() => {
+    const cle = (v: any) => `${v.date_raw || ''} ${v.heure_depart || ''}`;
+    return [...voyages].sort((a, b) => (statut === 3 ? cle(b).localeCompare(cle(a)) : cle(a).localeCompare(cle(b))));
+  }, [voyages, statut]);
 
-  if (selectedVoyage) {
-    return (
-      <VoyageReservationDetail
-        voyage={selectedVoyage}
-        onBack={() => { setSelectedVoyage(null); fetchVoyages(); }}
-      />
-    );
-  }
+  const revenu = voyages.reduce((s, v) => s + (Number(v.revenu_total) || 0), 0);
+  const vendues = voyages.reduce((s, v) => s + (Number(v.places_reservees) || 0), 0);
+  const offertes = voyages.reduce((s, v) => s + (Number(v.places_disponibles) || 0), 0);
+  const onglet = ONGLETS.find((o) => o.valeur === statut)!;
 
   return (
-    <View className="flex-1 bg-slate-50">
+    <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
       <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: insets.top + 14, paddingBottom: 28, gap: 14 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={couleurs.ocean800} colors={[couleurs.ocean800]} />}
         showsVerticalScrollIndicator={false}
-        className="flex-1"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#f97316" />}
       >
-        {/* Hero */}
-        <View className="mx-4 mt-4 mb-4 rounded-2xl overflow-hidden" style={{ elevation: 4 }}>
-          <LinearGradient
-            colors={['#7c2d12', '#c2410c', '#ea580c']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            className="px-5 py-6"
-          >
-            <View className="flex-row items-center justify-between mb-4">
-              <View className="flex-1">
-                <Text className="text-white font-extrabold text-xl">Réservations</Text>
-                <Text className="text-white text-sm font-medium mt-1">Gestion des billets et revenus</Text>
-              </View>
-              <View className="bg-white/15 rounded-2xl p-3">
-                <Ionicons name="ticket" size={24} color="#fff" />
-              </View>
-            </View>
-
-            {/* Stats cards */}
-            {!loading && (resume.revenu_total !== undefined) && (
-              <View className="flex-row mt-2">
-                <View className="flex-1 bg-white/15 rounded-xl p-3 mr-2">
-                  <Text className="text-white text-xs font-bold uppercase opacity-90">Revenu total</Text>
-                  <Text className="text-white font-extrabold text-base mt-1">
-                    {formatMontant(resume.revenu_total || 0)}
-                  </Text>
-                </View>
-                <View className="flex-1 bg-white/15 rounded-xl p-3 mr-2">
-                  <Text className="text-white text-xs font-bold uppercase opacity-90">Réservations</Text>
-                  <Text className="text-white font-extrabold text-base mt-1">
-                    {resume.total_reservations || 0}
-                  </Text>
-                </View>
-                <View className="flex-1 bg-white/15 rounded-xl p-3">
-                  <Text className="text-white text-xs font-bold uppercase opacity-90">Voyages</Text>
-                  <Text className="text-white font-extrabold text-base mt-1">
-                    {resume.total_voyages || 0}
-                  </Text>
-                </View>
-              </View>
-            )}
-          </LinearGradient>
+        <View>
+          <Texte variante="titre" taille={26}>Réservations</Texte>
+          <Texte graisse="moyen" taille={13} couleur={couleurs.gris}>Billets vendus par voyage</Texte>
         </View>
 
-        {/* Content */}
-        <View className="px-4">
-          {loading ? (
-            <View className="items-center py-16">
-              <View className="rounded-full overflow-hidden" style={{ width: 48, height: 48 }}>
-                <LinearGradient colors={['#c2410c', '#ea580c']} style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
-                  <ActivityIndicator color="#fff" size="small" />
-                </LinearGradient>
-              </View>
-              <Text className="text-slate-700 mt-3 text-sm font-medium">Chargement...</Text>
-            </View>
-          ) : voyages.length > 0 ? (
-            voyages.map((voyage) => {
-              const statut = getStatutLabel(voyage.statut, voyage.est_complet);
-              return (
-                <TouchableOpacity
-                  key={voyage.voyage_id}
-                  className="bg-white rounded-2xl mb-3 overflow-hidden"
-                  style={{ elevation: 2 }}
-                  activeOpacity={0.8}
-                  onPress={() => setSelectedVoyage(voyage)}
-                >
-                  {/* Top accent */}
-                  <LinearGradient
-                    colors={['#c2410c', '#ea580c', '#fb923c']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={{ height: 3 }}
-                  />
+        <Segmente<string>
+          libelleAccessible="Statut des voyages"
+          valeur={String(statut)}
+          onChange={(v) => changer(Number(v) as Statut)}
+          options={ONGLETS.map((o) => ({ valeur: String(o.valeur), libelle: o.libelle }))}
+        />
 
-                  <View className="p-4">
-                    {/* Trajet + Status */}
-                    <View className="flex-row items-center justify-between mb-3">
-                      <View className="flex-1 mr-3">
-                        <Text className="text-slate-900 font-bold text-base" numberOfLines={1}>
-                          {voyage.trajet?.province_depart} → {voyage.trajet?.province_arrivee}
-                        </Text>
-                        <Text className="text-slate-700 text-sm font-medium mt-0.5">{voyage.trajet?.nom}</Text>
-                      </View>
-                      <View className="rounded-lg px-2.5 py-1" style={{ backgroundColor: statut.bg }}>
-                        <Text className="text-xs font-bold" style={{ color: statut.color }}>{statut.label}</Text>
-                      </View>
-                    </View>
+        <Carte style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12 }}>
+          <View style={{ flex: 1 }}>
+            <Texte graisse="moyen" taille={11.5} couleur={couleurs.gris}>{onglet.revenu}</Texte>
+            <Texte variante="montant" taille={18}>{loading ? '…' : `${formatAriary(revenu)} Ar`}</Texte>
+          </View>
+          <View style={{ width: 1, alignSelf: 'stretch', backgroundColor: couleurs.separateur }} />
+          <View style={{ flex: 1 }}>
+            <Texte graisse="moyen" taille={11.5} couleur={couleurs.gris}>Places vendues</Texte>
+            <Texte variante="montant" taille={18}>{loading ? '…' : `${vendues} / ${offertes}`}</Texte>
+          </View>
+        </Carte>
 
-                    {/* Stats row */}
-                    <View className="flex-row items-center mb-3 flex-wrap">
-                      <View className="bg-slate-100 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-1">
-                        <Ionicons name="calendar-outline" size={14} color="#334155" />
-                        <Text className="text-slate-800 text-xs font-semibold ml-1">{voyage.date}</Text>
-                      </View>
-                      <View className="bg-slate-100 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-1">
-                        <Ionicons name="time-outline" size={14} color="#334155" />
-                        <Text className="text-slate-800 text-xs font-semibold ml-1">{voyage.heure_depart}</Text>
-                      </View>
-                      <View className="bg-slate-100 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-1">
-                        <Ionicons name="car-outline" size={14} color="#334155" />
-                        <Text className="text-slate-800 text-xs font-semibold ml-1">{voyage.voiture?.matricule}</Text>
-                      </View>
-                    </View>
-
-                    {/* Reservation + Revenue info */}
-                    <View className="flex-row items-center justify-between pt-3 border-t border-slate-100">
-                      <View className="flex-row items-center flex-1 flex-wrap">
-                        <View className="bg-orange-50 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-1">
-                          <Ionicons name="ticket-outline" size={13} color="#ea580c" />
-                          <Text className="text-orange-700 text-xs font-bold ml-1">{voyage.reservations_count} rés.</Text>
-                        </View>
-                        <View className="bg-blue-50 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-1">
-                          <Ionicons name="people-outline" size={13} color="#2563eb" />
-                          <Text className="text-blue-700 text-xs font-bold ml-1">{voyage.total_voyageurs} voyag.</Text>
-                        </View>
-                        <View className="bg-emerald-50 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-1">
-                          <Ionicons name="grid-outline" size={13} color="#059669" />
-                          <Text className="text-emerald-700 text-xs font-bold ml-1">
-                            {voyage.places_reservees}/{voyage.places_disponibles}
-                          </Text>
-                        </View>
-                      </View>
-                      <Ionicons name="chevron-forward" size={20} color="#64748b" />
-                    </View>
-
-                    {/* Revenue row */}
-                    {voyage.revenu_total > 0 && (
-                      <View className="mt-2 pt-2 border-t border-slate-100 flex-row items-center justify-between">
-                        <View className="flex-row items-center flex-1">
-                          <View className="bg-amber-50 rounded-lg px-3 py-1.5 flex-row items-center">
-                            <Ionicons name="cash-outline" size={13} color="#d97706" />
-                            <Text className="text-amber-700 text-xs font-bold ml-1.5">
-                              {formatMontant(voyage.revenu_total)}
-                            </Text>
-                          </View>
-                          <Text className="text-slate-700 text-xs font-medium ml-2">
-                            {voyage.trajet?.tarif ? `Tarif: ${formatMontant(voyage.trajet.tarif)}/pers.` : ''}
-                          </Text>
-                        </View>
-                        {voyage.statut === 3 && (
-                          <TouchableOpacity
-                            className="bg-emerald-50 rounded-lg px-3 py-1.5 flex-row items-center"
-                            activeOpacity={0.7}
-                            disabled={generatingPdfFor === voyage.voyage_id}
-                            onPress={async (e) => {
-                              e.stopPropagation();
-                              setGeneratingPdfFor(voyage.voyage_id);
-                              await genererFicheVoyageurs(voyage);
-                              setGeneratingPdfFor(null);
-                            }}
-                          >
-                            {generatingPdfFor === voyage.voyage_id ? (
-                              <ActivityIndicator size={12} color="#059669" />
-                            ) : (
-                              <Ionicons name="download-outline" size={13} color="#059669" />
-                            )}
-                            <Text className="text-emerald-700 text-xs font-bold ml-1">Fiche</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    )}
-
-                    {/* Bouton fiche voyageurs pour les voyages terminés sans revenu affiché */}
-                    {voyage.statut === 3 && !(voyage.revenu_total > 0) && (
-                      <View className="mt-2 pt-2 border-t border-slate-100 flex-row items-center justify-end">
-                        <TouchableOpacity
-                          className="bg-emerald-50 rounded-lg px-3 py-1.5 flex-row items-center"
-                          activeOpacity={0.7}
-                          disabled={generatingPdfFor === voyage.voyage_id}
-                          onPress={async (e) => {
-                            e.stopPropagation();
-                            setGeneratingPdfFor(voyage.voyage_id);
-                            await genererFicheVoyageurs(voyage);
-                            setGeneratingPdfFor(null);
-                          }}
-                        >
-                          {generatingPdfFor === voyage.voyage_id ? (
-                            <ActivityIndicator size={12} color="#059669" />
-                          ) : (
-                            <Ionicons name="download-outline" size={13} color="#059669" />
-                          )}
-                          <Text className="text-emerald-700 text-xs font-bold ml-1">Fiche voyageurs</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              );
-            })
-          ) : (
-            <View className="bg-white rounded-2xl p-10 items-center" style={{ elevation: 2 }}>
-              <View className="bg-slate-100 rounded-full p-5 mb-3">
-                <Ionicons name="ticket-outline" size={36} color="#94a3b8" />
-              </View>
-              <Text className="text-slate-800 font-bold text-base">Aucune réservation</Text>
-              <Text className="text-slate-700 text-sm font-medium mt-1 text-center">
-                Les réservations validées par vos clients apparaîtront ici
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <View className="h-24" />
+        {loading ? (
+          [1, 2].map((i) => <Skeleton key={i} height={196} borderRadius={16} />)
+        ) : erreur ? (
+          <Carte style={{ alignItems: 'center', gap: 8, paddingVertical: 24 }}>
+            <Ionicons name="cloud-offline-outline" size={30} color={couleurs.danger} />
+            <Texte variante="legende" centre>{erreur}</Texte>
+            <Bouton titre="Réessayer" variante="secondaire" compact icone="refresh" onPress={onRefresh} />
+          </Carte>
+        ) : tries.length === 0 ? (
+          <View style={{ alignItems: 'center', paddingVertical: 36, gap: 6 }}>
+            <Ionicons name="ticket-outline" size={36} color={couleurs.grisClair} />
+            <Texte graisse="tresGras" taille={15}>Aucun billet vendu</Texte>
+            <Texte variante="legende" centre>Les voyages avec des réservations payées apparaîtront ici.</Texte>
+          </View>
+        ) : (
+          tries.map((v) => <CarteVoyage key={v.voyage_id} v={v} onDetail={() => setDetail(v)} />)
+        )}
       </ScrollView>
+
+      <DetailVoyage
+        visible={!!detail}
+        voyageId={detail?.voyage_id ?? null}
+        apercu={detail}
+        onClose={() => setDetail(null)}
+        onModifier={(id) => setEdition(id)}
+        onChange={() => charger(statut)}
+      />
+      <FormulaireVoyage visible={edition !== null} voyageId={edition} onClose={() => setEdition(null)} onSuccess={() => charger(statut)} />
     </View>
   );
 };

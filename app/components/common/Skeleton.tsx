@@ -18,7 +18,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   width = '100%',
   height = 16,
   borderRadius = 8,
-  color = '#e2e8f0',
+  color = '#E7EEF6', // thème Océan (gris bleuté)
   style,
 }) => {
   const opacity = useRef(new Animated.Value(0.4)).current;

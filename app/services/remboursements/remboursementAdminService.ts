@@ -11,6 +11,7 @@ export const remboursementAdminService = {
         statut?: 'en_attente' | 'traites' | 'refuses' | 'all';
         search?: string;
         page?: number;
+        per_page?: number;
     } = {}) => {
         try {
             const response = await apiClient.get('/api/adminCompagnie/remboursements', { params });
