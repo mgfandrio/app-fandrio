@@ -1,13 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import {
-  Modal,
-  Text,
-  TouchableOpacity,
-  View,
-  ActivityIndicator,
-  Pressable
-} from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Easing, Modal, Pressable, View } from 'react-native';
+import { couleurs, ombres } from '../../theme/ocean';
+import { Bouton, VarianteBouton } from '../ui/Bouton';
+import { Texte } from '../ui/Texte';
 
 export interface ConfirmDialogProps {
   visible: boolean;
@@ -17,6 +13,10 @@ export interface ConfirmDialogProps {
   iconColor?: string;
   iconBg?: string;
   confirmText?: string;
+  /**
+   * Libellé du bouton d'annulation. Sans `cancelText`, une popup dont le
+   * bouton est « OK » est un simple message : un seul bouton est affiché.
+   */
   cancelText?: string;
   confirmColor?: string;
   confirmBg?: string;
@@ -26,6 +26,17 @@ export interface ConfirmDialogProps {
   type?: 'danger' | 'warning' | 'success' | 'info';
 }
 
+// Apparence par type, aux couleurs du thème Océan
+const APPARENCES: Record<
+  NonNullable<ConfirmDialogProps['type']>,
+  { icone: keyof typeof Ionicons.glyphMap; couleur: string; fond: string; halo: string; bouton: VarianteBouton }
+> = {
+  success: { icone: 'checkmark', couleur: '#FFFFFF', fond: couleurs.succesVif, halo: couleurs.succesFond, bouton: 'principal' },
+  danger: { icone: 'close', couleur: '#FFFFFF', fond: '#C2413A', halo: couleurs.dangerFond, bouton: 'dangerPlein' },
+  warning: { icone: 'alert', couleur: '#FFFFFF', fond: couleurs.alerteVif, halo: couleurs.alerteFond, bouton: 'principal' },
+  info: { icone: 'information', couleur: '#FFFFFF', fond: couleurs.ocean800, halo: couleurs.ocean50, bouton: 'principal' },
+};
+
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   visible,
   title,
@@ -34,54 +45,36 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   iconColor,
   iconBg,
   confirmText = 'Confirmer',
-  cancelText = 'Annuler',
-  confirmColor,
+  cancelText,
   confirmBg,
   onConfirm,
   onCancel,
   loading = false,
   type = 'info'
 }) => {
-  // Configuration par défaut selon le type
-  const getTypeConfig = () => {
-    switch (type) {
-      case 'danger':
-        return {
-          icon: icon || 'alert-circle',
-          iconColor: iconColor || '#ef4444',
-          iconBg: iconBg || '#fee2e2',
-          confirmColor: confirmColor || '#fff',
-          confirmBg: confirmBg || '#ef4444'
-        };
-      case 'warning':
-        return {
-          icon: icon || 'warning',
-          iconColor: iconColor || '#f97316',
-          iconBg: iconBg || '#ffedd5',
-          confirmColor: confirmColor || '#fff',
-          confirmBg: confirmBg || '#f97316'
-        };
-      case 'success':
-        return {
-          icon: icon || 'checkmark-circle',
-          iconColor: iconColor || '#10b981',
-          iconBg: iconBg || '#d1fae5',
-          confirmColor: confirmColor || '#fff',
-          confirmBg: confirmBg || '#10b981'
-        };
-      case 'info':
-      default:
-        return {
-          icon: icon || 'information-circle',
-          iconColor: iconColor || '#3b82f6',
-          iconBg: iconBg || '#dbeafe',
-          confirmColor: confirmColor || '#fff',
-          confirmBg: confirmBg || '#3b82f6'
-        };
-    }
-  };
+  const a = APPARENCES[type] ?? APPARENCES.info;
 
-  const config = getTypeConfig();
+  // Simple message (« OK ») : un seul bouton. Confirmation : Annuler + action.
+  const estMessage = !cancelText && confirmText === 'OK';
+  const libelleAnnuler = cancelText ?? 'Annuler';
+
+  // Une popup d'erreur qui n'est qu'un message se ferme avec un bouton neutre :
+  // le rouge plein est réservé à la confirmation d'une action destructive.
+  const varianteConfirmer: VarianteBouton = estMessage && type === 'danger' ? 'principal' : a.bouton;
+
+  // Entrée de la carte : léger zoom + montée
+  const apparition = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (visible) {
+      apparition.setValue(0);
+      Animated.timing(apparition, {
+        toValue: 1,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible, apparition]);
 
   const handleConfirm = async () => {
     if (!loading) {
@@ -97,70 +90,79 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       onRequestClose={onCancel}
       statusBarTranslucent
     >
-      <Pressable 
-        className="flex-1 bg-black/50 items-center justify-center px-6"
-        onPress={onCancel}
+      <Pressable
+        onPress={loading ? undefined : onCancel}
+        accessibilityLabel="Fermer"
+        style={{ flex: 1, backgroundColor: 'rgba(6,20,36,0.55)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}
       >
-        <Pressable 
-          className="bg-white rounded-3xl w-full max-w-sm shadow-2xl"
-          onPress={(e) => e.stopPropagation()}
+        <Animated.View
+          style={{
+            width: '100%',
+            maxWidth: 380,
+            opacity: apparition,
+            transform: [
+              { scale: apparition.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }) },
+              { translateY: apparition.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) },
+            ],
+          }}
         >
-          {/* Icône */}
-          <View className="items-center pt-8 pb-4">
-            <View 
-              className="rounded-full p-4 shadow-sm"
-              style={{ backgroundColor: config.iconBg }}
-            >
-              <Ionicons 
-                name={config.icon} 
-                size={48} 
-                color={config.iconColor} 
+          {/* Pressable intérieur : un appui sur la carte ne ferme pas la popup */}
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            accessibilityViewIsModal
+            accessibilityRole="alert"
+            style={{
+              backgroundColor: couleurs.surface,
+              borderRadius: 24,
+              paddingHorizontal: 22,
+              paddingTop: 28,
+              paddingBottom: 20,
+              alignItems: 'center',
+              gap: 16,
+              ...ombres.carte,
+            }}
+          >
+            {/* Icône dans un halo */}
+            <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: iconBg || a.halo, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: iconBg ? 'transparent' : a.fond, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={icon || a.icone} size={icon ? 34 : 28} color={iconColor || (icon ? a.fond : a.couleur)} />
+              </View>
+            </View>
+
+            <View style={{ gap: 6, alignSelf: 'stretch' }}>
+              <Texte variante="sousTitre" taille={19} centre>
+                {title}
+              </Texte>
+              {!!message && (
+                <Texte graisse="moyen" taille={14.5} couleur={couleurs.gris} centre style={{ lineHeight: 21 }}>
+                  {message}
+                </Texte>
+              )}
+            </View>
+
+            {/* Boutons */}
+            <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch', marginTop: 4 }}>
+              {!estMessage && (
+                <Bouton
+                  titre={libelleAnnuler}
+                  variante="secondaire"
+                  onPress={onCancel}
+                  desactive={loading}
+                  compact
+                  style={{ flex: 1 }}
+                />
+              )}
+              <Bouton
+                titre={confirmText}
+                variante={varianteConfirmer}
+                onPress={handleConfirm}
+                chargement={loading}
+                compact
+                style={[{ flex: 1 }, confirmBg && !estMessage ? { backgroundColor: confirmBg } : null]}
               />
             </View>
-          </View>
-
-          {/* Contenu */}
-          <View className="px-6 pb-6">
-            <Text className="text-gray-900 text-xl font-bold text-center mb-2">
-              {title}
-            </Text>
-            <Text className="text-gray-500 text-center leading-5">
-              {message}
-            </Text>
-          </View>
-
-          {/* Boutons */}
-          <View className="flex-row border-t border-gray-100">
-            <TouchableOpacity
-              className="flex-1 py-4 items-center border-r border-gray-100"
-              onPress={onCancel}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
-              <Text className="text-gray-600 font-semibold text-base">
-                {cancelText}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              className="flex-1 py-4 items-center"
-              onPress={handleConfirm}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
-              {loading ? (
-                <ActivityIndicator color={config.confirmBg} />
-              ) : (
-                <Text 
-                  className="font-bold text-base"
-                  style={{ color: config.confirmBg }}
-                >
-                  {confirmText}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </Pressable>
+          </Pressable>
+        </Animated.View>
       </Pressable>
     </Modal>
   );
@@ -226,4 +228,3 @@ export const useConfirmDialog = () => {
     DialogComponent
   };
 };
-

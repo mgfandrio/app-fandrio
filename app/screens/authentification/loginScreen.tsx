@@ -1,32 +1,33 @@
 import config from '@/app/config/env';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StatusBar,
-  Text,
   TextInput,
-  TouchableOpacity,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConfirmDialog } from '../../components/common/ConfirmDialog';
 import PostLoginSplash from '../../components/PostLoginSplash';
+import { Bouton, CaseACocher, ChampSaisie, Texte } from '../../components/ui';
+import { couleurs } from '../../theme/ocean';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { showDialog, DialogComponent } = useConfirmDialog();
+  const champMotDePasse = useRef<TextInput>(null);
   const [identifiant, setIdentifiant] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [showPostLoginSplash, setShowPostLoginSplash] = useState(false);
   const [pendingRole, setPendingRole] = useState<number | null>(null);
   const [loggedUserName, setLoggedUserName] = useState('');
@@ -130,12 +131,10 @@ export default function LoginScreen() {
         }
       );
 
-      console.log('Response:', response.data);
-
       try {
         const token = response.data?.token;
         const utilisateur = response.data?.utilisateur;
-        
+
         // Vérifie si l'utilisateur avec le rôle 2 (ADMIN_COMPAGNIE) a un compagnie_id
         if (utilisateur?.role === 2 && !utilisateur?.compagnie_id) {
           showDialog({
@@ -149,7 +148,7 @@ export default function LoginScreen() {
           setLoading(false);
           return;
         }
-        
+
         if (token) {
           await SecureStore.setItemAsync('fandrioToken', token);
         }
@@ -173,14 +172,7 @@ export default function LoginScreen() {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
         const errorMessage = error.response?.data?.message || error.message || 'Erreur de connexion';
-        
-        console.error('Login error details:', {
-          status,
-          message: errorMessage,
-          data: error.response?.data,
-          utilisateur: error.response?.data?.utilisateur
-        });
-        
+
         // Vérifier si c'est une erreur 401 avec un message spécifique
         if (status === 401) {
           const specificMessage = error.response?.data?.message || 'Identifiants incorrects ou compte non autorisé';
@@ -254,224 +246,150 @@ export default function LoginScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={['#1e3a8a', '#1d4ed8', '#3b82f6', '#60a5fa']}
-      locations={[0, 0.4, 0.75, 1]}
-      style={{ flex: 1 }}
-    >
+    <View style={{ flex: 1, backgroundColor: couleurs.ocean950 }}>
       <DialogComponent />
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" backgroundColor={couleurs.ocean950} />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-        className="flex-1"
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
+          contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          className="flex-1"
+          bounces={false}
         >
-          {/* Logo zone (dans la partie bleue) */}
-          <View className="items-center pt-16 pb-6">
-            <View style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 }}>
-              <Image
-                source={require("../../../assets/images/fandrioLogo.png")}
-                className="w-52 h-52"
-                resizeMode="contain"
-              />
-            </View>
-            <Text className="text-white text-3xl font-extrabold tracking-[6px] -mt-1">FANDRIO</Text>
-            <Text className="text-blue-100 text-base mt-1 font-medium">
-              Réservez votre voyage en quelques clics
-            </Text>
+          {/* En-tête marine : logo et nom */}
+          <View style={{ alignItems: 'center', paddingTop: insets.top + 28, paddingBottom: 56, paddingHorizontal: 24, gap: 6 }}>
+            <Image
+              source={require('../../../assets/images/fandrioLogo.png')}
+              style={{ width: 170, height: 92 }}
+              resizeMode="contain"
+              accessibilityIgnoresInvertColors
+            />
+            <Texte graisse="tresGras" taille={24} couleur="#FFFFFF" style={{ letterSpacing: 7 }}>
+              FANDRIO
+            </Texte>
+            <Texte graisse="moyen" taille={14} couleur={couleurs.texteSurMarine} centre>
+              Vos taxis-brousse, réservés en quelques clics
+            </Texte>
           </View>
 
-          {/* Carte formulaire */}
+          {/* Feuille blanche : formulaire */}
           <View
-            className="flex-1 mx-5 mb-6 bg-white rounded-3xl px-7 pt-8 pb-6"
-            style={{ shadowColor: '#1e40af', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 12 }}
+            style={{
+              flex: 1,
+              backgroundColor: couleurs.surface,
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              paddingHorizontal: 24,
+              paddingTop: 28,
+              paddingBottom: insets.bottom + 24,
+              gap: 16,
+            }}
           >
-            <Text className="text-gray-900 text-2xl font-bold mb-1">Connexion</Text>
-            <Text className="text-gray-400 text-base mb-7">
-              Accédez à votre espace personnel
-            </Text>
+            <View style={{ gap: 4 }}>
+              <Texte variante="titre" taille={24}>Connexion</Texte>
+              <Texte graisse="moyen" taille={14} couleur={couleurs.gris}>Content de vous revoir.</Texte>
+            </View>
 
-            {/* Email/Phone Input */}
-            <Text className="text-gray-700 font-semibold text-base mb-2 ml-1">
-              Email ou téléphone
-            </Text>
-            <View className="mb-1">
-              <View className={`bg-gray-50 border ${errors.identifiant ? 'border-red-400' : 'border-gray-200'} rounded-2xl px-5 py-4 flex-row items-center`}>
-                <Ionicons 
-                  name="person-outline" 
-                  size={22} 
-                  color={errors.identifiant ? "#EF4444" : "#9CA3AF"} 
-                  style={{ marginRight: 14 }}
-                />
-                <TextInput
-                  className="flex-1 text-gray-900 text-lg"
-                  placeholder="Email ou numéro de téléphone"
-                  placeholderTextColor="#C4C4C4"
-                  value={identifiant}
-                  onChangeText={handleIdentifiantChange}
-                  autoCapitalize="none"
-                  editable={!loading}
-                />
-                {errors.identifiant && (
-                  <Ionicons name="alert-circle" size={20} color="#EF4444" />
-                )}
+            <ChampSaisie
+              libelle="Email ou téléphone"
+              icone="person-outline"
+              placeholder="Email ou numéro de téléphone"
+              value={identifiant}
+              onChangeText={handleIdentifiantChange}
+              autoCapitalize="none"
+              autoComplete="username"
+              keyboardType="email-address"
+              returnKeyType="next"
+              onSubmitEditing={() => champMotDePasse.current?.focus()}
+              editable={!loading}
+              erreur={errors.identifiant}
+            />
+
+            <ChampSaisie
+              ref={champMotDePasse}
+              libelle="Mot de passe"
+              icone="lock-closed-outline"
+              placeholder="Votre mot de passe"
+              value={motDePasse}
+              onChangeText={handleMotDePasseChange}
+              motDePasse
+              autoComplete="password"
+              returnKeyType="go"
+              onSubmitEditing={handleLogin}
+              editable={!loading}
+              erreur={errors.motDePasse}
+            />
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <CaseACocher coche={rememberMe} onChange={setRememberMe} libelle="Se souvenir de moi" desactive={loading} />
+              {/* TODO : brancher la récupération de mot de passe (aucun écran pour l'instant) */}
+              <Pressable disabled={loading} hitSlop={8} accessibilityRole="button">
+                <Texte graisse="gras" taille={13.5} couleur={couleurs.ocean800}>Mot de passe oublié ?</Texte>
+              </Pressable>
+            </View>
+
+            <Bouton titre="Se connecter" onPress={handleLogin} chargement={loading} />
+
+            {/* Connexion par compte externe : pas encore développée (ni dans l'app ni dans l'API).
+                Boutons affichés désactivés avec la mention « Bientôt disponible ». */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: couleurs.ligne }} />
+              <Texte graisse="moyen" taille={12.5} couleur={couleurs.grisClair}>ou continuer avec</Texte>
+              <View style={{ flex: 1, height: 1, backgroundColor: couleurs.ligne }} />
+            </View>
+            <View style={{ gap: 8 }}>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                {[
+                  { nom: 'Google', image: require('../../../assets/images/google.png') },
+                  { nom: 'Facebook', image: require('../../../assets/images/facebook.png') },
+                ].map((fournisseur) => (
+                  <View
+                    key={fournisseur.nom}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: true }}
+                    accessibilityLabel={`Continuer avec ${fournisseur.nom}, bientôt disponible`}
+                    style={{
+                      flex: 1,
+                      height: 50,
+                      borderRadius: 14,
+                      borderWidth: 1.5,
+                      borderColor: couleurs.champ,
+                      backgroundColor: couleurs.fond,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      opacity: 0.6,
+                    }}
+                  >
+                    <Image source={fournisseur.image} style={{ width: 20, height: 20 }} resizeMode="contain" />
+                    <Texte graisse="gras" taille={14} couleur={couleurs.encreDouce}>{fournisseur.nom}</Texte>
+                  </View>
+                ))}
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <Ionicons name="time-outline" size={14} color={couleurs.gris} />
+                <Texte variante="legende">Bientôt disponible</Texte>
               </View>
             </View>
-            {errors.identifiant ? (
-              <Text className="text-red-500 text-sm ml-2 mb-5 mt-1">{errors.identifiant}</Text>
-            ) : (
-              <View className="mb-5" />
-            )}
 
-            {/* Password Input */}
-            <Text className="text-gray-700 font-semibold text-base mb-2 ml-1">
-              Mot de passe
-            </Text>
-            <View className="mb-1">
-              <View className={`bg-gray-50 border ${errors.motDePasse ? 'border-red-400' : 'border-gray-200'} rounded-2xl px-5 py-4 flex-row items-center`}>
-                <Ionicons 
-                  name="lock-closed-outline" 
-                  size={22} 
-                  color={errors.motDePasse ? "#EF4444" : "#9CA3AF"} 
-                  style={{ marginRight: 14 }}
-                />
-                <TextInput
-                  className="flex-1 text-gray-900 text-lg"
-                  placeholder="Votre mot de passe"
-                  placeholderTextColor="#C4C4C4"
-                  value={motDePasse}
-                  onChangeText={handleMotDePasseChange}
-                  secureTextEntry={!showPassword}
-                  editable={!loading}
-                />
-                <TouchableOpacity 
-                  onPress={() => setShowPassword(!showPassword)}
-                  disabled={loading}
-                  className="p-1"
-                >
-                  <Ionicons 
-                    name={showPassword ? "eye-outline" : "eye-off-outline"} 
-                    size={22} 
-                    color={errors.motDePasse ? "#EF4444" : "#9CA3AF"} 
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-            {errors.motDePasse ? (
-              <Text className="text-red-500 text-sm ml-2 mb-2 mt-1">{errors.motDePasse}</Text>
-            ) : (
-              <View className="mb-2" />
-            )}
+            <View style={{ flex: 1, minHeight: 16 }} />
 
-            {/* Se souvenir de moi + Mot de passe oublié */}
-            <View className="flex-row items-center justify-between mb-7">
-              <TouchableOpacity
-                className="flex-row items-center flex-1"
-                onPress={() => setRememberMe(!rememberMe)}
-                activeOpacity={0.7}
-                disabled={loading}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+              <Texte graisse="moyen" taille={14} couleur={couleurs.gris}>Pas encore de compte ? </Texte>
+              <Pressable
+                onPress={() => router.push('/screens/authentification/registerScreen')}
+                accessibilityRole="link"
+                hitSlop={8}
               >
-                <View className={`w-5 h-5 rounded-md mr-2 items-center justify-center border-2 ${rememberMe ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
-                  {rememberMe && <Ionicons name="checkmark" size={14} color="#fff" />}
-                </View>
-                <Text className="text-gray-700 font-medium text-sm">Se souvenir de moi</Text>
-              </TouchableOpacity>
-              <TouchableOpacity disabled={loading}>
-                <Text className="text-blue-600 font-semibold text-sm">
-                  Mot de passe oublié ?
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Login Button */}
-            <TouchableOpacity
-              onPress={handleLogin}
-              disabled={loading}
-              activeOpacity={0.85}
-              style={{ overflow: 'hidden', borderRadius: 16 }}
-            >
-              <LinearGradient
-                colors={loading ? ['#93c5fd', '#60a5fa'] : ['#2563eb', '#1d4ed8']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={{ paddingVertical: 18, borderRadius: 16, alignItems: 'center' }}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text className="text-white text-center font-bold text-xl">
-                    Se connecter
-                  </Text>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {/* Divider */}
-            <View className="flex-row items-center my-6">
-              <View className="flex-1 h-px bg-gray-200" />
-              <Text className="mx-4 text-gray-400 text-sm font-medium">ou</Text>
-              <View className="flex-1 h-px bg-gray-200" />
-            </View>
-
-            {/* Social Login */}
-            <View className="flex-row justify-center items-center mb-6">
-              <TouchableOpacity
-                className="w-16 h-16 bg-white rounded-2xl items-center justify-center border border-gray-200"
-                style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }}
-              >
-                <Image
-                  source={require("../../../assets/images/google.png")}
-                  className="w-7 h-7"
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                className="w-16 h-16 bg-white rounded-2xl items-center justify-center border border-gray-200 mx-5"
-                style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }}
-              >
-                <Image
-                  source={require("../../../assets/images/facebook.png")}
-                  className="w-7 h-7"
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                className="w-16 h-16 bg-white rounded-2xl items-center justify-center border border-gray-200"
-                style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }}
-              >
-                <Image
-                  source={require("../../../assets/images/apple.png")}
-                  className="w-7 h-7"
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
-            </View>
-
-            {/* Footer */}
-            <View className="items-center mb-8">
-              <View className="flex-row items-center">
-                <Text className="text-gray-500 text-base">
-                  Pas encore de compte ?{' '}
-                </Text>
-                <TouchableOpacity onPress={() => router.push('/screens/authentification/registerScreen')}>
-                  <Text className="text-blue-700 font-bold text-base">
-                    Créer un compte
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                <Texte graisse="tresGras" taille={14} couleur={couleurs.ocean800}>Créer un compte</Texte>
+              </Pressable>
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
