@@ -4,10 +4,10 @@ export const reservationAdminService = {
   /**
    * Récupère les voyages ayant des réservations validées (avec données financières)
    */
-  obtenirVoyagesAvecReservations: async (page: number = 1) => {
+  obtenirVoyagesAvecReservations: async (page: number = 1, statut?: number) => {
     try {
       const response = await apiClient.get('/api/adminCompagnie/reservations/voyages', {
-        params: { page, per_page: 15 }
+        params: { page, per_page: 20, ...(statut ? { statut } : {}) }
       });
       return {
         statut: true,

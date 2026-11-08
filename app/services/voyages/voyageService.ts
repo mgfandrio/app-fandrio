@@ -26,6 +26,30 @@ export const voyageService = {
     }
   },
 
+  /**
+   * Liste paginée des voyages de la compagnie, avec la pagination.
+   * Filtres API : statut, date_debut, date_fin (Y-m-d), traj_id, per_page, page,
+   * sort_field, sort_direction.
+   */
+  obtenirVoyagesPage: async (filtres: Record<string, any> = {}) => {
+    try {
+      const response = await apiClient.get('/api/adminCompagnie/voyage/recupererListeVoyage', { params: filtres });
+      const data = response.data?.data || {};
+      return {
+        statut: true,
+        voyages: (Array.isArray(data.voyages) ? data.voyages : []) as any[],
+        pagination: (data.pagination || { total: 0, current_page: 1, last_page: 1 }) as { total: number; current_page: number; last_page: number },
+      };
+    } catch (error: any) {
+      return {
+        statut: false,
+        message: error.response?.data?.message || 'Erreur lors de la récupération des voyages',
+        voyages: [] as any[],
+        pagination: { total: 0, current_page: 1, last_page: 1 },
+      };
+    }
+  },
+
   // Récupérer la liste des voyages
   obtenirVoyages: async (filtres?: any) => {
     try {

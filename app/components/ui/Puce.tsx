@@ -11,16 +11,18 @@ export interface PuceProps {
   active: boolean;
   onPress: () => void;
   icone?: keyof typeof Ionicons.glyphMap;
+  /** Nombre affiché à droite du libellé (ex. « Programmés 38 »). */
+  compteur?: number;
 }
 
 /** Puce sélectionnable (filtres : date, type de voyage, province...). */
-export function Puce({ libelle, detail, active, onPress, icone }: PuceProps) {
+export function Puce({ libelle, detail, active, onPress, icone, compteur }: PuceProps) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
-      accessibilityLabel={detail ? `${libelle} ${detail}` : libelle}
+      accessibilityLabel={[libelle, detail, compteur].filter((x) => x !== undefined && x !== '').join(' ')}
       style={{
         minHeight: detail ? 52 : 40,
         paddingHorizontal: 14,
@@ -38,6 +40,11 @@ export function Puce({ libelle, detail, active, onPress, icone }: PuceProps) {
       <Texte graisse={active ? 'tresGras' : 'gras'} taille={13} couleur={active ? '#FFFFFF' : couleurs.encreDouce}>
         {libelle}
       </Texte>
+      {compteur !== undefined && (
+        <Texte graisse="tresGras" taille={13} couleur={active ? '#FFFFFF' : couleurs.encreDouce} style={{ opacity: 0.7 }}>
+          {compteur}
+        </Texte>
+      )}
       {!!detail && (
         <Texte graisse="moyen" taille={11.5} couleur={active ? couleurs.ocean100 : couleurs.gris}>
           {detail}

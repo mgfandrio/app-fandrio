@@ -241,6 +241,8 @@ export default function DashboardCompagnie() {
   // Les sections ouvertes depuis le menu allument l'onglet « Menu »
   const ongletActif = ONGLETS.some((o) => o.key === activeTab) ? activeTab : 'menu';
   const accueil = activeTab === 'dashboard';
+  // Voyages et Réservations ont leur propre grand titre (maquette) : pas de barre du haut
+  const sansBarre = activeTab === 'voyages' || activeTab === 'reservations';
 
   const renderSettings = () => (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24, gap: 12 }} showsVerticalScrollIndicator={false}>
@@ -289,32 +291,34 @@ export default function DashboardCompagnie() {
 
   return (
     <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
-      <StatusBar barStyle="dark-content" backgroundColor={accueil ? couleurs.fond : couleurs.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor={accueil || sansBarre ? couleurs.fond : couleurs.surface} />
       <DialogComponent />
 
       {/* Barre du haut : sur le fond pour l'accueil, blanche ailleurs */}
-      <View
-        style={{
-          paddingTop: insets.top + 8,
-          paddingBottom: accueil ? 4 : 12,
-          paddingHorizontal: 16,
-          backgroundColor: accueil ? couleurs.fond : couleurs.surface,
-          borderBottomWidth: accueil ? 0 : 1,
-          borderBottomColor: couleurs.ligne,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 10,
-        }}
-      >
-        <BoutonIcone icone="menu" libelle="Ouvrir le menu" onPress={() => setMenuOuvert(true)} />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          {accueil && <Texte graisse="moyen" taille={12} couleur={couleurs.gris} numberOfLines={1}>{nomCompagnie}</Texte>}
-          <Texte graisse="tresGras" taille={17} numberOfLines={1}>{TITRES[activeTab] || 'Tableau de bord'}</Texte>
+      {!sansBarre && (
+        <View
+          style={{
+            paddingTop: insets.top + 8,
+            paddingBottom: accueil ? 4 : 12,
+            paddingHorizontal: 16,
+            backgroundColor: accueil ? couleurs.fond : couleurs.surface,
+            borderBottomWidth: accueil ? 0 : 1,
+            borderBottomColor: couleurs.ligne,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+          }}
+        >
+          <BoutonIcone icone="menu" libelle="Ouvrir le menu" onPress={() => setMenuOuvert(true)} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            {accueil && <Texte graisse="moyen" taille={12} couleur={couleurs.gris} numberOfLines={1}>{nomCompagnie}</Texte>}
+            <Texte graisse="tresGras" taille={17} numberOfLines={1}>{TITRES[activeTab] || 'Tableau de bord'}</Texte>
+          </View>
+          {accueil && (
+            <BoutonIcone icone="notifications-outline" libelle="Notifications" compteur={notificationCount} onPress={() => router.push('/screens/notifications/notificationsScreen')} />
+          )}
         </View>
-        {accueil && (
-          <BoutonIcone icone="notifications-outline" libelle="Notifications" compteur={notificationCount} onPress={() => router.push('/screens/notifications/notificationsScreen')} />
-        )}
-      </View>
+      )}
 
       <View style={{ flex: 1 }}>
         {accueil && (
