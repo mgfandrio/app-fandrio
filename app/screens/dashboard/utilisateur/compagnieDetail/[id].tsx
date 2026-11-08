@@ -1,17 +1,46 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, Linking, Dimensions } from 'react-native';
+import { View, ScrollView, Image, Linking, Pressable, StatusBar } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { compagnieService } from '@/app/services/compagnies/compagnieService';
 import { voyageService } from '@/app/services/voyages/voyageService';
 import { CompagnieDetaillee } from '@/app/types/compagnie';
-import { PlacesBadge } from '@/app/components/common/PlacesBadge';
-import CategorieBadge, { categorieCardBg } from '@/app/components/common/CategorieBadge';
 import { Skeleton } from '@/app/components/common/Skeleton';
+import { Bouton, BoutonIcone, Carte, Pastille, Texte } from '@/app/components/ui';
+import { couleurs, formatAriary } from '@/app/theme/ocean';
 
-const { width } = Dimensions.get('window');
+type NomIcone = keyof typeof Ionicons.glyphMap;
+
+function initiales(nom?: string) {
+    return (nom || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((m) => m[0]!.toUpperCase()).join('');
+}
+
+function nomProvince(p: any, defaut: string) {
+    return (typeof p === 'object' ? p?.nom : p) || defaut;
+}
+
+/** Ligne de contact (téléphone, email, adresse), cliquable si une action existe. */
+function LigneContact({ icone, libelle, valeur, onPress, premiere }: { icone: NomIcone; libelle: string; valeur?: string; onPress?: () => void; premiere?: boolean }) {
+    return (
+        <Pressable
+            onPress={onPress}
+            disabled={!onPress || !valeur}
+            accessibilityRole={onPress ? 'link' : 'text'}
+            accessibilityLabel={`${libelle} : ${valeur || 'non renseigné'}`}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, paddingHorizontal: 14, borderTopWidth: premiere ? 0 : 1, borderTopColor: couleurs.separateur }}
+        >
+            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: couleurs.ocean50, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={icone} size={18} color={couleurs.ocean800} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+                <Texte variante="legende" taille={11.5}>{libelle}</Texte>
+                <Texte graisse="gras" taille={14} numberOfLines={2}>{valeur || 'Non renseigné'}</Texte>
+            </View>
+            {onPress && !!valeur && <Ionicons name="chevron-forward" size={17} color={couleurs.grisClair} />}
+        </Pressable>
+    );
+}
 
 export default function CompagnieDetailScreen() {
     const { id } = useLocalSearchParams();
@@ -28,15 +57,14 @@ export default function CompagnieDetailScreen() {
             fetchDetail();
             fetchVoyages();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
     const fetchDetail = async () => {
         try {
             setLoading(true);
             const res = await compagnieService.getCompagniePublic(Number(id));
-            if (res && 'statut' in res && res.statut !== false && 'data' in res) {
-                setCompagnie(res.data);
-            }
+            if (res && 'statut' in res && res.statut !== false && 'data' in res && res.data) setCompagnie(res.data);
         } catch (error) {
             console.error('Error fetching company details:', error);
         } finally {
@@ -47,10 +75,7 @@ export default function CompagnieDetailScreen() {
     const fetchVoyages = async () => {
         try {
             setLoadingVoyages(true);
-            const res = await voyageService.rechercherVoyages({
-                compagnie_id: Number(id),
-                per_page: 5
-            });
+            const res = await voyageService.rechercherVoyages({ compagnie_id: Number(id), per_page: 5 });
             if (res.statut) {
                 const data = res.data;
                 setVoyages(Array.isArray(data) ? data : data?.voyages || []);
@@ -62,73 +87,33 @@ export default function CompagnieDetailScreen() {
         }
     };
 
+    const reserver = (voyage: any) =>
+        router.push({ pathname: '/screens/dashboard/utilisateur/reservations/reserver', params: { voyageData: JSON.stringify(voyage) } });
+
+    const enTete = (contenu: React.ReactNode) => (
+        <View style={{ backgroundColor: couleurs.ocean950, paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 22, gap: 18 }}>
+            <BoutonIcone icone="chevron-back" libelle="Retour" variante="marine" onPress={() => router.back()} />
+            {contenu}
+        </View>
+    );
+
     if (loading) {
         return (
-            <View className="flex-1 bg-slate-50">
-                {/* Hero shell */}
-                <LinearGradient
-                    colors={['#0f172a', '#1e3a8a', '#2563eb']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0.5, y: 1 }}
-                    style={{ paddingTop: insets.top + 10, paddingBottom: 60 }}
-                    className="px-5"
-                >
-                    <View className="flex-row items-center mb-6">
-                        <TouchableOpacity
-                            onPress={() => router.back()}
-                            className="w-10 h-10 rounded-full bg-white/15 items-center justify-center mr-3"
-                        >
-                            <Ionicons name="chevron-back" size={22} color="#fff" />
-                        </TouchableOpacity>
-                        <Text className="text-white/70 text-sm font-medium flex-1">Détail compagnie</Text>
+            <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
+                <StatusBar barStyle="light-content" backgroundColor={couleurs.ocean950} />
+                {enTete(
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                        <Skeleton width={64} height={64} borderRadius={18} color="rgba(255,255,255,0.15)" />
+                        <View style={{ flex: 1, gap: 8 }}>
+                            <Skeleton width="70%" height={20} color="rgba(255,255,255,0.15)" />
+                            <Skeleton width="40%" height={13} color="rgba(255,255,255,0.12)" />
+                        </View>
                     </View>
-                    <Skeleton width="60%" height={26} borderRadius={8} color="#ffffff40" />
-                    <Skeleton width="35%" height={14} borderRadius={6} color="#ffffff33" style={{ marginTop: 10 }} />
-                </LinearGradient>
-
-                {/* Floating logo skeleton */}
-                <View className="items-center" style={{ marginTop: -40 }}>
-                    <Skeleton width={80} height={80} borderRadius={16} />
-                </View>
-
-                <View style={{ height: 20 }} />
-
-                {/* Stats row */}
-                <View className="flex-row mx-5 mb-5">
-                    {[1, 2, 3].map((i) => (
-                        <View key={i} className={`flex-1 bg-white rounded-xl p-3 items-center ${i < 3 ? 'mr-2' : ''}`} style={{ elevation: 2 }}>
-                            <Skeleton width={36} height={36} borderRadius={10} />
-                            <Skeleton width={28} height={12} style={{ marginTop: 8 }} />
-                            <Skeleton width={50} height={9} style={{ marginTop: 6 }} />
-                        </View>
-                    ))}
-                </View>
-
-                {/* À propos skeleton */}
-                <View className="mx-5 mb-5 bg-white rounded-2xl p-5" style={{ elevation: 2 }}>
-                    <Skeleton width="40%" height={16} />
-                    <Skeleton width="100%" height={12} style={{ marginTop: 14 }} />
-                    <Skeleton width="95%" height={12} style={{ marginTop: 8 }} />
-                    <Skeleton width="80%" height={12} style={{ marginTop: 8 }} />
-                </View>
-
-                {/* Voyages skeleton */}
-                <View className="mx-5">
-                    {[1, 2].map((i) => (
-                        <View key={i} className="bg-white rounded-2xl mb-3 overflow-hidden" style={{ elevation: 2 }}>
-                            <Skeleton width="100%" height={3} borderRadius={0} />
-                            <View className="p-4">
-                                <View className="flex-row items-center justify-between mb-3">
-                                    <View className="flex-1 mr-3">
-                                        <Skeleton width="55%" height={16} />
-                                        <Skeleton width="35%" height={12} style={{ marginTop: 8 }} />
-                                    </View>
-                                    <Skeleton width={64} height={28} borderRadius={10} />
-                                </View>
-                                <Skeleton width="75%" height={13} />
-                            </View>
-                        </View>
-                    ))}
+                )}
+                <View style={{ padding: 16, gap: 12 }}>
+                    <Skeleton height={40} borderRadius={12} />
+                    <Skeleton height={190} borderRadius={16} />
+                    <Skeleton height={160} borderRadius={16} />
                 </View>
             </View>
         );
@@ -136,372 +121,118 @@ export default function CompagnieDetailScreen() {
 
     if (!compagnie) {
         return (
-            <View className="flex-1 items-center justify-center bg-slate-50 px-6">
-                <View className="bg-red-50 rounded-full p-5 mb-4">
-                    <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
-                </View>
-                <Text className="text-slate-800 font-bold text-xl text-center">Compagnie non trouvée</Text>
-                <Text className="text-slate-400 text-sm mt-2 text-center">Cette compagnie n'existe pas ou a été supprimée</Text>
-                <TouchableOpacity onPress={() => router.back()} className="mt-6">
-                    <View className="rounded-xl overflow-hidden">
-                        <LinearGradient colors={['#1e40af', '#3b82f6']} className="px-8 py-3.5">
-                            <Text className="text-white font-bold">Retourner à la liste</Text>
-                        </LinearGradient>
-                    </View>
-                </TouchableOpacity>
+            <View style={{ flex: 1, backgroundColor: couleurs.fond, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 10 }}>
+                <StatusBar barStyle="dark-content" />
+                <Ionicons name="alert-circle-outline" size={48} color={couleurs.danger} />
+                <Texte graisse="tresGras" taille={18} centre>Compagnie introuvable</Texte>
+                <Texte variante="legende" centre>Cette compagnie n'existe pas ou n'est plus disponible.</Texte>
+                <Bouton titre="Retour à la liste" variante="secondaire" compact onPress={() => router.back()} style={{ marginTop: 8 }} />
             </View>
         );
     }
 
+    const destinations = compagnie.provinces_desservies || [];
+    const modes = compagnie.modes_paiement_acceptes || [];
+
     return (
-        <View className="flex-1 bg-slate-50">
-            {/* Hero header with gradient + logo */}
-            <View>
-                <LinearGradient
-                    colors={['#0f172a', '#1e3a8a', '#2563eb']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0.5, y: 1 }}
-                    style={{ paddingTop: insets.top + 10, paddingBottom: 60 }}
-                    className="px-5"
-                >
-                    {/* Back button row */}
-                    <View className="flex-row items-center mb-6">
-                        <TouchableOpacity
-                            onPress={() => router.back()}
-                            className="w-10 h-10 rounded-full bg-white/15 items-center justify-center mr-3"
-                        >
-                            <Ionicons name="chevron-back" size={22} color="#fff" />
-                        </TouchableOpacity>
-                        <Text className="text-white/70 text-sm font-medium flex-1" numberOfLines={1}>Détail compagnie</Text>
-                    </View>
+        <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
+            <StatusBar barStyle="light-content" backgroundColor={couleurs.ocean950} />
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
+                {enTete(
+                    <>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                            <View style={{ width: 64, height: 64, borderRadius: 18, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                {compagnie.logo ? (
+                                    <Image source={{ uri: compagnie.logo }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                                ) : (
+                                    <Texte graisse="tresGras" taille={21} couleur={couleurs.ocean950}>{initiales(compagnie.nom)}</Texte>
+                                )}
+                            </View>
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                                <Texte variante="titre" taille={22} couleur="#FFFFFF" numberOfLines={2}>{compagnie.nom}</Texte>
+                                {!!compagnie.localisation?.nom && (
+                                    <Texte graisse="moyen" taille={13} couleur={couleurs.texteSurMarine}>{compagnie.localisation.nom}</Texte>
+                                )}
+                            </View>
+                        </View>
+                        {!!compagnie.description && (
+                            <Texte graisse="normal" taille={13.5} couleur="#D5E2F0" style={{ lineHeight: 20 }}>{compagnie.description}</Texte>
+                        )}
+                    </>
+                )}
 
-                    {/* Company name */}
-                    <Text className="text-white font-extrabold text-2xl" numberOfLines={2}>{compagnie.nom}</Text>
-                    {compagnie.localisation && (
-                        <View className="flex-row items-center mt-2">
-                            <Ionicons name="location" size={14} color="#93c5fd" />
-                            <Text className="text-blue-200 text-sm ml-1.5 font-medium">{compagnie.localisation.nom}</Text>
+                <View style={{ padding: 16, gap: 14 }}>
+                    {/* Destinations */}
+                    {destinations.length > 0 && (
+                        <View style={{ gap: 8 }}>
+                            <Texte variante="etiquette" style={{ marginLeft: 2 }}>Destinations</Texte>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                                {destinations.map((prov, idx) => (
+                                    <View key={idx} style={{ height: 30, paddingHorizontal: 12, borderRadius: 9, backgroundColor: couleurs.ocean50, justifyContent: 'center' }}>
+                                        <Texte graisse="gras" taille={12.5} couleur={couleurs.ocean950}>{prov.nom}</Texte>
+                                    </View>
+                                ))}
+                            </View>
                         </View>
                     )}
-                </LinearGradient>
 
-                {/* Floating logo card */}
-                <View className="absolute left-0 right-0 items-center" style={{ bottom: -40 }}>
-                    <View className="w-20 h-20 rounded-2xl bg-white overflow-hidden" style={{ elevation: 6 }}>
-                        {compagnie.logo ? (
-                            <Image source={{ uri: compagnie.logo }} className="w-full h-full" resizeMode="cover" />
-                        ) : (
-                            <View className="w-full h-full items-center justify-center bg-slate-50">
-                                <Ionicons name="business" size={36} color="#3b82f6" />
-                            </View>
-                        )}
-                    </View>
-                </View>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} className="flex-1" style={{ marginTop: 0 }}>
-                {/* Spacer for floating logo */}
-                <View style={{ height: 52 }} />
-
-                {/* Quick stats */}
-                <View className="flex-row mx-5 mb-5">
-                    <View className="flex-1 bg-white rounded-xl p-3 mr-2 items-center" style={{ elevation: 2 }}>
-                        <View className="bg-blue-50 rounded-lg p-2 mb-1.5">
-                            <Ionicons name="trail-sign" size={18} color="#1e40af" />
-                        </View>
-                        <Text className="text-slate-800 font-bold text-sm">{compagnie.provinces_desservies?.length || 0}</Text>
-                        <Text className="text-slate-400 text-[10px]">Destinations</Text>
-                    </View>
-                    <View className="flex-1 bg-white rounded-xl p-3 mr-2 items-center" style={{ elevation: 2 }}>
-                        <View className="bg-emerald-50 rounded-lg p-2 mb-1.5">
-                            <Ionicons name="navigate" size={18} color="#059669" />
-                        </View>
-                        <Text className="text-slate-800 font-bold text-sm">{voyages.length}</Text>
-                        <Text className="text-slate-400 text-[10px]">Voyages</Text>
-                    </View>
-                    <View className="flex-1 bg-white rounded-xl p-3 items-center" style={{ elevation: 2 }}>
-                        <View className="bg-amber-50 rounded-lg p-2 mb-1.5">
-                            <Ionicons name="card" size={18} color="#d97706" />
-                        </View>
-                        <Text className="text-slate-800 font-bold text-sm">{compagnie.modes_paiement_acceptes?.length || 0}</Text>
-                        <Text className="text-slate-400 text-[10px]">Paiements</Text>
-                    </View>
-                </View>
-
-                {/* À propos */}
-                <View className="mx-5 mb-5 bg-white rounded-2xl p-5" style={{ elevation: 2 }}>
-                    <View className="flex-row items-center mb-3">
-                        <View className="rounded-xl overflow-hidden mr-3">
-                            <LinearGradient colors={['#1e40af', '#3b82f6']} className="p-2">
-                                <Ionicons name="information-circle" size={18} color="#fff" />
-                            </LinearGradient>
-                        </View>
-                        <Text className="text-slate-800 font-bold text-base">À propos</Text>
-                    </View>
-                    <Text className="text-slate-500 leading-6 text-sm">
-                        {compagnie.description || "Aucune description disponible pour cette compagnie."}
-                    </Text>
-                </View>
-
-                {/* Contact */}
-                <View className="mx-5 mb-5 bg-white rounded-2xl p-5" style={{ elevation: 2 }}>
-                    <View className="flex-row items-center mb-4">
-                        <View className="rounded-xl overflow-hidden mr-3">
-                            <LinearGradient colors={['#059669', '#10b981']} className="p-2">
-                                <Ionicons name="call" size={18} color="#fff" />
-                            </LinearGradient>
-                        </View>
-                        <Text className="text-slate-800 font-bold text-base">Contact</Text>
-                    </View>
-
-                    <TouchableOpacity
-                        onPress={() => Linking.openURL(`tel:${compagnie.telephone}`)}
-                        className="flex-row items-center bg-slate-50 rounded-xl p-3.5 mb-2.5"
-                        activeOpacity={0.7}
-                    >
-                        <View className="w-9 h-9 rounded-lg bg-blue-50 items-center justify-center mr-3">
-                            <Ionicons name="call" size={16} color="#1e40af" />
-                        </View>
-                        <View className="flex-1">
-                            <Text className="text-slate-400 text-[10px] uppercase font-semibold">Téléphone</Text>
-                            <Text className="text-slate-700 font-semibold text-sm">{compagnie.telephone}</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        onPress={() => Linking.openURL(`mailto:${compagnie.email}`)}
-                        className="flex-row items-center bg-slate-50 rounded-xl p-3.5 mb-2.5"
-                        activeOpacity={0.7}
-                    >
-                        <View className="w-9 h-9 rounded-lg bg-purple-50 items-center justify-center mr-3">
-                            <Ionicons name="mail" size={16} color="#7c3aed" />
-                        </View>
-                        <View className="flex-1">
-                            <Text className="text-slate-400 text-[10px] uppercase font-semibold">Email</Text>
-                            <Text className="text-slate-700 font-semibold text-sm">{compagnie.email}</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
-                    </TouchableOpacity>
-
-                    <View className="flex-row items-center bg-slate-50 rounded-xl p-3.5">
-                        <View className="w-9 h-9 rounded-lg bg-amber-50 items-center justify-center mr-3">
-                            <Ionicons name="map" size={16} color="#d97706" />
-                        </View>
-                        <View className="flex-1">
-                            <Text className="text-slate-400 text-[10px] uppercase font-semibold">Adresse</Text>
-                            <Text className="text-slate-700 font-semibold text-sm">{compagnie.adresse}</Text>
-                        </View>
-                    </View>
-                </View>
-
-                {/* Zones desservies */}
-                <View className="mx-5 mb-5 bg-white rounded-2xl p-5" style={{ elevation: 2 }}>
-                    <View className="flex-row items-center mb-4">
-                        <View className="rounded-xl overflow-hidden mr-3">
-                            <LinearGradient colors={['#7c3aed', '#8b5cf6']} className="p-2">
-                                <Ionicons name="trail-sign" size={18} color="#fff" />
-                            </LinearGradient>
-                        </View>
-                        <Text className="text-slate-800 font-bold text-base">Destinations</Text>
-                    </View>
-                    <View className="flex-row flex-wrap">
-                        {compagnie.provinces_desservies && compagnie.provinces_desservies.length > 0 ? (
-                            compagnie.provinces_desservies.map((prov, idx) => (
-                                <View key={idx} className="rounded-xl overflow-hidden mr-2 mb-2">
-                                    <LinearGradient
-                                        colors={['#ede9fe', '#e0e7ff']}
-                                        className="px-4 py-2.5"
-                                    >
-                                        <Text className="text-purple-700 font-semibold text-xs">{prov.nom}</Text>
-                                    </LinearGradient>
-                                </View>
-                            ))
-                        ) : (
-                            <Text className="text-slate-400 text-sm">Non spécifié</Text>
-                        )}
-                    </View>
-                </View>
-
-                {/* Modes de paiement */}
-                <View className="mx-5 mb-5 bg-white rounded-2xl p-5" style={{ elevation: 2 }}>
-                    <View className="flex-row items-center mb-4">
-                        <View className="rounded-xl overflow-hidden mr-3">
-                            <LinearGradient colors={['#d97706', '#f59e0b']} className="p-2">
-                                <Ionicons name="card" size={18} color="#fff" />
-                            </LinearGradient>
-                        </View>
-                        <Text className="text-slate-800 font-bold text-base">Modes de paiement</Text>
-                    </View>
-                    <View className="flex-row flex-wrap">
-                        {compagnie.modes_paiement_acceptes && compagnie.modes_paiement_acceptes.length > 0 ? (
-                            compagnie.modes_paiement_acceptes.map((mode, idx) => (
-                                <View key={idx} className="bg-slate-50 rounded-xl p-3.5 mr-3 mb-3 items-center" style={{ minWidth: 80 }}>
-                                    <View className="w-10 h-10 rounded-lg bg-white items-center justify-center mb-2" style={{ elevation: 1 }}>
-                                        <Ionicons
-                                            name={mode.type === 'mobile' ? 'phone-portrait' : 'card'}
-                                            size={20}
-                                            color={mode.type === 'mobile' ? '#059669' : '#1e40af'}
-                                        />
-                                    </View>
-                                    <Text className="text-slate-600 text-[10px] font-bold uppercase">{mode.nom}</Text>
-                                </View>
-                            ))
-                        ) : (
-                            <Text className="text-slate-400 text-sm">Non spécifié</Text>
-                        )}
-                    </View>
-                </View>
-
-                {/* Voyages à venir */}
-                <View className="mx-5 mb-5">
-                    <View className="flex-row justify-between items-center mb-4">
-                        <View className="flex-row items-center">
-                            <View className="rounded-xl overflow-hidden mr-3">
-                                <LinearGradient colors={['#ea580c', '#f97316']} className="p-2">
-                                    <Ionicons name="navigate" size={18} color="#fff" />
-                                </LinearGradient>
-                            </View>
-                            <Text className="text-slate-800 font-bold text-base">Voyages à venir</Text>
-                        </View>
-                        {voyages.length > 0 && (
-                            <View className="bg-orange-50 px-3 py-1 rounded-full">
-                                <Text className="text-orange-600 font-bold text-xs">{voyages.length}</Text>
-                            </View>
-                        )}
-                    </View>
-
-                    {loadingVoyages ? (
-                        <View>
-                            {[1, 2].map((i) => (
-                                <View key={i} className="bg-white rounded-2xl mb-3 overflow-hidden" style={{ elevation: 2 }}>
-                                    <View className="p-4">
-                                        <View className="flex-row items-center justify-between mb-3">
-                                            <View className="flex-1 mr-3">
-                                                <Skeleton width="55%" height={16} />
-                                                <Skeleton width="35%" height={12} style={{ marginTop: 8 }} />
-                                            </View>
-                                            <Skeleton width={60} height={20} borderRadius={8} />
-                                        </View>
-                                        <Skeleton width="70%" height={13} style={{ marginBottom: 12 }} />
-                                        <View className="flex-row items-center pt-3 border-t border-slate-100">
-                                            <Skeleton width={80} height={26} borderRadius={10} style={{ marginRight: 8 }} />
-                                            <Skeleton width={64} height={26} borderRadius={10} />
-                                        </View>
-                                    </View>
-                                </View>
-                            ))}
-                        </View>
-                    ) : voyages.length > 0 ? (
-                        voyages.map((voyage) => (
-                            <View
-                                key={voyage.voyage_id}
-                                className={`${categorieCardBg((voyage as any).categorie || voyage.trajet?.categorie)} rounded-2xl mb-3 overflow-hidden`}
-                                style={{ elevation: 2 }}
-                            >
-                                {/* Top accent */}
-                                <LinearGradient
-                                    colors={['#ea580c', '#f97316', '#fb923c']}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 0 }}
-                                    style={{ height: 3 }}
-                                />
-
-                                <View className="p-4">
-                                    {/* Trajet name + type icon */}
-                                    <View className="flex-row items-center justify-between mb-3">
-                                        <View className="flex-row items-center flex-1 mr-3">
-                                            <View className="rounded-lg overflow-hidden mr-3">
-                                                <LinearGradient
-                                                    colors={voyage.type === 'jour' ? ['#f59e0b', '#fbbf24'] : ['#4338ca', '#6366f1']}
-                                                    className="p-2"
-                                                >
-                                                    <Ionicons name={voyage.type === 'jour' ? 'sunny' : 'moon'} size={16} color="#fff" />
-                                                </LinearGradient>
-                                            </View>
-                                            <View className="flex-1">
-                                                <Text className="text-slate-900 font-bold text-base" numberOfLines={1}>{voyage.trajet?.nom}</Text>
-                                                <View className="flex-row items-center mt-1">
-                                                    <CategorieBadge categorie={(voyage as any).categorie || voyage.trajet?.categorie} />
-                                                </View>
-                                            </View>
-                                        </View>
-                                        <Text className="text-blue-700 font-bold text-base">
-                                            {voyage.trajet?.tarif?.toLocaleString()} Ar
-                                        </Text>
-                                    </View>
-
-                                    {/* Route dots */}
-                                    <View className="flex-row items-center mb-3 ml-1">
-                                        <View className="items-center mr-3">
-                                            <View className="bg-blue-500 rounded-full w-2.5 h-2.5" />
-                                            <View className="bg-blue-200 w-0.5 h-4 my-0.5" />
-                                            <View className="bg-emerald-500 rounded-full w-2.5 h-2.5" />
-                                        </View>
-                                        <View className="flex-1">
-                                            <Text className="text-slate-900 text-sm font-semibold">
-                                                {typeof voyage.trajet?.province_depart === 'object' ? voyage.trajet.province_depart?.nom : voyage.trajet?.province_depart || 'Départ'}
-                                            </Text>
-                                            <Text className="text-slate-900 text-sm font-semibold mt-1">
-                                                {typeof voyage.trajet?.province_arrivee === 'object' ? voyage.trajet.province_arrivee?.nom : voyage.trajet?.province_arrivee || 'Arrivée'}
-                                            </Text>
-                                        </View>
-                                    </View>
-
-                                    {/* Info badges + CTA */}
-                                    <View className="pt-3 border-t border-slate-100">
-                                        <View className="flex-row items-center flex-wrap">
-                                            <View className="bg-slate-100 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-2">
-                                                <Ionicons name="calendar-outline" size={14} color="#334155" />
-                                                <Text className="text-slate-800 text-sm font-semibold ml-1">{voyage.date}</Text>
-                                            </View>
-                                            <View className="bg-slate-100 rounded-lg px-2.5 py-1.5 flex-row items-center mr-2 mb-2">
-                                                <Ionicons name="time-outline" size={14} color="#334155" />
-                                                <Text className="text-slate-800 text-sm font-semibold ml-1">{voyage.heure_depart}</Text>
-                                            </View>
-                                            <View className="mb-2">
-                                                <PlacesBadge
-                                                    places={voyage.places_disponibles ?? voyage.places_disponibles_restantes}
-                                                    estComplet={voyage.est_complet}
-                                                    size="sm"
-                                                />
-                                            </View>
-                                        </View>
-
-                                        <TouchableOpacity
-                                            activeOpacity={0.8}
-                                            onPress={() => router.push({
-                                                pathname: '/screens/dashboard/utilisateur/reservations/reserver',
-                                                params: { voyageData: JSON.stringify(voyage) }
-                                            })}
+                    {/* Prochains départs */}
+                    <View style={{ gap: 8 }}>
+                        <Texte variante="etiquette" style={{ marginLeft: 2 }}>Prochains départs</Texte>
+                        {loadingVoyages ? (
+                            <Skeleton height={150} borderRadius={16} />
+                        ) : voyages.length > 0 ? (
+                            <Carte padding={0}>
+                                {voyages.map((voyage, i) => {
+                                    const complet = voyage.est_complet || voyage.places_disponibles === 0;
+                                    const places = voyage.places_disponibles ?? voyage.places_disponibles_restantes;
+                                    return (
+                                        <Pressable
+                                            key={voyage.voyage_id}
+                                            onPress={complet ? undefined : () => reserver(voyage)}
+                                            disabled={complet}
+                                            accessibilityRole="button"
+                                            accessibilityLabel={`${nomProvince(voyage.trajet?.province_depart, 'Départ')} vers ${nomProvince(voyage.trajet?.province_arrivee, 'Arrivée')}, ${voyage.date} à ${voyage.heure_depart}${complet ? ', complet' : ''}`}
+                                            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, paddingHorizontal: 14, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: couleurs.separateur, opacity: complet ? 0.55 : 1 }}
                                         >
-                                            <View className="rounded-xl overflow-hidden mt-1">
-                                                <LinearGradient
-                                                    colors={['#1e40af', '#3b82f6']}
-                                                    start={{ x: 0, y: 0 }}
-                                                    end={{ x: 1, y: 0 }}
-                                                    className="py-3 flex-row items-center justify-center"
-                                                >
-                                                    <Ionicons name="ticket-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
-                                                    <Text className="text-white text-sm font-bold">Réserver</Text>
-                                                </LinearGradient>
+                                            <View style={{ width: 56 }}>
+                                                <Texte variante="montant" taille={15.5}>{voyage.heure_depart}</Texte>
+                                                <Texte variante="legende" taille={11}>{voyage.date}</Texte>
                                             </View>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            </View>
-                        ))
-                    ) : (
-                        <View className="bg-white rounded-2xl p-8 items-center" style={{ elevation: 2 }}>
-                            <View className="bg-slate-100 rounded-full p-4 mb-3">
-                                <Ionicons name="navigate-outline" size={28} color="#94a3b8" />
-                            </View>
-                            <Text className="text-slate-400 text-sm text-center">Aucun voyage programmé pour le moment</Text>
-                        </View>
-                    )}
-                </View>
+                                            <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                                                <Texte graisse="tresGras" taille={13.5} numberOfLines={1}>
+                                                    {nomProvince(voyage.trajet?.province_depart, 'Départ')} → {nomProvince(voyage.trajet?.province_arrivee, 'Arrivée')}
+                                                </Texte>
+                                                {complet ? (
+                                                    <Pastille libelle="Complet" tonalite="neutre" />
+                                                ) : places !== undefined ? (
+                                                    <Texte variante="legende">{places} place{places > 1 ? 's' : ''} libre{places > 1 ? 's' : ''}</Texte>
+                                                ) : null}
+                                            </View>
+                                            <Texte variante="montant" taille={14} couleur={couleurs.ocean800}>{formatAriary(voyage.trajet?.tarif || 0)} Ar</Texte>
+                                        </Pressable>
+                                    );
+                                })}
+                            </Carte>
+                        ) : (
+                            <Carte style={{ alignItems: 'center', gap: 6, paddingVertical: 20 }}>
+                                <Ionicons name="bus-outline" size={26} color={couleurs.grisClair} />
+                                <Texte variante="legende" centre>Aucun départ programmé pour le moment.</Texte>
+                            </Carte>
+                        )}
+                    </View>
 
-                <View className="h-10" />
+                    {/* Contact et paiement */}
+                    <View style={{ gap: 8 }}>
+                        <Texte variante="etiquette" style={{ marginLeft: 2 }}>Contact et paiement</Texte>
+                        <Carte padding={0}>
+                            <LigneContact premiere icone="call-outline" libelle="Téléphone" valeur={compagnie.telephone} onPress={() => Linking.openURL(`tel:${compagnie.telephone}`)} />
+                            <LigneContact icone="mail-outline" libelle="Email" valeur={compagnie.email} onPress={() => Linking.openURL(`mailto:${compagnie.email}`)} />
+                            <LigneContact icone="location-outline" libelle="Adresse" valeur={compagnie.adresse} />
+                            <LigneContact icone="card-outline" libelle="Paiements acceptés" valeur={modes.map((m) => m.nom).join(' · ') || undefined} />
+                        </Carte>
+                    </View>
+                </View>
             </ScrollView>
         </View>
     );
