@@ -1,31 +1,38 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Share, Alert } from 'react-native';
+import { View, ScrollView, Share, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { reservationService } from '@/app/services/reservations/reservationService';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Skeleton } from '@/app/components/common/Skeleton';
+import { Bouton, BoutonIcone, Carte, EnTete, Pastille, Texte } from '@/app/components/ui';
+import { couleurs, formatAriary } from '@/app/theme/ocean';
+import { statutBillet } from '@/app/utils/statutBillet';
 
-const STATUS_MAP: Record<number, { label: string; color: string; bg: string; icon: string }> = {
-    1: { label: 'En attente', color: '#f97316', bg: 'bg-orange-100', icon: 'time-outline' },
-    2: { label: 'Confirmée', color: '#22c55e', bg: 'bg-green-100', icon: 'checkmark-circle-outline' },
-    3: { label: 'Terminée', color: '#6b7280', bg: 'bg-gray-100', icon: 'flag-outline' },
-    4: { label: 'Annulée', color: '#ef4444', bg: 'bg-red-100', icon: 'close-circle-outline' },
-};
+/** Ligne libellé / valeur d'une carte d'informations. */
+function Ligne({ libelle, valeur, fort }: { libelle: string; valeur?: string; fort?: boolean }) {
+    return (
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+            <Texte graisse="moyen" taille={13.5} couleur={couleurs.gris}>{libelle}</Texte>
+            <Texte graisse={fort ? 'tresGras' : 'gras'} taille={fort ? 17 : 13.5} style={{ flexShrink: 1, textAlign: 'right' }}>
+                {valeur || '—'}
+            </Texte>
+        </View>
+    );
+}
 
 export default function ReservationDetailScreen() {
     const router = useRouter();
+    const insets = useSafeAreaInsets();
     const { id } = useLocalSearchParams<{ id: string }>();
     const [loading, setLoading] = useState(true);
     const [invoiceData, setInvoiceData] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (id) {
-            loadDetail();
-        }
+        if (id) loadDetail();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
     const loadDetail = async () => {
@@ -33,24 +40,12 @@ export default function ReservationDetailScreen() {
         setError(null);
         try {
             const response = await reservationService.obtenirFacture(Number(id));
-            if (response.statut) {
-                setInvoiceData(response.data);
-            } else {
-                setError(response.message || 'Impossible de charger les détails');
-            }
-        } catch (e: any) {
-            setError('Erreur lors du chargement des détails');
+            if (response.statut) setInvoiceData(response.data);
+            else setError(response.message || 'Impossible de charger ce billet.');
+        } catch {
+            setError('Impossible de charger ce billet. Vérifiez votre connexion.');
         } finally {
             setLoading(false);
-        }
-    };
-
-    const formatMontant = (montant: any) => {
-        try {
-            if (montant === null || montant === undefined) return '0';
-            return new Intl.NumberFormat('fr-FR').format(Number(montant));
-        } catch {
-            return String(montant || 0);
         }
     };
 
@@ -67,320 +62,111 @@ export default function ReservationDetailScreen() {
         if (!invoiceData) return;
         const res = invoiceData.reservation;
         const voy = invoiceData.voyage;
-        const text = `🎫 FANDRIO - Ticket N° ${res.numero}\n\n📍 ${voy.depart} → ${voy.arrivee}\n📅 ${voy.date} à ${voy.heure}\n🚐 ${voy.compagnie}\n💰 ${formatMontant(res.montant)} Ar\n👥 ${res.nb_voyageurs} voyageur(s)`;
+        const texte = `FANDRIO · Billet ${res.numero}\n\n${voy.depart} → ${voy.arrivee}\n${voy.date} à ${voy.heure}\n${voy.compagnie}\n${formatAriary(Number(res.montant) || 0)} Ar · ${res.nb_voyageurs} voyageur(s)`;
         try {
-            await Share.share({ message: text });
+            await Share.share({ message: texte });
         } catch {}
     };
 
-    if (loading) {
-        return (
-            <SafeAreaView className="flex-1 bg-gray-50">
-                {/* Header (identique à l'écran chargé pour conserver le retour) */}
-                <View className="bg-white border-b border-gray-100 px-6 py-4 flex-row items-center justify-between">
-                    <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center bg-gray-50 rounded-full">
-                        <Ionicons name="arrow-back" size={24} color="#1e3a8a" />
-                    </TouchableOpacity>
-                    <Text className="text-xl font-bold text-blue-900">Détail Réservation</Text>
-                    <View className="w-10 h-10 items-center justify-center bg-gray-50 rounded-full">
-                        <Skeleton width={20} height={20} borderRadius={10} color="#cbd5e1" />
-                    </View>
-                </View>
-
-                <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-                    {/* Hero Ticket Card skeleton */}
-                    <LinearGradient colors={['#1e3a8a', '#1e40af', '#2563eb']} className="mx-5 mt-5 rounded-[32px] overflow-hidden">
-                        <View className="p-6">
-                            <View className="flex-row justify-between items-center mb-4">
-                                <View>
-                                    <Skeleton width={70} height={12} borderRadius={6} color="#ffffff40" />
-                                    <Skeleton width={130} height={22} borderRadius={6} color="#ffffff40" style={{ marginTop: 6 }} />
-                                </View>
-                                <Skeleton width={100} height={28} borderRadius={14} color="#ffffff40" />
-                            </View>
-
-                            <View className="flex-row items-center justify-between mt-2">
-                                <View className="flex-1">
-                                    <Skeleton width={50} height={12} borderRadius={6} color="#ffffff40" />
-                                    <Skeleton width={90} height={18} borderRadius={6} color="#ffffff40" style={{ marginTop: 6 }} />
-                                </View>
-                                <View className="mx-3 items-center">
-                                    <Ionicons name="arrow-forward" size={20} color="#93c5fd" />
-                                    <View className="w-16 h-0.5 bg-blue-300/30 mt-1" />
-                                </View>
-                                <View className="flex-1 items-end">
-                                    <Skeleton width={50} height={12} borderRadius={6} color="#ffffff40" />
-                                    <Skeleton width={90} height={18} borderRadius={6} color="#ffffff40" style={{ marginTop: 6 }} />
-                                </View>
-                            </View>
-
-                            <View className="flex-row justify-between mt-4 pt-4 border-t border-white/10">
-                                {[0, 1, 2].map((i) => (
-                                    <View key={i}>
-                                        <Skeleton width={55} height={12} borderRadius={6} color="#ffffff40" />
-                                        <Skeleton width={70} height={16} borderRadius={6} color="#ffffff40" style={{ marginTop: 6 }} />
-                                    </View>
-                                ))}
-                            </View>
-                        </View>
-                    </LinearGradient>
-
-                    {/* QR Code Section skeleton */}
-                    <View className="mx-5 mt-5 bg-white rounded-[28px] p-6 border border-gray-100 shadow-sm items-center">
-                        <View className="flex-row items-center mb-4">
-                            <Skeleton width={20} height={20} borderRadius={10} />
-                            <Skeleton width={180} height={16} borderRadius={6} style={{ marginLeft: 8 }} />
-                        </View>
-                        <Skeleton width={232} height={232} borderRadius={16} />
-                        <Skeleton width={220} height={12} borderRadius={6} style={{ marginTop: 12 }} />
-                    </View>
-
-                    {/* Voyage Details skeleton */}
-                    <View className="mx-5 mt-5 bg-white rounded-[28px] p-5 border border-gray-100 shadow-sm">
-                        <View className="flex-row items-center mb-4">
-                            <Skeleton width={32} height={32} borderRadius={16} />
-                            <Skeleton width={180} height={16} borderRadius={6} style={{ marginLeft: 12 }} />
-                        </View>
-                        {[0, 1, 2].map((i) => (
-                            <View key={i} className="flex-row justify-between py-2 border-b border-gray-50">
-                                <Skeleton width={110} height={14} borderRadius={6} />
-                                <Skeleton width={90} height={14} borderRadius={6} />
-                            </View>
-                        ))}
-                    </View>
-
-                    {/* Voyageurs skeleton */}
-                    <View className="mx-5 mt-5 bg-white rounded-[28px] p-5 border border-gray-100 shadow-sm">
-                        <View className="flex-row items-center mb-4">
-                            <Skeleton width={32} height={32} borderRadius={16} />
-                            <Skeleton width={140} height={16} borderRadius={6} style={{ marginLeft: 12 }} />
-                        </View>
-                        {[0, 1].map((i) => (
-                            <View key={i} className="flex-row items-center py-3 border-b border-gray-50">
-                                <Skeleton width={32} height={32} borderRadius={16} style={{ marginRight: 12 }} />
-                                <View className="flex-1">
-                                    <Skeleton width={120} height={14} borderRadius={6} />
-                                </View>
-                                <Skeleton width={70} height={24} borderRadius={12} />
-                            </View>
-                        ))}
-                    </View>
-
-                    {/* Payment Info skeleton */}
-                    <View className="mx-5 mt-5 bg-white rounded-[28px] p-5 border border-gray-100 shadow-sm">
-                        <View className="flex-row items-center mb-4">
-                            <Skeleton width={32} height={32} borderRadius={16} />
-                            <Skeleton width={100} height={16} borderRadius={6} style={{ marginLeft: 12 }} />
-                        </View>
-                        {[0, 1].map((i) => (
-                            <View key={i} className="flex-row justify-between py-2 border-b border-gray-50">
-                                <Skeleton width={120} height={14} borderRadius={6} />
-                                <Skeleton width={100} height={14} borderRadius={6} />
-                            </View>
-                        ))}
-                        <View className="flex-row justify-between items-center mt-4 pt-4 border-t border-gray-100">
-                            <Skeleton width={120} height={20} borderRadius={6} />
-                            <Skeleton width={110} height={22} borderRadius={6} />
-                        </View>
-                    </View>
-                </ScrollView>
-            </SafeAreaView>
-        );
-    }
-
-    if (error || !invoiceData) {
-        return (
-            <SafeAreaView className="flex-1 bg-gray-50">
-                <View className="bg-white border-b border-gray-100 px-6 py-4 flex-row items-center justify-between">
-                    <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center bg-gray-50 rounded-full">
-                        <Ionicons name="arrow-back" size={24} color="#1e3a8a" />
-                    </TouchableOpacity>
-                    <Text className="text-xl font-bold text-blue-900">Détail Réservation</Text>
-                    <View className="w-10" />
-                </View>
-                <View className="flex-1 justify-center items-center px-8">
-                    <Ionicons name="alert-circle-outline" size={64} color="#ef4444" />
-                    <Text className="text-gray-600 text-center mt-4">{error || 'Données introuvables'}</Text>
-                    <TouchableOpacity onPress={loadDetail} className="mt-6 bg-blue-900 px-6 py-3 rounded-2xl">
-                        <Text className="text-white font-bold">Réessayer</Text>
-                    </TouchableOpacity>
-                </View>
-            </SafeAreaView>
-        );
-    }
-
-    const reservation = invoiceData.reservation;
-    const voyage = invoiceData.voyage;
-    const voyageurs = invoiceData.voyageurs || [];
-    const statusInfo = STATUS_MAP[reservation.statut] || STATUS_MAP[1];
-    const isConfirmed = reservation.statut === 2;
-    const qrString = getQrString();
+    const statut = invoiceData ? statutBillet(invoiceData.reservation.statut, invoiceData.voyage?.date) : null;
 
     return (
-        <SafeAreaView className="flex-1 bg-gray-50">
-            {/* Header */}
-            <View className="bg-white border-b border-gray-100 px-6 py-4 flex-row items-center justify-between">
-                <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center bg-gray-50 rounded-full">
-                    <Ionicons name="arrow-back" size={24} color="#1e3a8a" />
-                </TouchableOpacity>
-                <Text className="text-xl font-bold text-blue-900">Détail Réservation</Text>
-                <TouchableOpacity onPress={handleShare} className="w-10 h-10 items-center justify-center bg-gray-50 rounded-full">
-                    <Ionicons name="share-outline" size={20} color="#1e3a8a" />
-                </TouchableOpacity>
-            </View>
+        <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
+            <StatusBar barStyle="dark-content" backgroundColor={couleurs.surface} />
+            <EnTete
+                titre={invoiceData ? `Billet ${invoiceData.reservation.numero}` : 'Détail du billet'}
+                sousTitre={invoiceData?.reservation?.date_reservation ? `Réservé le ${invoiceData.reservation.date_reservation}` : undefined}
+                droite={invoiceData ? <BoutonIcone icone="share-outline" libelle="Partager le billet" onPress={handleShare} /> : undefined}
+            />
 
-            <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-                {/* Hero Ticket Card */}
-                <LinearGradient colors={['#1e3a8a', '#1e40af', '#2563eb']} className="mx-5 mt-5 rounded-[32px] overflow-hidden">
-                    <View className="p-6">
-                        <View className="flex-row justify-between items-center mb-4">
-                            <View>
-                                <Text className="text-blue-200 text-xs font-bold uppercase">Ticket N°</Text>
-                                <Text className="text-white text-xl font-bold">{reservation.numero}</Text>
-                            </View>
-                            <View className="bg-white/20 px-3 py-1.5 rounded-full flex-row items-center">
-                                <Ionicons name={statusInfo.icon as any} size={14} color="#ffffff" />
-                                <Text className="text-white text-xs font-bold ml-1">{statusInfo.label}</Text>
-                            </View>
-                        </View>
-
-                        <View className="flex-row items-center justify-between mt-2">
-                            <View className="flex-1">
-                                <Text className="text-blue-100 text-xs uppercase font-bold">Départ</Text>
-                                <Text className="text-white font-bold text-base">{voyage.depart}</Text>
-                            </View>
-                            <View className="mx-3 items-center">
-                                <Ionicons name="arrow-forward" size={20} color="#93c5fd" />
-                                <View className="w-16 h-0.5 bg-blue-300/30 mt-1" />
-                            </View>
-                            <View className="flex-1 items-end">
-                                <Text className="text-blue-100 text-xs uppercase font-bold">Arrivée</Text>
-                                <Text className="text-white font-bold text-base">{voyage.arrivee}</Text>
-                            </View>
-                        </View>
-
-                        <View className="flex-row justify-between mt-4 pt-4 border-t border-white/10">
-                            <View>
-                                <Text className="text-blue-100 text-xs uppercase font-bold">Date</Text>
-                                <Text className="text-white font-bold text-sm">{voyage.date}</Text>
-                            </View>
-                            <View>
-                                <Text className="text-blue-100 text-xs uppercase font-bold">Heure</Text>
-                                <Text className="text-white font-bold text-sm">{voyage.heure}</Text>
-                            </View>
-                            <View>
-                                <Text className="text-blue-100 text-xs uppercase font-bold">Voyageurs</Text>
-                                <Text className="text-white font-bold text-sm">{reservation.nb_voyageurs}</Text>
-                            </View>
-                        </View>
-                    </View>
-                </LinearGradient>
-
-                {/* QR Code Section - Only for confirmed reservations (statut === 2) */}
-                {isConfirmed && qrString ? (
-                    <View className="mx-5 mt-5 bg-white rounded-[28px] p-6 border border-gray-100 shadow-sm items-center">
-                        <View className="flex-row items-center mb-4">
-                            <Ionicons name="qr-code-outline" size={20} color="#1e3a8a" />
-                            <Text className="text-blue-900 font-bold text-base ml-2">QR Code d'embarquement</Text>
-                        </View>
-                        <View className="bg-white p-4 rounded-2xl border border-gray-100">
-                            <QRCode value={qrString} size={200} backgroundColor="#ffffff" />
-                        </View>
-                        <Text className="text-gray-700 text-xs text-center mt-3">Présentez ce QR code lors de l'embarquement</Text>
-                    </View>
-                ) : null}
-
-                {/* Voyage Details */}
-                <View className="mx-5 mt-5 bg-white rounded-[28px] p-5 border border-gray-100 shadow-sm">
-                    <View className="flex-row items-center mb-4">
-                        <View className="w-8 h-8 bg-blue-50 rounded-full items-center justify-center">
-                            <Ionicons name="bus-outline" size={16} color="#1e3a8a" />
-                        </View>
-                        <Text className="text-gray-900 font-bold text-base ml-3">Informations du voyage</Text>
-                    </View>
-
-                    <View className="space-y-3">
-                        <View className="flex-row justify-between py-2 border-b border-gray-50">
-                            <Text className="text-gray-700 text-sm font-medium">Compagnie</Text>
-                            <Text className="text-gray-900 font-bold text-sm">{voyage.compagnie}</Text>
-                        </View>
-                        <View className="flex-row justify-between py-2 border-b border-gray-50">
-                            <Text className="text-gray-700 text-sm font-medium">Véhicule</Text>
-                            <Text className="text-gray-900 font-bold text-sm">{voyage.matricule}</Text>
-                        </View>
-                        <View className="flex-row justify-between py-2 border-b border-gray-50">
-                            <Text className="text-gray-700 text-sm font-medium">Date de réservation</Text>
-                            <Text className="text-gray-900 font-bold text-sm">{reservation.date_reservation}</Text>
-                        </View>
-                    </View>
+            {loading ? (
+                <View style={{ padding: 16, gap: 12 }}>
+                    <Skeleton height={130} borderRadius={20} />
+                    <Skeleton height={280} borderRadius={16} />
+                    <Skeleton height={120} borderRadius={16} />
                 </View>
-
-                {/* Voyageurs */}
-                {voyageurs.length > 0 && (
-                    <View className="mx-5 mt-5 bg-white rounded-[28px] p-5 border border-gray-100 shadow-sm">
-                        <View className="flex-row items-center mb-4">
-                            <View className="w-8 h-8 bg-orange-50 rounded-full items-center justify-center">
-                                <Ionicons name="people-outline" size={16} color="#f97316" />
-                            </View>
-                            <Text className="text-gray-900 font-bold text-base ml-3">Voyageurs ({voyageurs.length})</Text>
+            ) : error || !invoiceData ? (
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 10 }}>
+                    <Ionicons name="alert-circle-outline" size={48} color={couleurs.danger} />
+                    <Texte graisse="moyen" taille={14.5} couleur={couleurs.gris} centre>{error || 'Billet introuvable.'}</Texte>
+                    <Bouton titre="Réessayer" variante="secondaire" compact icone="refresh" onPress={loadDetail} style={{ marginTop: 8 }} />
+                </View>
+            ) : (
+                <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24, gap: 14 }} showsVerticalScrollIndicator={false}>
+                    {/* Trajet */}
+                    <Carte marine style={{ gap: 12 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Texte graisse="gras" taille={12.5} couleur={couleurs.texteSurMarine}>{invoiceData.voyage.compagnie}</Texte>
+                            {statut && <Pastille libelle={statut.libelle} tonalite={statut.tonalite} />}
                         </View>
-
-                        {voyageurs.map((v: any, i: number) => (
-                            <View key={i} className={`flex-row items-center py-3 ${i < voyageurs.length - 1 ? 'border-b border-gray-50' : ''}`}>
-                                <View className="w-8 h-8 bg-gray-100 rounded-full items-center justify-center mr-3">
-                                    <Text className="text-gray-600 font-bold text-xs">{i + 1}</Text>
-                                </View>
-                                <View className="flex-1">
-                                    <Text className="text-gray-900 font-bold text-sm">{v.nom}</Text>
-                                </View>
-                                <View className="bg-blue-50 px-3 py-1 rounded-full">
-                                    <Text className="text-blue-900 text-xs font-bold">Siège {v.siege}</Text>
-                                </View>
-                            </View>
-                        ))}
-                    </View>
-                )}
-
-                {/* Payment Info */}
-                <View className="mx-5 mt-5 bg-white rounded-[28px] p-5 border border-gray-100 shadow-sm">
-                    <View className="flex-row items-center mb-4">
-                        <View className="w-8 h-8 bg-green-50 rounded-full items-center justify-center">
-                            <Ionicons name="wallet-outline" size={16} color="#22c55e" />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <Texte graisse="tresGras" taille={19} couleur="#FFFFFF" style={{ flex: 1 }} numberOfLines={1}>{invoiceData.voyage.depart}</Texte>
+                            <Ionicons name="arrow-forward" size={18} color={couleurs.texteSurMarine} />
+                            <Texte graisse="tresGras" taille={19} couleur="#FFFFFF" style={{ flex: 1, textAlign: 'right' }} numberOfLines={1}>{invoiceData.voyage.arrivee}</Texte>
                         </View>
-                        <Text className="text-gray-900 font-bold text-base ml-3">Paiement</Text>
-                    </View>
-
-                    {reservation.paiement ? (
-                        <View className="space-y-3">
-                            <View className="flex-row justify-between py-2 border-b border-gray-50">
-                                <Text className="text-gray-700 text-sm font-medium">Mode de paiement</Text>
-                                <Text className="text-gray-900 font-bold text-sm">{reservation.paiement.type}</Text>
-                            </View>
-                            <View className="flex-row justify-between py-2 border-b border-gray-50">
-                                <Text className="text-gray-700 text-sm font-medium">Référence</Text>
-                                <Text className="text-gray-900 font-bold text-sm">{reservation.paiement.numero}</Text>
-                            </View>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)' }}>
+                            {[
+                                ['Date', invoiceData.voyage.date],
+                                ['Heure', invoiceData.voyage.heure],
+                                ['Véhicule', invoiceData.voyage.matricule],
+                            ].map(([l, v]) => (
+                                <View key={l}>
+                                    <Texte graisse="gras" taille={10.5} couleur={couleurs.texteSurMarine} style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>{l}</Texte>
+                                    <Texte graisse="tresGras" taille={14} couleur="#FFFFFF">{v || '—'}</Texte>
+                                </View>
+                            ))}
                         </View>
-                    ) : (
-                        <Text className="text-gray-600 text-sm italic">Aucun paiement enregistré</Text>
+                    </Carte>
+
+                    {/* QR code (billets confirmés à venir) */}
+                    {invoiceData.reservation.statut === 2 && statut?.groupe === 'avenir' && getQrString() ? (
+                        <Carte style={{ alignItems: 'center', gap: 10 }}>
+                            <View style={{ padding: 12, borderRadius: 16, borderWidth: 1, borderColor: couleurs.ligne }}>
+                                <QRCode value={getQrString()} size={200} color={couleurs.ocean950} backgroundColor="#FFFFFF" />
+                            </View>
+                            <Texte variante="legende" centre>Présentez ce code au chauffeur à l'embarquement.</Texte>
+                        </Carte>
+                    ) : null}
+
+                    {/* Voyageurs */}
+                    {(invoiceData.voyageurs || []).length > 0 && (
+                        <View style={{ gap: 8 }}>
+                            <Texte variante="etiquette" style={{ marginLeft: 2 }}>Voyageurs</Texte>
+                            <Carte padding={0}>
+                                {invoiceData.voyageurs.map((v: any, i: number) => (
+                                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, paddingHorizontal: 14, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: couleurs.separateur }}>
+                                        <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: couleurs.ocean800, alignItems: 'center', justifyContent: 'center' }}>
+                                            <Texte graisse="tresGras" taille={14} couleur="#FFFFFF">{v.siege}</Texte>
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Texte graisse="tresGras" taille={14}>{[v.prenom, v.nom].filter(Boolean).join(' ')}</Texte>
+                                            <Texte variante="legende">Siège {v.siege}</Texte>
+                                        </View>
+                                    </View>
+                                ))}
+                            </Carte>
+                        </View>
                     )}
 
-                    <View className="flex-row justify-between items-center mt-4 pt-4 border-t border-gray-100">
-                        <Text className="text-gray-900 font-bold text-lg">Montant Total</Text>
-                        <Text className="text-blue-900 font-bold text-xl">{formatMontant(reservation.montant)} Ar</Text>
+                    {/* Paiement */}
+                    <View style={{ gap: 8 }}>
+                        <Texte variante="etiquette" style={{ marginLeft: 2 }}>Paiement</Texte>
+                        <Carte style={{ gap: 9 }}>
+                            {invoiceData.reservation.paiement ? (
+                                <>
+                                    <Ligne libelle="Mode" valeur={invoiceData.reservation.paiement.type} />
+                                    <Ligne libelle="Référence" valeur={invoiceData.reservation.paiement.numero} />
+                                </>
+                            ) : (
+                                <Texte variante="legende">Aucun paiement enregistré.</Texte>
+                            )}
+                            <View style={{ paddingTop: 9, borderTopWidth: 1, borderTopColor: couleurs.separateur }}>
+                                <Ligne libelle="Total" valeur={`${formatAriary(Number(invoiceData.reservation.montant) || 0)} Ar`} fort />
+                            </View>
+                        </Carte>
                     </View>
-                </View>
-
-                {/* Actions */}
-                <View className="mx-5 mt-5 mb-5">
-                    <TouchableOpacity
-                        className="bg-blue-900 w-full py-4 rounded-2xl items-center"
-                        onPress={() => router.back()}
-                    >
-                        <Text className="text-white font-bold text-base">Retour</Text>
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>
-        </SafeAreaView>
+                </ScrollView>
+            )}
+        </View>
     );
 }
