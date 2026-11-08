@@ -242,8 +242,8 @@ export default function DashboardCompagnie() {
   const ongletActif = ONGLETS.some((o) => o.key === activeTab) ? activeTab : 'menu';
   const accueil = activeTab === 'dashboard';
   // Voyages et Réservations ont leur propre grand titre (maquette) : pas de barre du haut
-  // Flotte et trajets ont leur propre en-tête (avec compteurs)
-  const sansBarre = ['voyages', 'reservations', 'chauffeurs', 'voitures', 'trajets'].includes(activeTab);
+  // Les sections ont leur propre en-tête (grand titre ou en-tête avec compteurs)
+  const sansBarre = activeTab !== 'dashboard' && activeTab !== 'settings';
 
   const renderSettings = () => (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24, gap: 12 }} showsVerticalScrollIndicator={false}>
@@ -292,7 +292,7 @@ export default function DashboardCompagnie() {
 
   return (
     <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
-      <StatusBar barStyle="dark-content" backgroundColor={accueil || activeTab === 'voyages' || activeTab === 'reservations' ? couleurs.fond : couleurs.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor={['dashboard', 'voyages', 'reservations', 'portefeuille'].includes(activeTab) ? couleurs.fond : couleurs.surface} />
       <DialogComponent />
 
       {/* Barre du haut : sur le fond pour l'accueil, blanche ailleurs */}
@@ -332,10 +332,10 @@ export default function DashboardCompagnie() {
         {activeTab === 'trajets' && <RenderTrajets onMenu={() => setMenuOuvert(true)} />}
         {activeTab === 'voyages' && <RenderVoyages />}
         {activeTab === 'reservations' && <RenderReservations />}
-        {activeTab === 'factures' && <RenderFactures />}
-        {activeTab === 'paiements' && <RenderPaiements />}
+        {activeTab === 'factures' && <RenderFactures onMenu={() => setMenuOuvert(true)} />}
+        {activeTab === 'paiements' && <RenderPaiements onMenu={() => setMenuOuvert(true)} />}
         {activeTab === 'portefeuille' && <RenderPortefeuille />}
-        {activeTab === 'remboursements' && <RenderRemboursements />}
+        {activeTab === 'remboursements' && <RenderRemboursements onMenu={() => setMenuOuvert(true)} />}
         {activeTab === 'settings' && renderSettings()}
       </View>
 
