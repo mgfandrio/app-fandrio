@@ -1,275 +1,145 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  RefreshControl,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
-} from 'react-native';
-import { voitureService } from '../../../services';
-import { Voiture } from '../../../types/voiture';
-import CategorieBadge from '../../common/CategorieBadge';
-import { useConfirmDialog } from '../../common/ConfirmDialog';
-import { VoitureDetailModal } from '../../modals/voitures/VoitureDetailModal';
-import { VoitureFormModal } from '../../modals/voitures/VoitureFormModal';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
+import { RefreshControl, ScrollView, View } from 'react-native';
+import { chauffeurService, voitureService } from '../../../services';
+import { couleurs } from '../../../theme/ocean';
+import { Skeleton } from '../../common/Skeleton';
+import { Carte, EnTete, Pastille, Texte } from '../../ui';
+import { DetailVehicule } from '../../flotte/DetailVehicule';
+import { FormulaireVehicule } from '../../flotte/FormulaireVehicule';
+import { BoutonAjout, libelleCategorie, Recherche } from '../../flotte/communs';
 
-interface RenderVoituresProps {
-  onAddPress?: () => void;
-  onEditPress?: (voiture: Voiture) => void;
-}
-
-export function RenderVoitures({ onAddPress, onEditPress }: RenderVoituresProps) {
-  const { showDialog, DialogComponent } = useConfirmDialog();
-  const [voitures, setVoitures] = useState<Voiture[]>([]);
+/** Onglet « Véhicules » de l'admin compagnie. */
+export function RenderVoitures({ onMenu }: { onMenu?: () => void }) {
+  const [voitures, setVoitures] = useState<any[]>([]);
+  const [chauffeurs, setChauffeurs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedVoitureId, setSelectedVoitureId] = useState<number | null>(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showFormModal, setShowFormModal] = useState(false);
-  const [editingVoitureId, setEditingVoitureId] = useState<number | null>(null);
-  const [searchText, setSearchText] = useState('');
+  const [erreur, setErreur] = useState(false);
+  const [q, setQ] = useState('');
+  const [detail, setDetail] = useState<number | null>(null);
+  const [formulaire, setFormulaire] = useState<{ visible: boolean; id: number | null }>({ visible: false, id: null });
 
-  useEffect(() => {
-    chargerVoitures();
-  }, []);
-
-  const chargerVoitures = async () => {
+  const charger = useCallback(async () => {
+    setErreur(false);
     try {
-      setLoading(true);
-      const response = await voitureService.obtenirListeVoitures();
-      
-      if (response.data) {
-        const data = Array.isArray(response.data) ? response.data : [];
-        setVoitures(data);
-      } else {
-        setVoitures([]);
-      }
-    } catch (error: any) {
-      console.error('Erreur:', error);
-      showDialog({
-        title: 'Erreur',
-        message: 'Impossible de charger les voitures',
-        type: 'danger',
-        confirmText: 'OK',
-        onConfirm: () => {},
-        onCancel: () => {}
-      });
-      setVoitures([]);
-    } finally {
-      setLoading(false);
+      const [rv, rc] = await Promise.all([voitureService.obtenirListeVoitures(), chauffeurService.obtenirListeChauffeurs().catch(() => null)]);
+      setVoitures(Array.isArray(rv?.data) ? rv.data : []);
+      setChauffeurs(Array.isArray(rc?.data) ? (rc as any).data : []);
+    } catch (e: any) {
+      // L'API répond 404 quand la compagnie n'a encore aucun véhicule
+      if (e?.statut === false || e?.message?.includes('Aucune')) setVoitures([]);
+      else setErreur(true);
     }
-  };
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await chargerVoitures();
-    setRefreshing(false);
   }, []);
 
-  const handleOpenDetail = (voitureId: number) => {
-    setSelectedVoitureId(voitureId);
-    setShowDetailModal(true);
-  };
-
-  const handleOpenForm = (voitureId?: number) => {
-    setEditingVoitureId(voitureId || null);
-    setShowFormModal(true);
-  };
-
-  const handleFormSuccess = () => {
-    chargerVoitures();
-  };
-
-  if (loading) {
-    return (
-      <View className="flex-1 justify-center items-center bg-slate-50">
-        <View style={{ width: 56, height: 56, borderRadius: 28, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
-          <LinearGradient colors={['#1e40af', '#3b82f6']} style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}>
-            <ActivityIndicator size="large" color="#fff" />
-          </LinearGradient>
-        </View>
-        <Text className="text-slate-500 mt-4 text-sm">Chargement des voitures...</Text>
-      </View>
-    );
-  }
-
-  const voituresFiltres = voitures.filter(v =>
-    `${v.voit_marque} ${v.voit_modele} ${v.voit_matricule}`
-      .toLowerCase()
-      .includes(searchText.toLowerCase())
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      charger().finally(() => setLoading(false));
+    }, [charger])
   );
 
-  const getStatutBadge = (statut: number) => {
-    if (statut === 1) {
-      return { colors: ['#059669', '#10b981'] as const, label: 'Disponible', icon: 'checkmark-circle' as const };
-    }
-    return { colors: ['#dc2626', '#ef4444'] as const, label: 'Indisponible', icon: 'close-circle' as const };
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await charger();
+    setRefreshing(false);
   };
 
-  const disponiblesCount = voitures.filter(v => v.voit_statut === 1).length;
-  const indisponiblesCount = voitures.length - disponiblesCount;
+  const nomChauffeur = (id: any) => {
+    const c = chauffeurs.find((x) => String(x.chauff_id) === String(id));
+    return c ? `${c.chauff_prenom} ${String(c.chauff_nom || '').charAt(0)}.` : 'Aucun';
+  };
+
+  const filtre = q.trim().toLowerCase();
+  const liste = voitures.filter((v) => !filtre || `${v.voit_marque} ${v.voit_modele} ${v.voit_matricule}`.toLowerCase().includes(filtre));
+  const disponibles = voitures.filter((v) => Number(v.voit_statut) === 1).length;
+  const placesTotal = voitures.reduce((s, v) => s + (Number(v.voit_places) || 0), 0);
 
   return (
-    <View className="flex-1 bg-slate-50">
-      <DialogComponent />
+    <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
+      <EnTete titre="Véhicules" gauche="menu" onGauche={onMenu} />
       <ScrollView
-        className="flex-1"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />}
+        contentContainerStyle={{ padding: 16, paddingBottom: 96, gap: 12 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={couleurs.ocean800} colors={[couleurs.ocean800]} />}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Header */}
-        <View className="mx-4 mt-5 rounded-3xl overflow-hidden" style={{ elevation: 4 }}>
-          <LinearGradient colors={['#7c3aed', '#8b5cf6', '#a78bfa']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} className="p-5">
-            <View className="flex-row items-center justify-between mb-4">
-              <View className="flex-row items-center flex-1">
-                <View className="bg-white/20 rounded-2xl p-3 mr-4">
-                  <Ionicons name="car-sport" size={28} color="#fff" />
-                </View>
-                <View>
-                  <Text className="text-white text-2xl font-bold">Voitures</Text>
-                  <Text className="text-purple-100 text-sm mt-0.5">{voitures.length} véhicule(s) enregistré(s)</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                className="bg-white rounded-2xl p-3"
-                onPress={() => handleOpenForm()}
-                activeOpacity={0.8}
-                style={{ elevation: 2 }}
-              >
-                <Ionicons name="add" size={24} color="#7c3aed" />
-              </TouchableOpacity>
+        <Carte padding={0} style={{ flexDirection: 'row' }}>
+          {[
+            { v: voitures.length, l: 'Véhicules', c: couleurs.encre },
+            { v: disponibles, l: 'Disponibles', c: couleurs.succes },
+            { v: placesTotal, l: 'Places au total', c: couleurs.encre },
+          ].map((s, i) => (
+            <View key={s.l} style={{ flex: 1, alignItems: 'center', paddingVertical: 10, borderLeftWidth: i === 0 ? 0 : 1, borderLeftColor: couleurs.separateur }}>
+              <Texte variante="montant" taille={18} couleur={s.c}>{loading ? '–' : s.v}</Texte>
+              <Texte graisse="moyen" taille={11} couleur={couleurs.gris}>{s.l}</Texte>
             </View>
-            {/* Mini stats */}
-            <View className="flex-row mt-1">
-              <View className="bg-white/15 rounded-xl px-4 py-2 mr-3 flex-row items-center">
-                <View className="bg-emerald-400 rounded-full w-2.5 h-2.5 mr-2" />
-                <Text className="text-white text-sm font-medium">{disponiblesCount} Disponibles</Text>
-              </View>
-              <View className="bg-white/15 rounded-xl px-4 py-2 flex-row items-center">
-                <View className="bg-red-400 rounded-full w-2.5 h-2.5 mr-2" />
-                <Text className="text-white text-sm font-medium">{indisponiblesCount} Indisponibles</Text>
-              </View>
-            </View>
-          </LinearGradient>
-        </View>
+          ))}
+        </Carte>
 
-        {/* Barre de recherche */}
-        <View className="mx-4 mt-4 bg-white rounded-2xl flex-row items-center px-4 py-1" style={{ elevation: 2 }}>
-          <Ionicons name="search" size={20} color="#94a3b8" />
-          <TextInput
-            className="flex-1 ml-3 text-slate-800 text-base py-3"
-            placeholder="Rechercher par marque, matricule..."
-            value={searchText}
-            onChangeText={setSearchText}
-            placeholderTextColor="#94a3b8"
-          />
-          {searchText.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchText('')} className="p-1">
-              <Ionicons name="close-circle" size={20} color="#94a3b8" />
-            </TouchableOpacity>
-          )}
-        </View>
+        <Recherche valeur={q} onChange={setQ} placeholder="Marque ou immatriculation" />
 
-        {/* Liste des voitures */}
-        <View className="px-4 mt-4 pb-6">
-          {voituresFiltres.length === 0 ? (
-            <View className="bg-white rounded-3xl p-10 items-center" style={{ elevation: 2 }}>
-              <View className="bg-slate-100 rounded-full p-5 mb-4">
-                <Ionicons name="car-outline" size={48} color="#94a3b8" />
-              </View>
-              <Text className="text-slate-800 font-bold text-lg">Aucune voiture trouvée</Text>
-              <Text className="text-slate-600 text-sm mt-2 text-center leading-5">
-                {searchText.length > 0 
-                  ? 'Aucune voiture ne correspond à votre recherche'
-                  : 'Appuyez sur + pour ajouter votre premier véhicule'}
-              </Text>
-            </View>
-          ) : (
-            voituresFiltres.map((voiture) => {
-              const badge = getStatutBadge(voiture.voit_statut);
-              return (
-                <TouchableOpacity
-                  key={voiture.voit_id}
-                  className="bg-white rounded-2xl p-4 mb-3"
-                  onPress={() => handleOpenDetail(voiture.voit_id)}
-                  activeOpacity={0.7}
-                  style={{ elevation: 2 }}
-                >
-                  <View className="flex-row items-center">
-                    {/* Car icon with gradient */}
-                    <View className="rounded-2xl w-14 h-14 overflow-hidden mr-4">
-                      <LinearGradient
-                        colors={['#7c3aed', '#8b5cf6']}
-                        className="w-full h-full items-center justify-center"
-                      >
-                        <Ionicons name="car-sport" size={24} color="#fff" />
-                      </LinearGradient>
-                    </View>
-                    
-                    <View className="flex-1">
-                      <View className="flex-row items-center flex-wrap">
-                        <Text className="text-slate-900 font-bold text-base mr-2">
-                          {voiture.voit_marque} {voiture.voit_modele}
-                        </Text>
-                        <CategorieBadge categorie={(voiture as any).voit_categorie} hideClassique={false} />
-                      </View>
-                      <View className="flex-row items-center mt-1">
-                        <Ionicons name="document-text-outline" size={14} color="#475569" />
-                        <Text className="text-slate-700 text-sm font-medium ml-1.5">
-                          {voiture.voit_matricule}
-                        </Text>
-                        <Text className="text-slate-500 mx-2">•</Text>
-                        <Ionicons name="people-outline" size={14} color="#475569" />
-                        <Text className="text-slate-700 text-sm font-medium ml-1">
-                          {voiture.voit_places} places
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Status badge with gradient */}
-                    <View className="rounded-xl overflow-hidden">
-                      <LinearGradient
-                        colors={[...badge.colors]}
-                        className="px-3 py-1.5 flex-row items-center"
-                      >
-                        <Ionicons name={badge.icon} size={12} color="#fff" style={{ marginRight: 4 }} />
-                        <Text className="text-white text-xs font-bold">{badge.label}</Text>
-                      </LinearGradient>
-                    </View>
+        {loading ? (
+          [1, 2, 3].map((i) => <Skeleton key={i} height={110} borderRadius={16} />)
+        ) : erreur ? (
+          <Carte style={{ alignItems: 'center', gap: 8, paddingVertical: 24 }}>
+            <Ionicons name="cloud-offline-outline" size={30} color={couleurs.danger} />
+            <Texte variante="legende" centre>Impossible de charger les véhicules.</Texte>
+          </Carte>
+        ) : liste.length === 0 ? (
+          <View style={{ alignItems: 'center', paddingVertical: 36, gap: 6 }}>
+            <Ionicons name="bus-outline" size={36} color={couleurs.grisClair} />
+            <Texte graisse="tresGras" taille={15}>{filtre ? 'Aucun véhicule trouvé' : 'Aucun véhicule'}</Texte>
+            <Texte variante="legende" centre>{filtre ? 'Essayez une autre marque ou immatriculation.' : 'Touchez « Ajouter » pour enregistrer votre premier véhicule.'}</Texte>
+          </View>
+        ) : (
+          liste.map((v) => {
+            const dispo = Number(v.voit_statut) === 1;
+            return (
+              <Carte key={v.voit_id} onPress={() => setDetail(v.voit_id)} accessibilityLabel={`${v.voit_marque} ${v.voit_modele}, ${v.voit_matricule}, ${dispo ? 'disponible' : 'indisponible'}`} style={{ gap: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 13, backgroundColor: couleurs.ocean50, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="bus-outline" size={22} color={couleurs.ocean800} />
                   </View>
-                </TouchableOpacity>
-              );
-            })
-          )}
-        </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Texte graisse="tresGras" taille={14.5} numberOfLines={1}>{v.voit_marque} {v.voit_modele}</Texte>
+                    <Texte graisse="moyen" taille={12} couleur={couleurs.gris} numberOfLines={1}>
+                      {v.voit_matricule}{v.voit_categorie && v.voit_categorie !== 'classique' ? ` · ${libelleCategorie(v.voit_categorie)}` : ''}
+                    </Texte>
+                  </View>
+                  <Pastille libelle={dispo ? 'Disponible' : 'Indisponible'} tonalite={dispo ? 'succes' : 'neutre'} />
+                </View>
+                <View style={{ flexDirection: 'row', gap: 16, paddingTop: 10, borderTopWidth: 1, borderTopColor: couleurs.separateur }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="people-outline" size={15} color={couleurs.gris} />
+                    <Texte graisse="gras" taille={12} couleur={couleurs.encreDouce}>{v.voit_places} places</Texte>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="person-outline" size={15} color={couleurs.gris} />
+                    <Texte graisse="gras" taille={12} couleur={couleurs.encreDouce}>{nomChauffeur(v.chauff_id)}</Texte>
+                  </View>
+                </View>
+              </Carte>
+            );
+          })
+        )}
       </ScrollView>
 
-      {/* Modal de détails */}
-      <VoitureDetailModal
-        visible={showDetailModal}
-        voitureId={selectedVoitureId}
-        onClose={() => {
-          setShowDetailModal(false);
-          setSelectedVoitureId(null);
-        }}
-        onEdit={handleOpenForm}
-        onRefresh={chargerVoitures}
-      />
+      <BoutonAjout libelle="Ajouter" onPress={() => setFormulaire({ visible: true, id: null })} />
 
-      {/* Modal de formulaire */}
-      <VoitureFormModal
-        visible={showFormModal}
-        voitureId={editingVoitureId}
-        onClose={() => {
-          setShowFormModal(false);
-          setEditingVoitureId(null);
+      <DetailVehicule
+        visible={detail !== null}
+        voitureId={detail}
+        onClose={() => setDetail(null)}
+        onModifier={(id) => {
+          setDetail(null);
+          setFormulaire({ visible: true, id });
         }}
-        onSuccess={handleFormSuccess}
+        onChange={charger}
       />
+      <FormulaireVehicule visible={formulaire.visible} voitureId={formulaire.id} onClose={() => setFormulaire({ visible: false, id: null })} onSuccess={charger} />
     </View>
   );
 }

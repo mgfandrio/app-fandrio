@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Linking, Modal, Pressable, RefreshControl, ScrollView, StatusBar, View } from 'react-native';
+import { Linking, Pressable, RefreshControl, ScrollView, StatusBar, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,7 +9,7 @@ import echo from '../../services/echo/echoConfig';
 import { genererFicheVoyageurs } from '../../utils/ficheVoyageurs';
 import { useConfirmDialog } from '../common/ConfirmDialog';
 import { Skeleton } from '../common/Skeleton';
-import { Bouton, BoutonIcone, Carte, FeuilleModale, LegendePlan, Pastille, PlanSieges, Segmente, Texte } from '../ui';
+import { Bouton, BoutonIcone, Carte, FeuilleModale, LegendePlan, Pastille, PlanSieges, Segmente, Texte, ModalPleinEcran } from '../ui';
 import { couleurs, formatAriary } from '../../theme/ocean';
 import { dateCourte, dateVoyage, estEnPause, infoStatutVoyage, statutValeur } from '../../utils/voyageStatut';
 import { ChampDateHeure } from './ChampDateHeure';
@@ -52,7 +52,7 @@ function LigneAction({ icone, titre, detail, onPress, danger, premiere }: { icon
 }
 
 /** Détail d'un voyage côté compagnie : revenu, plan des sièges en direct, voyageurs, billets et actions. */
-export function DetailVoyage({ visible, voyageId, apercu, onClose, onModifier, onChange }: Props) {
+function DetailVoyageContenu({ visible, voyageId, apercu, onClose, onModifier, onChange }: Props) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { showDialog, DialogComponent } = useConfirmDialog();
@@ -268,7 +268,7 @@ export function DetailVoyage({ visible, voyageId, apercu, onClose, onModifier, o
     );
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+    <>
       <StatusBar barStyle="light-content" backgroundColor={couleurs.ocean950} />
       <DialogComponent />
       <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
@@ -434,7 +434,16 @@ export function DetailVoyage({ visible, voyageId, apercu, onClose, onModifier, o
           {occupe && <Texte variante="legende" centre style={{ marginTop: 8 }}>Traitement en cours…</Texte>}
         </View>
       </FeuilleModale>
-    </Modal>
+    </>
+  );
+}
+
+/** DetailVoyage dans sa propre fenêtre, avec les bonnes marges de sécurité. */
+export function DetailVoyage(props: Props) {
+  return (
+    <ModalPleinEcran visible={props.visible} onClose={props.onClose}>
+      <DetailVoyageContenu {...props} />
+    </ModalPleinEcran>
   );
 }
 

@@ -4,7 +4,7 @@ export const trajetService = {
   // Récupérer la liste des trajets
   obtenirTrajets: async () => {
     try {
-      const response = await apiClient.get('/api/adminCompagnie/trajet/recupererListeTrajet');
+      const response = await apiClient.get('/api/adminCompagnie/trajet/recupererListeTrajet', { params: { per_page: 200 } });
       
       // Extraire le tableau trajets de response.data.data.trajets
       let trajets: any[] = [];
@@ -102,9 +102,10 @@ export const trajetService = {
   },
 
   // Changer le statut d'un trajet
-  changerEtatTrajet: async (id: number) => {
+  // statut : 1 = actif, 2 = inactif
+  changerEtatTrajet: async (id: number, statut: 1 | 2) => {
     try {
-      const response = await apiClient.patch(`/api/adminCompagnie/trajet/${id}/statut`);
+      const response = await apiClient.patch(`/api/adminCompagnie/trajet/${id}/statut`, { statut });
       return {
         statut: true,
         message: response.data?.message || 'Statut modifié avec succès',

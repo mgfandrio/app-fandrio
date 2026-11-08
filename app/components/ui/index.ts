@@ -17,3 +17,4 @@ export { FeuilleModale } from './FeuilleModale';
 export { Puce } from './Puce';
 export { PlanSieges, LegendePlan, dispositionMinibus } from './PlanSieges';
 export type { SiegePlan } from './PlanSieges';
+export { ModalPleinEcran } from './ModalPleinEcran';

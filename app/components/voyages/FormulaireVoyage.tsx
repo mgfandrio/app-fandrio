@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StatusBar, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StatusBar, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import apiClient from '../../services/api/axiosConfig';
@@ -7,7 +7,7 @@ import voitureService from '../../services/voitures/voitureService';
 import { voyageService } from '../../services/voyages/voyageService';
 import { useConfirmDialog } from '../common/ConfirmDialog';
 import { Skeleton } from '../common/Skeleton';
-import { Bouton, BoutonIcone, ChampSaisie, Segmente, Texte } from '../ui';
+import { Bouton, BoutonIcone, ChampSaisie, Segmente, Texte, ModalPleinEcran } from '../ui';
 import { couleurs, dateLocaleISO, formatAriary } from '../../theme/ocean';
 import { dateCourte, dateVoyage } from '../../utils/voyageStatut';
 import { ChampChoix, FeuilleChoix } from './FeuilleChoix';
@@ -31,7 +31,7 @@ function idVoiture(v: any) {
 }
 
 /** Programmer un voyage (une date ou plusieurs dates) ou modifier un voyage existant. */
-export function FormulaireVoyage({ visible, voyageId, onClose, onSuccess }: Props) {
+function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Props) {
   const insets = useSafeAreaInsets();
   const { showDialog, DialogComponent } = useConfirmDialog();
   const edition = !!voyageId;
@@ -204,7 +204,7 @@ export function FormulaireVoyage({ visible, voyageId, onClose, onSuccess }: Prop
   const recette = nbPlaces * tarif * Math.max(nbVoyages, 1);
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+    <>
       <StatusBar barStyle="dark-content" backgroundColor={couleurs.surface} />
       <DialogComponent />
       <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
@@ -395,7 +395,16 @@ export function FormulaireVoyage({ visible, voyageId, onClose, onSuccess }: Prop
           etiquette: CATEGORIES[v.voit_categorie],
         }))}
       />
-    </Modal>
+    </>
+  );
+}
+
+/** FormulaireVoyage dans sa propre fenêtre, avec les bonnes marges de sécurité. */
+export function FormulaireVoyage(props: Props) {
+  return (
+    <ModalPleinEcran visible={props.visible} onClose={props.onClose}>
+      <FormulaireVoyageContenu {...props} />
+    </ModalPleinEcran>
   );
 }
 

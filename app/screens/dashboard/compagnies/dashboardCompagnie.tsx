@@ -242,7 +242,8 @@ export default function DashboardCompagnie() {
   const ongletActif = ONGLETS.some((o) => o.key === activeTab) ? activeTab : 'menu';
   const accueil = activeTab === 'dashboard';
   // Voyages et Réservations ont leur propre grand titre (maquette) : pas de barre du haut
-  const sansBarre = activeTab === 'voyages' || activeTab === 'reservations';
+  // Flotte et trajets ont leur propre en-tête (avec compteurs)
+  const sansBarre = ['voyages', 'reservations', 'chauffeurs', 'voitures', 'trajets'].includes(activeTab);
 
   const renderSettings = () => (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24, gap: 12 }} showsVerticalScrollIndicator={false}>
@@ -291,7 +292,7 @@ export default function DashboardCompagnie() {
 
   return (
     <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
-      <StatusBar barStyle="dark-content" backgroundColor={accueil || sansBarre ? couleurs.fond : couleurs.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor={accueil || activeTab === 'voyages' || activeTab === 'reservations' ? couleurs.fond : couleurs.surface} />
       <DialogComponent />
 
       {/* Barre du haut : sur le fond pour l'accueil, blanche ailleurs */}
@@ -326,9 +327,9 @@ export default function DashboardCompagnie() {
             <DashboardStats refreshTrigger={0} onNavigate={setActiveTab} />
           </ScrollView>
         )}
-        {activeTab === 'chauffeurs' && <RenderChauffers />}
-        {activeTab === 'voitures' && <RenderVoitures />}
-        {activeTab === 'trajets' && <RenderTrajets />}
+        {activeTab === 'chauffeurs' && <RenderChauffers onMenu={() => setMenuOuvert(true)} />}
+        {activeTab === 'voitures' && <RenderVoitures onMenu={() => setMenuOuvert(true)} />}
+        {activeTab === 'trajets' && <RenderTrajets onMenu={() => setMenuOuvert(true)} />}
         {activeTab === 'voyages' && <RenderVoyages />}
         {activeTab === 'reservations' && <RenderReservations />}
         {activeTab === 'factures' && <RenderFactures />}

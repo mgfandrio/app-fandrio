@@ -13,12 +13,7 @@ class ChauffeurService {
     try {
       const response = await apiClient.post<ApiResponse<Chauffeur>>(
         `${this.BASE_PATH}/ajout`,
-        data,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
+        data
       );
       return response.data;
     } catch (error: any) {
@@ -34,12 +29,7 @@ class ChauffeurService {
     try {
       const response = await apiClient.put<ApiResponse<Chauffeur>>(
         `${this.BASE_PATH}/modification/${id}`,
-        data,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
+        data
       );
       return response.data;
     } catch (error: any) {
