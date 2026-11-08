@@ -1,30 +1,56 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
+import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import compagnieService from '../../services/compagnies/compagnieService';
 import { reservationAdminService } from '../../services/reservations/reservationAdminService';
+import { Skeleton } from '../common/Skeleton';
+import { Bouton, Carte, Texte } from '../ui';
+import { couleurs, formatAriary } from '../../theme/ocean';
+import { dateDepuisJJMMAAAA } from '../../utils/statutBillet';
 
 interface DashboardStatsProps {
   refreshTrigger?: number;
   onNavigate?: (tab: string) => void;
 }
 
-const MOIS_COURTS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 
-const formatMontant = (montant: number): string => {
-  if (montant >= 1000000) {
-    const m = montant / 1000000;
-    return (m >= 10 ? m.toFixed(0) : m.toFixed(1).replace('.', ',')) + ' M';
-  }
-  if (montant >= 1000) return Math.round(montant / 1000) + ' K';
-  return montant.toLocaleString('fr-FR');
-};
+/** Couleurs propres à chaque opérateur de paiement (identification immédiate). */
+const COULEURS_PAIEMENT: Record<string, string> = { MVola: '#C8102E', 'Orange Money': '#E86A00', 'Airtel Money': '#D7141A' };
 
-const formatFull = (montant: number): string => {
-  return montant.toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' Ar';
-};
+/** « 08/11/2026 » -> « Auj. », « Dem. » ou « 12/11 ». */
+function jourCourt(date?: string) {
+  const d = dateDepuisJJMMAAAA(date);
+  if (!d) return '';
+  const auj = new Date();
+  auj.setHours(0, 0, 0, 0);
+  const ecart = Math.round((d.getTime() - auj.getTime()) / 86400000);
+  if (ecart === 0) return 'Auj.';
+  if (ecart === 1) return 'Dem.';
+  return date!.slice(0, 5);
+}
 
+function TitreSection({ titre, onToutVoir }: { titre: string; onToutVoir?: () => void }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2, marginBottom: 8 }}>
+      <Texte graisse="tresGras" taille={16}>{titre}</Texte>
+      {onToutVoir && <Bouton titre="Tout voir" variante="lien" compact onPress={onToutVoir} />}
+    </View>
+  );
+}
+
+/** Une case de la grille d'indicateurs. */
+function Indicateur({ valeur, libelle, droite, bas, children }: { valeur: string | number; libelle: string; droite?: boolean; bas?: boolean; children?: React.ReactNode }) {
+  return (
+    <View style={{ width: '50%', padding: 12, gap: 2, borderRightWidth: droite ? 1 : 0, borderBottomWidth: bas ? 1 : 0, borderColor: couleurs.separateur }}>
+      <Texte variante="montant" taille={20}>{valeur}</Texte>
+      <Texte graisse="moyen" taille={11.5} couleur={couleurs.gris}>{libelle}</Texte>
+      {children}
+    </View>
+  );
+}
+
+/** Accueil de l'admin compagnie : chiffre d'affaires, indicateurs, prochains départs, puis le détail. */
 export const DashboardStats: React.FC<DashboardStatsProps> = ({ refreshTrigger = 0, onNavigate }) => {
   const [stats, setStats] = useState<any>(null);
   const [finance, setFinance] = useState<any>(null);
@@ -39,14 +65,12 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ refreshTrigger =
     try {
       setLoading(true);
       setError(null);
-      const [opRes, finRes] = await Promise.all([
-        compagnieService.getTableauBord(),
-        reservationAdminService.obtenirTableauBordFinancier(),
-      ]);
-      if (opRes.statut) setStats(opRes.data);
+      const [opRes, finRes] = await Promise.all([compagnieService.getTableauBord(), reservationAdminService.obtenirTableauBordFinancier()]);
+      if (opRes.statut && 'data' in opRes) setStats(opRes.data);
       if (finRes.statut) setFinance(finRes.data);
+      else setError('Impossible de charger le tableau de bord.');
     } catch {
-      setError('Erreur lors du chargement');
+      setError('Impossible de charger le tableau de bord.');
     } finally {
       setLoading(false);
     }
@@ -54,240 +78,205 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ refreshTrigger =
 
   if (loading) {
     return (
-      <View className="py-12 items-center">
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text className="text-gray-700 text-sm font-medium mt-3">Chargement du tableau de bord...</Text>
+      <View style={{ gap: 14 }}>
+        <Skeleton height={206} borderRadius={20} />
+        <Skeleton height={150} borderRadius={16} />
+        <Skeleton height={190} borderRadius={16} />
       </View>
     );
   }
 
-  if (error) {
+  if (error || !finance) {
     return (
-      <View className="bg-red-50 rounded-2xl p-5 items-center">
-        <Ionicons name="alert-circle" size={32} color="#ef4444" />
-        <Text className="text-red-600 font-bold mt-2">{error}</Text>
-        <TouchableOpacity onPress={fetchAll} className="mt-3 bg-red-100 px-4 py-2 rounded-xl">
-          <Text className="text-red-700 font-bold text-sm">Réessayer</Text>
-        </TouchableOpacity>
-      </View>
+      <Carte style={{ alignItems: 'center', gap: 8, paddingVertical: 22 }}>
+        <Ionicons name="cloud-offline-outline" size={32} color={couleurs.danger} />
+        <Texte graisse="moyen" taille={14} couleur={couleurs.gris} centre>{error || 'Aucune donnée.'}</Texte>
+        <Bouton titre="Réessayer" variante="secondaire" compact icone="refresh" onPress={fetchAll} />
+      </Carte>
     );
   }
 
-  const ca = finance?.ca || {};
-  const totaux = finance?.totaux || {};
-  const evolutionMensuelle = finance?.evolution_mensuelle || [];
-  const repartition = finance?.repartition_paiement || [];
-  const prochains = finance?.prochains_voyages || [];
-  const recentes = finance?.reservations_recentes || [];
-  const taux = finance?.taux_remplissage || 0;
+  const ca = finance.ca || {};
+  const totaux = finance.totaux || {};
+  const evolution: any[] = finance.evolution_mensuelle || [];
+  const repartition: any[] = finance.repartition_paiement || [];
+  const prochains: any[] = finance.prochains_voyages || [];
+  const recentes: any[] = finance.reservations_recentes || [];
+  const taux = Math.round(Number(finance.taux_remplissage) || 0);
   const totalPaiements = repartition.reduce((s: number, r: any) => s + r.montant, 0) || 1;
-  const paiementColors: Record<string, string> = { 'MVola': '#e7272d', 'Orange Money': '#ff6600', 'Airtel Money': '#ed1c24' };
+  const valeurs = evolution.map((d) => parseFloat(d.ca) || 0);
+  const maxCa = Math.max(...valeurs, 1);
+  const evo = ca.evolution_mois;
 
   return (
-    <View>
-      {/* CA Summary Cards */}
-      <View className="mb-5">
-        <Text className="text-lg font-bold text-gray-900 mb-3">Chiffre d'Affaires</Text>
-        <View className="flex-row" style={{ gap: 10 }}>
-          <View className="flex-1 bg-white rounded-2xl p-4" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-            <View className="flex-row items-center mb-2">
-              <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#dbeafe', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="today" size={16} color="#3b82f6" />
-              </View>
-            </View>
-            <Text className="text-gray-700 text-xs font-bold uppercase">Aujourd'hui</Text>
-            <Text className="text-gray-900 text-lg font-bold mt-0.5">{formatMontant(ca.aujourdhui || 0)}</Text>
-            <Text className="text-gray-600 text-xs font-medium">Ar</Text>
+    <View style={{ gap: 14 }}>
+      {/* Chiffre d'affaires du mois */}
+      <View style={{ backgroundColor: couleurs.ocean950, borderRadius: 20, padding: 18, gap: 14 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <View style={{ flex: 1 }}>
+            <Texte graisse="gras" taille={12} couleur={couleurs.texteSurMarine}>Chiffre d'affaires · {MOIS[new Date().getMonth()]}</Texte>
+            <Texte variante="montant" taille={30} couleur="#FFFFFF" style={{ marginTop: 2, letterSpacing: -0.5 }}>
+              {formatAriary(ca.ce_mois || 0)} <Texte graisse="tresGras" taille={14} couleur={couleurs.texteSurMarine}>Ar</Texte>
+            </Texte>
           </View>
-          <View className="flex-1 bg-white rounded-2xl p-4" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-            <View className="flex-row items-center mb-2">
-              <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#d1fae5', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="calendar" size={16} color="#10b981" />
-              </View>
+          {evo != null && (
+            <View style={{ height: 22, paddingHorizontal: 8, borderRadius: 999, backgroundColor: 'rgba(46,143,224,0.18)', justifyContent: 'center' }}>
+              <Texte graisse="tresGras" taille={11} couleur="#CFE6FB">
+                {evo >= 0 ? '+' : '−'}{Math.abs(evo).toString().replace('.', ',')} %
+              </Texte>
             </View>
-            <Text className="text-gray-700 text-xs font-bold uppercase">Cette semaine</Text>
-            <Text className="text-gray-900 text-lg font-bold mt-0.5">{formatMontant(ca.cette_semaine || 0)}</Text>
-            <Text className="text-gray-600 text-xs font-medium">Ar</Text>
-          </View>
+          )}
         </View>
-        <View className="flex-row mt-2.5" style={{ gap: 10 }}>
-          <View className="flex-1 bg-white rounded-2xl p-4" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-            <View className="flex-row items-center justify-between mb-2">
-              <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#ede9fe', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="trending-up" size={16} color="#8b5cf6" />
-              </View>
-              {ca.evolution_mois != null && (
-                <View className={`flex-row items-center px-2 py-0.5 rounded-full ${ca.evolution_mois >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-                  <Ionicons name={ca.evolution_mois >= 0 ? 'arrow-up' : 'arrow-down'} size={12} color={ca.evolution_mois >= 0 ? '#10b981' : '#ef4444'} />
-                  <Text className={`text-xs font-bold ml-0.5 ${ca.evolution_mois >= 0 ? 'text-green-700' : 'text-red-600'}`}>{Math.abs(ca.evolution_mois)}%</Text>
-                </View>
-              )}
-            </View>
-            <Text className="text-gray-700 text-xs font-bold uppercase">Ce mois</Text>
-            <Text className="text-gray-900 text-lg font-bold mt-0.5">{formatMontant(ca.ce_mois || 0)}</Text>
-            <Text className="text-gray-600 text-xs font-medium">Ar · vs {formatMontant(ca.mois_dernier || 0)} mois dernier</Text>
+
+        {valeurs.length > 0 && (
+          <View accessibilityRole="image" accessibilityLabel="Chiffre d'affaires des 12 derniers mois" style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 5, height: 56 }}>
+            {valeurs.map((v, i) => (
+              <View
+                key={i}
+                style={{
+                  flex: 1,
+                  height: `${Math.max((v / maxCa) * 100, 4)}%`,
+                  borderTopLeftRadius: 4,
+                  borderTopRightRadius: 4,
+                  borderBottomLeftRadius: 2,
+                  borderBottomRightRadius: 2,
+                  backgroundColor: i === valeurs.length - 1 ? couleurs.ocean500 : 'rgba(255,255,255,0.22)',
+                }}
+              />
+            ))}
           </View>
-          <View className="flex-1 bg-white rounded-2xl p-4" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-            <View className="flex-row items-center mb-2">
-              <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#fef3c7', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="stats-chart" size={16} color="#f59e0b" />
-              </View>
+        )}
+
+        <View style={{ flexDirection: 'row', gap: 10, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)' }}>
+          {([
+            ["Aujourd'hui", ca.aujourdhui || 0],
+            ['Cette semaine', ca.cette_semaine || 0],
+          ] as [string, number][]).map(([l, v]) => (
+            <View key={l} style={{ flex: 1 }}>
+              <Texte graisse="moyen" taille={12} couleur={couleurs.texteSurMarine}>{l}</Texte>
+              <Texte variante="montant" taille={15} couleur="#FFFFFF">{formatAriary(v)} Ar</Texte>
             </View>
-            <Text className="text-gray-700 text-xs font-bold uppercase">Cette année</Text>
-            <Text className="text-gray-900 text-lg font-bold mt-0.5">{formatMontant(ca.cette_annee || 0)}</Text>
-            <Text className="text-gray-600 text-xs font-medium">Ar</Text>
-          </View>
+          ))}
         </View>
       </View>
 
-      {/* Evolution Chart */}
-      {evolutionMensuelle.length > 0 && (
-        <View className="bg-white rounded-2xl p-4 mb-5" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-          <Text className="text-base font-bold text-gray-900 mb-1">Évolution du CA</Text>
-          <Text className="text-xs text-gray-700 font-medium mb-4">12 derniers mois</Text>
-          <View style={{ height: 130, flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
-            {evolutionMensuelle.map((item: any, i: number) => {
-              const maxCa = Math.max(...evolutionMensuelle.map((d: any) => parseFloat(d.ca) || 0), 1);
-              const h = Math.max(((parseFloat(item.ca) || 0) / maxCa) * 100, 3);
-              const moisNum = parseInt(item.mois?.split('-')[1] || '0') - 1;
+      {/* Indicateurs */}
+      <Carte padding={0} style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        <Indicateur valeur={totaux.reservations || 0} libelle="Réservations" droite bas />
+        <Indicateur valeur={totaux.voyageurs || 0} libelle="Voyageurs" bas />
+        <Indicateur valeur={`${taux} %`} libelle="Taux de remplissage" droite>
+          <View style={{ height: 5, borderRadius: 999, backgroundColor: couleurs.ocean50, marginTop: 6, overflow: 'hidden' }}>
+            <View style={{ width: `${Math.min(taux, 100)}%`, height: '100%', backgroundColor: couleurs.ocean800 }} />
+          </View>
+        </Indicateur>
+        <Indicateur valeur={totaux.voyages_complets || 0} libelle="Voyages complets" />
+      </Carte>
+
+      {/* Prochains départs */}
+      <View>
+        <TitreSection titre="Prochains départs" onToutVoir={onNavigate ? () => onNavigate('voyages') : undefined} />
+        {prochains.length === 0 ? (
+          <Carte style={{ alignItems: 'center', gap: 6, paddingVertical: 20 }}>
+            <Ionicons name="bus-outline" size={26} color={couleurs.grisClair} />
+            <Texte variante="legende" centre>Aucun départ programmé.</Texte>
+          </Carte>
+        ) : (
+          <Carte padding={0}>
+            {prochains.map((v, i) => {
+              const total = Number(v.places_disponibles) || 0;
+              const pris = Number(v.places_reservees) || 0;
+              const complet = total > 0 && pris >= total;
+              const pct = total > 0 ? Math.min((pris / total) * 100, 100) : 0;
               return (
-                <View key={i} style={{ flex: 1, alignItems: 'center' }}>
-                  <Text className="text-[9px] text-gray-700 font-medium mb-1">{formatMontant(parseFloat(item.ca) || 0)}</Text>
-                  <LinearGradient colors={['#3b82f6', '#1d4ed8']} style={{ width: '75%', height: h, borderRadius: 4, minHeight: 3 }} />
-                  <Text className="text-[10px] text-gray-700 font-semibold mt-1">{MOIS_COURTS[moisNum] || ''}</Text>
+                <View
+                  key={v.voyage_id ?? i}
+                  accessibilityLabel={`${v.heure}, ${v.trajet}, ${complet ? 'complet' : `${pris} places sur ${total}`}`}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, paddingHorizontal: 14, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: couleurs.separateur }}
+                >
+                  <View style={{ width: 52 }}>
+                    <Texte variante="montant" taille={16}>{String(v.heure || '').slice(0, 5)}</Texte>
+                    <Texte graisse="moyen" taille={11} couleur={couleurs.gris}>{jourCourt(v.date)}</Texte>
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Texte graisse="tresGras" taille={14} numberOfLines={1}>{v.trajet}</Texte>
+                    <View style={{ height: 5, borderRadius: 999, backgroundColor: couleurs.ocean50, marginTop: 7, overflow: 'hidden' }}>
+                      <View style={{ width: `${pct}%`, height: '100%', backgroundColor: complet ? couleurs.succes : couleurs.ocean800 }} />
+                    </View>
+                  </View>
+                  <Texte variante="montant" taille={13} style={{ minWidth: 44, textAlign: 'right' }}>{complet ? 'Complet' : `${pris}/${total}`}</Texte>
                 </View>
               );
             })}
-          </View>
-        </View>
-      )}
-
-      {/* Key Metrics */}
-      <View className="bg-white rounded-2xl p-4 mb-5" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-        <Text className="text-base font-bold text-gray-900 mb-3">Indicateurs clés</Text>
-        <View className="flex-row" style={{ gap: 8 }}>
-          <View className="flex-1 items-center bg-blue-50 rounded-xl py-3">
-            <Ionicons name="ticket" size={22} color="#3b82f6" />
-            <Text className="text-blue-800 text-xl font-bold mt-1">{totaux.reservations || 0}</Text>
-            <Text className="text-blue-700 text-xs font-semibold">Réservations</Text>
-          </View>
-          <View className="flex-1 items-center bg-green-50 rounded-xl py-3">
-            <Ionicons name="people" size={22} color="#10b981" />
-            <Text className="text-green-800 text-xl font-bold mt-1">{totaux.voyageurs || 0}</Text>
-            <Text className="text-green-700 text-xs font-semibold">Voyageurs</Text>
-          </View>
-          <View className="flex-1 items-center bg-purple-50 rounded-xl py-3">
-            <Ionicons name="pie-chart" size={22} color="#8b5cf6" />
-            <Text className="text-purple-800 text-xl font-bold mt-1">{taux}%</Text>
-            <Text className="text-purple-700 text-xs font-semibold">Remplissage</Text>
-          </View>
-          <View className="flex-1 items-center bg-orange-50 rounded-xl py-3">
-            <Ionicons name="checkmark-done" size={22} color="#f59e0b" />
-            <Text className="text-orange-800 text-xl font-bold mt-1">{totaux.voyages_complets || 0}</Text>
-            <Text className="text-orange-700 text-xs font-semibold">Complets</Text>
-          </View>
-        </View>
+          </Carte>
+        )}
       </View>
 
-      {/* Payment Breakdown */}
+      {/* Dernières réservations */}
+      {recentes.length > 0 && (
+        <View>
+          <TitreSection titre="Dernières réservations" onToutVoir={onNavigate ? () => onNavigate('reservations') : undefined} />
+          <Carte padding={0}>
+            {recentes.map((r, i) => (
+              <View key={r.res_numero ?? i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, paddingHorizontal: 14, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: couleurs.separateur }}>
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: couleurs.ocean50, alignItems: 'center', justifyContent: 'center' }}>
+                  <Texte graisse="tresGras" taille={12.5} couleur={couleurs.ocean800}>
+                    {r.client?.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '?'}
+                  </Texte>
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Texte graisse="tresGras" taille={14} numberOfLines={1}>{r.client || 'Client'}</Texte>
+                  <Texte variante="legende" numberOfLines={1}>{r.trajet} · {r.nb_voyageurs} voy.</Texte>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Texte variante="montant" taille={13.5}>{formatAriary(r.montant || 0)} Ar</Texte>
+                  <Texte variante="legende" taille={11}>{r.type_paiement}</Texte>
+                </View>
+              </View>
+            ))}
+          </Carte>
+        </View>
+      )}
+
+      {/* Répartition des paiements */}
       {repartition.length > 0 && (
-        <View className="bg-white rounded-2xl p-4 mb-5" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-          <Text className="text-base font-bold text-gray-900 mb-3">Répartition des paiements</Text>
-          {repartition.map((item: any, i: number) => {
-            const pct = ((item.montant / totalPaiements) * 100).toFixed(0);
-            const color = paiementColors[item.type] || '#6b7280';
-            return (
-              <View key={i} className="mb-3">
-                <View className="flex-row items-center justify-between mb-1">
-                  <Text className="text-sm text-gray-800 font-semibold">{item.type}</Text>
-                  <View className="flex-row items-center">
-                    <Text className="text-xs text-gray-700 font-medium mr-2">{item.count} résa</Text>
-                    <Text className="text-sm font-bold" style={{ color }}>{formatFull(item.montant)}</Text>
+        <View>
+          <TitreSection titre="Paiements reçus" />
+          <Carte style={{ gap: 12 }}>
+            {repartition.map((item, i) => {
+              const pct = Math.round((item.montant / totalPaiements) * 100);
+              return (
+                <View key={i} style={{ gap: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+                    <Texte graisse="gras" taille={13.5}>{item.type}</Texte>
+                    <Texte variante="montant" taille={13.5}>{formatAriary(item.montant)} Ar</Texte>
+                  </View>
+                  <View style={{ height: 6, borderRadius: 3, backgroundColor: couleurs.separateur, overflow: 'hidden' }}>
+                    <View style={{ width: `${pct}%`, height: '100%', borderRadius: 3, backgroundColor: COULEURS_PAIEMENT[item.type] || couleurs.ocean800 }} />
                   </View>
                 </View>
-                <View className="h-2.5 rounded-full bg-gray-100 overflow-hidden">
-                  <View style={{ width: `${pct}%`, backgroundColor: color, height: '100%', borderRadius: 999 }} />
-                </View>
-              </View>
-            );
-          })}
+              );
+            })}
+          </Carte>
         </View>
       )}
 
-      {/* Operational Stats */}
+      {/* Parc et équipe */}
       {stats && (
-        <View className="bg-white rounded-2xl p-4 mb-5" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-          <Text className="text-base font-bold text-gray-900 mb-3">Parc & Équipe</Text>
-          <View className="flex-row" style={{ gap: 8 }}>
-            <TouchableOpacity className="flex-1 bg-blue-50 rounded-xl p-3 items-center" onPress={() => onNavigate?.('voitures')} activeOpacity={0.7}>
-              <Ionicons name="car" size={24} color="#3b82f6" />
-              <Text className="text-gray-900 font-bold text-lg mt-1">{stats.voitures?.total || 0}</Text>
-              <Text className="text-gray-700 text-xs font-semibold">Voitures</Text>
-              <Text className="text-green-700 text-xs font-medium mt-0.5">{stats.voitures?.disponibles || 0} dispo</Text>
-            </TouchableOpacity>
-            <TouchableOpacity className="flex-1 bg-purple-50 rounded-xl p-3 items-center" onPress={() => onNavigate?.('voyages')} activeOpacity={0.7}>
-              <Ionicons name="navigate" size={24} color="#8b5cf6" />
-              <Text className="text-gray-900 font-bold text-lg mt-1">{stats.voyages?.total || 0}</Text>
-              <Text className="text-gray-700 text-xs font-semibold">Voyages</Text>
-              <Text className="text-green-700 text-xs font-medium mt-0.5">{stats.voyages?.actifs || 0} actifs</Text>
-            </TouchableOpacity>
-            <TouchableOpacity className="flex-1 bg-green-50 rounded-xl p-3 items-center" onPress={() => onNavigate?.('chauffeurs')} activeOpacity={0.7}>
-              <Ionicons name="people" size={24} color="#10b981" />
-              <Text className="text-gray-900 font-bold text-lg mt-1">{stats.chauffeurs?.total || 0}</Text>
-              <Text className="text-gray-700 text-xs font-semibold">Chauffeurs</Text>
-              <Text className="text-green-700 text-xs font-medium mt-0.5">{stats.chauffeurs?.actifs || 0} actifs</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* Upcoming Voyages */}
-      {prochains.length > 0 && (
-        <View className="bg-white rounded-2xl p-4 mb-5" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-base font-bold text-gray-900">Prochains voyages</Text>
-            <TouchableOpacity onPress={() => onNavigate?.('voyages')}><Text className="text-blue-700 text-sm font-bold">Voir tout</Text></TouchableOpacity>
-          </View>
-          {prochains.map((v: any, i: number) => (
-            <View key={i} className={`flex-row items-center py-3 ${i < prochains.length - 1 ? 'border-b border-gray-50' : ''}`}>
-              <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: v.statut === 2 ? '#fef3c7' : '#dbeafe', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name={v.statut === 2 ? 'navigate' : 'time'} size={18} color={v.statut === 2 ? '#f59e0b' : '#3b82f6'} />
+        <View>
+          <TitreSection titre="Parc et équipe" />
+          <Carte padding={0} style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {[
+              { tab: 'voitures', total: stats.voitures?.total || 0, l: 'Véhicules', d: `${stats.voitures?.disponibles || 0} disponibles` },
+              { tab: 'chauffeurs', total: stats.chauffeurs?.total || 0, l: 'Chauffeurs', d: `${stats.chauffeurs?.actifs || 0} actifs` },
+            ].map((p, i) => (
+              <View key={p.tab} style={{ width: '50%', borderLeftWidth: i === 0 ? 0 : 1, borderLeftColor: couleurs.separateur }}>
+                <Carte padding={12} onPress={() => onNavigate?.(p.tab)} accessibilityLabel={`${p.l} : ${p.total}, ${p.d}`} style={{ borderWidth: 0, gap: 2 }}>
+                  <Texte variante="montant" taille={20}>{p.total}</Texte>
+                  <Texte graisse="moyen" taille={11.5} couleur={couleurs.gris}>{p.l} · {p.d}</Texte>
+                </Carte>
               </View>
-              <View className="flex-1 ml-3">
-                <Text className="text-gray-900 font-bold text-sm" numberOfLines={1}>{v.trajet}</Text>
-                <Text className="text-gray-700 text-xs font-medium mt-0.5">{v.date} · {v.heure} · {v.voiture}</Text>
-              </View>
-              <View className="items-end">
-                <Text className="text-blue-700 font-bold text-sm">{v.places_reservees}/{v.places_disponibles}</Text>
-                <Text className="text-gray-600 text-xs">places</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* Recent Reservations */}
-      {recentes.length > 0 && (
-        <View className="bg-white rounded-2xl p-4 mb-2" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-base font-bold text-gray-900">Dernières réservations</Text>
-            <TouchableOpacity onPress={() => onNavigate?.('reservations')}><Text className="text-blue-700 text-sm font-bold">Voir tout</Text></TouchableOpacity>
-          </View>
-          {recentes.map((r: any, i: number) => (
-            <View key={i} className={`flex-row items-center py-3 ${i < recentes.length - 1 ? 'border-b border-gray-50' : ''}`}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#dbeafe', alignItems: 'center', justifyContent: 'center' }}>
-                <Text className="text-blue-700 font-bold text-sm">{r.client?.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '?'}</Text>
-              </View>
-              <View className="flex-1 ml-3">
-                <Text className="text-gray-900 font-bold text-sm" numberOfLines={1}>{r.client || 'Client'}</Text>
-                <Text className="text-gray-700 text-xs font-medium mt-0.5">{r.trajet} · {r.nb_voyageurs} voy.</Text>
-              </View>
-              <View className="items-end">
-                <Text className="text-green-700 font-bold text-sm">{formatFull(r.montant || 0)}</Text>
-                <Text className="text-gray-600 text-xs">{r.type_paiement}</Text>
-              </View>
-            </View>
-          ))}
+            ))}
+          </Carte>
         </View>
       )}
     </View>

@@ -1,23 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Dimensions,
-  Image,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Image, Pressable, ScrollView, StatusBar, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConfirmDialog } from '../../../components/common/ConfirmDialog';
 import { DashboardStats } from '../../../components/dashboard/DashboardStats';
+import { MenuLateral, SectionMenu } from '../../../components/dashboard/MenuLateral';
+import { BarreOngletsAdmin, OngletAdmin } from '../../../components/dashboard/BarreOngletsAdmin';
+import { Bouton, BoutonIcone, Carte, FeuilleModale, Texte } from '../../../components/ui';
 import { RenderChauffers } from '../../../components/renders/chauffeurs/RenderChauffers';
 import { RenderTrajets } from '../../../components/renders/trajets/RenderTrajets';
 import { RenderVoitures } from '../../../components/renders/voitures/RenderVoitures';
@@ -28,194 +20,170 @@ import { RenderPortefeuille } from '../../../components/renders/portefeuille/Ren
 import { RenderRemboursements } from '../../../components/renders/remboursements/RenderRemboursements';
 import { RenderVoyages } from '../../../components/RenderVoyages';
 import { useNotifications } from '../../../hooks/useNotifications';
+import authService from '../../../services/auth/authService';
 import { logoService } from '../../../services/compagnies/logoService';
-import { profilService } from '../../../services/profil/profilService';
+import { couleurs } from '../../../theme/ocean';
 
-const DRAWER_WIDTH = Dimensions.get('window').width * 0.78;
+type NomIcone = keyof typeof Ionicons.glyphMap;
+
+const MENU: SectionMenu[] = [
+  {
+    title: 'Principal',
+    items: [
+      { key: 'dashboard', label: 'Tableau de bord', icon: 'home-outline', activeIcon: 'home' },
+      { key: 'voyages', label: 'Voyages', icon: 'git-commit-outline', activeIcon: 'git-commit' },
+      { key: 'reservations', label: 'Réservations', icon: 'ticket-outline', activeIcon: 'ticket' },
+    ],
+  },
+  {
+    title: 'Finances',
+    items: [
+      { key: 'portefeuille', label: 'Portefeuille', icon: 'wallet-outline', activeIcon: 'wallet' },
+      { key: 'factures', label: 'Factures', icon: 'receipt-outline', activeIcon: 'receipt' },
+      { key: 'remboursements', label: 'Remboursements', icon: 'refresh-outline', activeIcon: 'refresh' },
+      { key: 'paiements', label: 'Paiements', icon: 'card-outline', activeIcon: 'card' },
+    ],
+  },
+  {
+    title: 'Gestion',
+    items: [
+      { key: 'chauffeurs', label: 'Chauffeurs', icon: 'people-outline', activeIcon: 'people' },
+      { key: 'voitures', label: 'Véhicules', icon: 'bus-outline', activeIcon: 'bus' },
+      { key: 'trajets', label: 'Trajets', icon: 'map-outline', activeIcon: 'map' },
+    ],
+  },
+  {
+    title: 'Compte',
+    items: [{ key: 'settings', label: 'Paramètres', icon: 'options-outline', activeIcon: 'options' }],
+  },
+];
+
+const TITRES: Record<string, string> = Object.fromEntries(MENU.flatMap((s) => s.items.map((i) => [i.key, i.label])));
+
+const ONGLETS: OngletAdmin[] = [
+  { key: 'dashboard', label: 'Accueil', icon: 'home-outline', activeIcon: 'home' },
+  { key: 'reservations', label: 'Réservations', icon: 'ticket-outline', activeIcon: 'ticket' },
+  { key: 'scanner', label: 'Scanner', icon: 'qr-code-outline', activeIcon: 'qr-code', central: true },
+  { key: 'portefeuille', label: 'Portefeuille', icon: 'wallet-outline', activeIcon: 'wallet' },
+  { key: 'menu', label: 'Menu', icon: 'menu-outline', activeIcon: 'menu' },
+];
+
+function initiales(texte?: string) {
+  return (texte || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((m) => m[0]!.toUpperCase()).join('');
+}
+
+/** Ligne de réglage ; sans action, elle est grisée avec « Bientôt disponible ». */
+function LigneReglage({ icone, titre, sousTitre, onPress, premiere }: { icone: NomIcone; titre: string; sousTitre?: string; onPress?: () => void; premiere?: boolean }) {
+  const inactif = !onPress;
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={inactif}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: inactif }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, paddingHorizontal: 14, borderTopWidth: premiere ? 0 : 1, borderTopColor: couleurs.separateur, opacity: inactif ? 0.55 : 1 }}
+    >
+      <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: couleurs.ocean50, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name={icone} size={19} color={couleurs.ocean800} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Texte graisse="tresGras" taille={14}>{titre}</Texte>
+        <Texte graisse="moyen" taille={12} couleur={couleurs.gris} numberOfLines={1}>{inactif ? 'Bientôt disponible' : sousTitre}</Texte>
+      </View>
+      {!inactif && <Ionicons name="chevron-forward" size={18} color={couleurs.grisClair} />}
+    </Pressable>
+  );
+}
 
 export default function DashboardCompagnie() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const { showDialog, DialogComponent } = useConfirmDialog();
   const [user, setUser] = useState<any | null>(null);
-  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState(tab || 'dashboard');
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [messageCount, setMessageCount] = useState(0);
+  const [menuOuvert, setMenuOuvert] = useState(false);
   const [compagnieLogo, setCompagnieLogo] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
-  const [adminPhoto, setAdminPhoto] = useState<string | null>(null);
-  const [photoUploading, setPhotoUploading] = useState(false);
-  const drawerAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
+  const [feuilleLogo, setFeuilleLogo] = useState(false);
   const { unreadCount: notificationCount } = useNotifications();
 
-  // Appliquer le param tab si fourni (ex: depuis une notification)
+  const message = (title: string, msg: string, type: 'success' | 'danger' | 'warning' = 'danger') =>
+    showDialog({ title, message: msg, type, confirmText: 'OK', onConfirm: () => {}, onCancel: () => {} });
+
+  // Onglet demandé par une notification
   useEffect(() => {
     if (tab) setActiveTab(tab);
   }, [tab]);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const userJson = await SecureStore.getItemAsync('fandrioUser');
-        if (userJson) {
-          const userData = JSON.parse(userJson);
-          setUser(userData);
-          if (userData?.compagnie?.logo) {
-            setCompagnieLogo(userData.compagnie.logo);
+  // Relu à chaque retour sur l'écran (le profil a pu changer le nom ou la photo)
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        try {
+          const userJson = await SecureStore.getItemAsync('fandrioUser');
+          if (userJson) {
+            const userData = JSON.parse(userJson);
+            setUser(userData);
+            setCompagnieLogo(userData?.compagnie?.logo || null);
           }
-          if (userData?.photo) {
-            setAdminPhoto(userData.photo);
-          }
+        } catch (e) {
+          console.warn('SecureStore read error', e);
         }
-      } catch (e) {
-        console.warn('SecureStore read error', e);
-      }
-    })();
-  }, []);
+      })();
+    }, [])
+  );
 
-  const pickAndUploadPhoto = async () => {
+  /** Met à jour l'utilisateur en mémoire et dans le cache local. */
+  const majUtilisateur = async (modifier: (u: any) => any) => {
     try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permissionResult.granted) {
-        Alert.alert('Permission requise', 'L\'accès à la galerie est nécessaire pour choisir une photo.');
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (result.canceled || !result.assets?.[0]) return;
-
-      const selectedImage = result.assets[0];
-      if (selectedImage.fileSize && selectedImage.fileSize > 5 * 1024 * 1024) {
-        Alert.alert('Fichier trop volumineux', 'La taille maximale est de 5 Mo.');
-        return;
-      }
-
-      setPhotoUploading(true);
-      const response = await profilService.uploadPhoto(selectedImage.uri);
-
-      if (response.statut) {
-        const newPhotoUrl = response.data.photo_url;
-        setAdminPhoto(newPhotoUrl);
-
-        const userJson = await SecureStore.getItemAsync('fandrioUser');
-        if (userJson) {
-          const userData = JSON.parse(userJson);
-          userData.photo = newPhotoUrl;
-          await SecureStore.setItemAsync('fandrioUser', JSON.stringify(userData));
-          setUser(userData);
-        }
-        Alert.alert('Succès', 'Photo de profil mise à jour !');
-      } else {
-        Alert.alert('Erreur', response.message || 'Échec de la mise à jour.');
-      }
-    } catch (error: any) {
-      Alert.alert('Erreur', error.response?.data?.message || 'Erreur lors de l\'upload.');
-    } finally {
-      setPhotoUploading(false);
+      const userJson = await SecureStore.getItemAsync('fandrioUser');
+      if (!userJson) return;
+      const userData = modifier(JSON.parse(userJson));
+      await SecureStore.setItemAsync('fandrioUser', JSON.stringify(userData));
+      setUser(userData);
+    } catch (e) {
+      console.warn('SecureStore write error', e);
     }
   };
 
-  const handleDeletePhoto = () => {
-    showDialog({
-      title: 'Supprimer la photo',
-      message: 'Voulez-vous vraiment supprimer votre photo de profil ?',
-      type: 'danger',
-      confirmText: 'Supprimer',
-      cancelText: 'Annuler',
-      onConfirm: async () => {
-        try {
-          setPhotoUploading(true);
-          const response = await profilService.deletePhoto();
-          if (response.statut) {
-            setAdminPhoto(null);
-            const userJson = await SecureStore.getItemAsync('fandrioUser');
-            if (userJson) {
-              const userData = JSON.parse(userJson);
-              userData.photo = null;
-              await SecureStore.setItemAsync('fandrioUser', JSON.stringify(userData));
-              setUser(userData);
-            }
-            Alert.alert('Succès', 'Photo supprimée avec succès.');
-          }
-        } catch (error: any) {
-          Alert.alert('Erreur', 'Erreur lors de la suppression.');
-        } finally {
-          setPhotoUploading(false);
-        }
-      },
-      onCancel: () => {},
-    });
-  };
-
   const pickAndUploadLogo = async () => {
+    setFeuilleLogo(false);
     try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permissionResult.granted) {
-        Alert.alert('Permission requise', 'L\'accès à la galerie est nécessaire pour choisir un logo.');
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        message('Autorisation requise', "Autorisez l'accès à vos photos pour choisir un logo.", 'warning');
         return;
       }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
       if (result.canceled || !result.assets?.[0]) return;
-
-      const selectedImage = result.assets[0];
-
-      // Vérifier la taille (5 Mo max)
-      if (selectedImage.fileSize && selectedImage.fileSize > 5 * 1024 * 1024) {
-        Alert.alert('Fichier trop volumineux', 'La taille maximale est de 5 Mo.');
+      const image = result.assets[0];
+      if (image.fileSize && image.fileSize > 5 * 1024 * 1024) {
+        message('Image trop lourde', "L'image ne doit pas dépasser 5 Mo.", 'warning');
         return;
       }
-
       setLogoUploading(true);
-
-      const response = await logoService.uploadLogo(selectedImage.uri);
-
+      const response = await logoService.uploadLogo(image.uri);
       if (response.statut) {
-        const newLogoUrl = response.data.logo_url;
-        setCompagnieLogo(newLogoUrl);
-
-        // Mettre à jour le user en cache
-        const userJson = await SecureStore.getItemAsync('fandrioUser');
-        if (userJson) {
-          const userData = JSON.parse(userJson);
-          if (userData.compagnie) {
-            userData.compagnie.logo = newLogoUrl;
-          }
-          await SecureStore.setItemAsync('fandrioUser', JSON.stringify(userData));
-          setUser(userData);
-        }
-
-        Alert.alert('Succès', 'Logo mis à jour avec succès !');
+        setCompagnieLogo(response.data.logo_url);
+        await majUtilisateur((u) => ({ ...u, compagnie: u.compagnie ? { ...u.compagnie, logo: response.data.logo_url } : u.compagnie }));
       } else {
-        Alert.alert('Erreur', response.message || 'Échec de la mise à jour du logo.');
+        message('Logo non modifié', response.message || 'Échec de la mise à jour du logo.');
       }
     } catch (error: any) {
-      const msg = error.response?.data?.message || 'Erreur lors de l\'upload du logo.';
-      Alert.alert('Erreur', msg);
+      message('Logo non modifié', error?.response?.data?.message || error?.message || "Erreur lors de l'envoi du logo.");
     } finally {
       setLogoUploading(false);
     }
   };
 
   const handleDeleteLogo = () => {
+    setFeuilleLogo(false);
     showDialog({
-      title: 'Supprimer le logo',
-      message: 'Voulez-vous vraiment supprimer le logo de la compagnie ?',
+      title: 'Retirer le logo ?',
+      message: 'Les initiales de la compagnie seront affichées à la place.',
       type: 'danger',
-      confirmText: 'Supprimer',
+      confirmText: 'Retirer',
       cancelText: 'Annuler',
       onConfirm: async () => {
         try {
@@ -223,22 +191,10 @@ export default function DashboardCompagnie() {
           const response = await logoService.deleteLogo();
           if (response.statut) {
             setCompagnieLogo(null);
-
-            // Mettre à jour le user en cache
-            const userJson = await SecureStore.getItemAsync('fandrioUser');
-            if (userJson) {
-              const userData = JSON.parse(userJson);
-              if (userData.compagnie) {
-                userData.compagnie.logo = null;
-              }
-              await SecureStore.setItemAsync('fandrioUser', JSON.stringify(userData));
-              setUser(userData);
-            }
-
-            Alert.alert('Succès', 'Logo supprimé avec succès.');
+            await majUtilisateur((u) => ({ ...u, compagnie: u.compagnie ? { ...u.compagnie, logo: null } : u.compagnie }));
           }
-        } catch (error: any) {
-          Alert.alert('Erreur', 'Erreur lors de la suppression du logo.');
+        } catch {
+          message('Logo non retiré', 'Erreur lors de la suppression du logo.');
         } finally {
           setLogoUploading(false);
         }
@@ -249,551 +205,179 @@ export default function DashboardCompagnie() {
 
   const handleLogout = () => {
     showDialog({
-      title: 'Déconnexion',
-      message: 'Voulez-vous vraiment vous déconnecter ?',
+      title: 'Se déconnecter ?',
+      message: 'Vous devrez saisir à nouveau vos identifiants.',
       type: 'danger',
-      confirmText: 'Déconnecter',
+      confirmText: 'Se déconnecter',
       cancelText: 'Annuler',
       onConfirm: async () => {
-        setLoading(true);
         try {
+          await authService.deconnexion();
+        } catch (e) {
+          console.warn('Logout API error', e);
+        } finally {
           await SecureStore.deleteItemAsync('fandrioToken');
           await SecureStore.deleteItemAsync('fandrioUser');
           router.replace('/screens/authentification/loginScreen');
-        } catch (e) {
-          console.warn('Logout error', e);
-        } finally {
-          setLoading(false);
         }
       },
-      onCancel: () => { }
+      onCancel: () => {},
     });
   };
 
-  const toggleDrawer = () => {
-    Animated.timing(drawerAnim, {
-      toValue: drawerOpen ? -DRAWER_WIDTH : 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-    setDrawerOpen(!drawerOpen);
+  const fermerMenu = useCallback(() => setMenuOuvert(false), []);
+  const choisirOnglet = (key: string) => {
+    setActiveTab(key);
+    setMenuOuvert(false);
+  };
+  const appuiOnglet = (key: string) => {
+    if (key === 'scanner') router.push('/screens/scanner/scannerScreen');
+    else if (key === 'menu') setMenuOuvert(true);
+    else setActiveTab(key);
   };
 
-  const selectMenuItem = (tab: string) => {
-    setActiveTab(tab);
-    toggleDrawer();
-  };
-
-  const MENU_SECTIONS = [
-    {
-      title: 'PRINCIPAL',
-      items: [
-        { key: 'dashboard', label: 'Dashboard', icon: 'grid', activeIcon: 'grid' },
-        { key: 'voyages', label: 'Voyages', icon: 'navigate-outline', activeIcon: 'navigate' },
-        { key: 'reservations', label: 'Réservations', icon: 'ticket-outline', activeIcon: 'ticket' },
-      ],
-    },
-    {
-      title: 'FINANCES',
-      items: [
-        { key: 'portefeuille', label: 'Portefeuille', icon: 'wallet-outline', activeIcon: 'wallet' },
-        { key: 'factures', label: 'Factures', icon: 'receipt-outline', activeIcon: 'receipt' },
-        { key: 'remboursements', label: 'Remboursements', icon: 'cash-outline', activeIcon: 'cash' },
-        { key: 'paiements', label: 'Paiements', icon: 'card-outline', activeIcon: 'card' },
-      ],
-    },
-    {
-      title: 'GESTION',
-      items: [
-        { key: 'chauffeurs', label: 'Chauffeurs', icon: 'people-outline', activeIcon: 'people' },
-        { key: 'voitures', label: 'Voitures', icon: 'car-outline', activeIcon: 'car' },
-        { key: 'trajets', label: 'Trajets', icon: 'map-outline', activeIcon: 'map' },
-      ],
-    },
-    {
-      title: 'COMPTE',
-      items: [
-        { key: 'settings', label: 'Paramètres', icon: 'settings-outline', activeIcon: 'settings' },
-      ],
-    },
-  ];
-
-  const renderDrawer = () => (
-    <LinearGradient
-      colors={['#0f172a', '#1e293b', '#0f172a']}
-      style={{ flex: 1 }}
-    >
-      <SafeAreaView className="flex-1" edges={['top', 'left']}>
-        <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-          {/* En-tête du drawer avec profil */}
-          <View className="px-5 pt-6 pb-5">
-            {/* Bouton fermer */}
-            <TouchableOpacity
-              onPress={toggleDrawer}
-              className="self-end mb-4 p-1"
-            >
-              <Ionicons name="close" size={24} color="#94a3b8" />
-            </TouchableOpacity>
-
-            {/* Avatar + infos */}
-            <View className="flex-row items-center">
-              {adminPhoto ? (
-                <Image
-                  source={{ uri: adminPhoto }}
-                  style={{ width: 56, height: 56, borderRadius: 28 }}
-                  resizeMode="cover"
-                />
-              ) : (
-                <LinearGradient
-                  colors={['#3b82f6', '#1d4ed8']}
-                  style={{ width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <Text className="text-white text-xl font-bold">
-                    {user?.prenom?.[0]?.toUpperCase() || 'A'}
-                  </Text>
-                </LinearGradient>
-              )}
-              <View className="ml-4 flex-1">
-                <Text className="text-white font-bold text-lg" numberOfLines={1}>
-                  {user ? `${user.prenom} ${user.nom}` : 'Compagnie'}
-                </Text>
-                <View className="flex-row items-center mt-1">
-                  <View className="w-2 h-2 rounded-full bg-green-400 mr-2" />
-                  <Text className="text-slate-200 text-sm">Admin Compagnie</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Nom compagnie */}
-            {user?.compagnie && (
-              <View className="mt-4 bg-white/5 rounded-xl px-4 py-3 flex-row items-center">
-                <Ionicons name="business-outline" size={18} color="#60a5fa" />
-                <Text className="text-blue-300 text-sm font-medium ml-3 flex-1" numberOfLines={1}>
-                  {user.compagnie.nom}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Séparateur */}
-          <View className="h-px bg-white/10 mx-5" />
-
-          {/* Sections du menu */}
-          <View className="py-4 px-3">
-            {MENU_SECTIONS.map((section, sectionIndex) => (
-              <View key={section.title} className={sectionIndex > 0 ? 'mt-5' : ''}>
-                {/* Titre de section */}
-                <Text className="text-slate-500 text-xs font-bold tracking-wider px-3 mb-2">
-                  {section.title}
-                </Text>
-
-                {section.items.map((item) => {
-                  const isActive = activeTab === item.key;
-                  return (
-                    <TouchableOpacity
-                      key={item.key}
-                      className={`flex-row items-center px-4 py-3.5 rounded-xl mb-1 ${isActive ? '' : ''}`}
-                      onPress={() => selectMenuItem(item.key)}
-                      activeOpacity={0.7}
-                      style={isActive ? {
-                        backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                      } : undefined}
-                    >
-                      <View
-                        style={isActive ? {
-                          width: 38,
-                          height: 38,
-                          borderRadius: 10,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: '#3b82f6',
-                        } : {
-                          width: 38,
-                          height: 38,
-                          borderRadius: 10,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: 'rgba(255,255,255,0.05)',
-                        }}
-                      >
-                        <Ionicons
-                          name={(isActive ? item.activeIcon : item.icon) as any}
-                          size={20}
-                          color={isActive ? '#ffffff' : '#94a3b8'}
-                        />
-                      </View>
-                      <Text
-                        className={`ml-4 text-base font-medium ${isActive ? 'text-blue-400' : 'text-slate-300'}`}
-                      >
-                        {item.label}
-                      </Text>
-                      {isActive && (
-                        <View className="ml-auto w-1.5 h-5 rounded-full bg-blue-400" />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            ))}
-          </View>
-
-          <View className="flex-1" />
-        </ScrollView>
-
-        {/* Bouton déconnexion en bas */}
-        <View className="px-5 pb-6 pt-2">
-          <View className="h-px bg-white/10 mb-4" />
-          <TouchableOpacity
-            className="flex-row items-center px-4 py-3.5 rounded-xl"
-            onPress={() => {
-              toggleDrawer();
-              handleLogout();
-            }}
-            disabled={loading}
-            activeOpacity={0.7}
-            style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)' }}
-          >
-            <View style={{
-              width: 38, height: 38, borderRadius: 10,
-              alignItems: 'center', justifyContent: 'center',
-              backgroundColor: 'rgba(239, 68, 68, 0.2)',
-            }}>
-              <Ionicons name="log-out-outline" size={20} color="#f87171" />
-            </View>
-            <Text className="text-red-400 text-base font-medium ml-4">Déconnexion</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    </LinearGradient>
-  );
-
-  const renderDashboard = () => (
-    <ScrollView className="flex-1 bg-gray-50" showsVerticalScrollIndicator={false}>
-      {/* Hero card avec dégradé */}
-      <LinearGradient
-        colors={['#1e40af', '#3b82f6', '#60a5fa']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ marginHorizontal: 16, marginTop: 16, borderRadius: 20, padding: 24 }}
-      >
-        <View className="flex-row items-center justify-between">
-          <View className="flex-1">
-            <Text className="text-blue-100 text-base font-medium">Bienvenue</Text>
-            <Text className="text-white text-2xl font-bold mt-1">
-              {user ? `${user.prenom} ${user.nom}` : 'Compagnie'}
-            </Text>
-            {user?.compagnie && (
-              <View className="flex-row items-center mt-2 bg-white/15 self-start rounded-full px-3 py-1.5">
-                <Ionicons name="business" size={14} color="#bfdbfe" />
-                <Text className="text-white text-sm font-semibold ml-2">{user.compagnie.nom}</Text>
-              </View>
-            )}
-          </View>
-          <TouchableOpacity
-            onPress={pickAndUploadLogo}
-            activeOpacity={0.8}
-            style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
-          >
-            {logoUploading ? (
-              <ActivityIndicator size="small" color="#ffffff" />
-            ) : compagnieLogo ? (
-              <Image source={{ uri: compagnieLogo }} style={{ width: 64, height: 64, borderRadius: 32 }} resizeMode="cover" />
-            ) : (
-              <>
-                <Ionicons name="camera-outline" size={28} color="#ffffff" />
-                <Text className="text-white text-[10px] font-semibold mt-0.5">Logo</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
-
-      {/* Accès rapide */}
-      <View className="px-4 mt-6">
-        <Text className="text-lg font-bold text-gray-900 mb-4">Accès rapide</Text>
-        <View className="flex-row flex-wrap" style={{ gap: 12 }}>
-          {[
-            { key: 'voyages', label: 'Voyages', icon: 'navigate', color: '#8b5cf6', bg: '#ede9fe' },
-            { key: 'reservations', label: 'Réservations', icon: 'ticket', color: '#3b82f6', bg: '#dbeafe' },
-            { key: 'portefeuille', label: 'Portefeuille', icon: 'wallet', color: '#0d9488', bg: '#ccfbf1' },
-            { key: 'factures', label: 'Factures', icon: 'receipt', color: '#10b981', bg: '#d1fae5' },
-            { key: 'scanner', label: 'Scanner QR', icon: 'qr-code', color: '#f59e0b', bg: '#fef3c7' },
-            { key: 'chauffeurs', label: 'Chauffeurs', icon: 'people', color: '#6366f1', bg: '#e0e7ff' },
-          ].map((item) => (
-            <TouchableOpacity
-              key={item.key}
-              className="bg-white rounded-2xl p-4 items-center"
-              style={{ width: '30%', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
-              onPress={() => item.key === 'scanner' ? router.push('/screens/scanner/scannerScreen') : setActiveTab(item.key)}
-              activeOpacity={0.7}
-            >
-              <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: item.bg, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name={item.icon as any} size={24} color={item.color} />
-              </View>
-              <Text className="text-gray-700 text-xs font-semibold mt-2 text-center">{item.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {/* Statistiques du tableau de bord */}
-      <View className="px-4 mt-6 mb-8">
-        <DashboardStats refreshTrigger={0} onNavigate={setActiveTab} />
-      </View>
-    </ScrollView>
-  );
+  const nomAdmin = user ? `${user.prenom || ''} ${user.nom || ''}`.trim() : '';
+  const nomCompagnie = user?.compagnie?.nom || 'Ma compagnie';
+  // Les sections ouvertes depuis le menu allument l'onglet « Menu »
+  const ongletActif = ONGLETS.some((o) => o.key === activeTab) ? activeTab : 'menu';
+  const accueil = activeTab === 'dashboard';
 
   const renderSettings = () => (
-    <ScrollView className="flex-1 bg-gray-50 px-4 pt-6" showsVerticalScrollIndicator={false}>
-      {/* Photo de profil */}
-      <View
-        className="bg-white rounded-2xl p-5 mb-5"
-        style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
-      >
-        <Text className="text-gray-900 font-bold text-base mb-4">Photo de profil</Text>
-        <View className="flex-row items-center">
-          <TouchableOpacity onPress={pickAndUploadPhoto} activeOpacity={0.8}>
-            {photoUploading ? (
-              <View style={{ width: 70, height: 70, borderRadius: 35, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center' }}>
-                <ActivityIndicator size="small" color="#3b82f6" />
-              </View>
-            ) : adminPhoto ? (
-              <Image
-                source={{ uri: adminPhoto }}
-                style={{ width: 70, height: 70, borderRadius: 35, borderWidth: 2, borderColor: '#e2e8f0' }}
-                resizeMode="cover"
-              />
+    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24, gap: 12 }} showsVerticalScrollIndicator={false}>
+      {/* Identité de la compagnie */}
+      <View style={{ backgroundColor: couleurs.ocean950, borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        <Pressable onPress={() => setFeuilleLogo(true)} disabled={logoUploading} accessibilityRole="button" accessibilityLabel="Logo de la compagnie">
+          <View style={{ width: 60, height: 60, borderRadius: 18, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            {logoUploading ? (
+              <ActivityIndicator color={couleurs.ocean800} />
+            ) : compagnieLogo ? (
+              <Image source={{ uri: compagnieLogo }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
             ) : (
-              <LinearGradient
-                colors={['#3b82f6', '#1d4ed8']}
-                style={{ width: 70, height: 70, borderRadius: 35, alignItems: 'center', justifyContent: 'center' }}
-              >
-                <Ionicons name="person" size={30} color="#fff" />
-              </LinearGradient>
+              <Texte graisse="tresGras" taille={20} couleur={couleurs.ocean950}>{initiales(nomCompagnie)}</Texte>
             )}
-          </TouchableOpacity>
-          <View className="ml-4 flex-1">
-            <Text className="text-gray-900 font-bold text-lg">
-              {user ? `${user.prenom} ${user.nom}` : 'Administrateur'}
-            </Text>
-              <Text className="text-gray-700 text-sm font-medium mt-0.5">Admin Compagnie</Text>
-            <View className="flex-row mt-2" style={{ gap: 8 }}>
-              <TouchableOpacity
-                onPress={pickAndUploadPhoto}
-                className="bg-blue-900 px-3 py-1.5 rounded-lg flex-row items-center"
-                disabled={photoUploading}
-              >
-                <Ionicons name={adminPhoto ? 'swap-horizontal' : 'camera-outline'} size={14} color="#fff" />
-                <Text className="text-white font-semibold text-xs ml-1">
-                  {adminPhoto ? 'Changer' : 'Ajouter'}
-                </Text>
-              </TouchableOpacity>
-              {adminPhoto && (
-                <TouchableOpacity
-                  onPress={handleDeletePhoto}
-                  className="bg-red-50 px-3 py-1.5 rounded-lg flex-row items-center"
-                  disabled={photoUploading}
-                >
-                  <Ionicons name="trash-outline" size={14} color="#ef4444" />
-                  <Text className="text-red-500 font-semibold text-xs ml-1">Supprimer</Text>
-                </TouchableOpacity>
-              )}
-            </View>
           </View>
-        </View>
-      </View>
-
-      {/* Logo de la compagnie */}
-      <View
-        className="bg-white rounded-2xl p-5 mb-5"
-        style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
-      >
-        <Text className="text-gray-900 font-bold text-base mb-4">Logo de la compagnie</Text>
-        <View className="items-center">
-          {logoUploading ? (
-            <View style={{ width: 100, height: 100, borderRadius: 24, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center' }}>
-              <ActivityIndicator size="large" color="#3b82f6" />
-            </View>
-          ) : compagnieLogo ? (
-            <Image
-              source={{ uri: compagnieLogo }}
-              style={{ width: 100, height: 100, borderRadius: 24, borderWidth: 2, borderColor: '#e2e8f0' }}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={{ width: 100, height: 100, borderRadius: 24, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#e2e8f0', borderStyle: 'dashed' }}>
-              <Ionicons name="image-outline" size={36} color="#94a3b8" />
-              <Text className="text-gray-600 text-xs font-medium mt-1">Aucun logo</Text>
-            </View>
+          <View style={{ position: 'absolute', right: -6, bottom: -6, width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: couleurs.ocean950, backgroundColor: couleurs.ocean500, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="camera" size={13} color="#FFFFFF" />
+          </View>
+        </Pressable>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Texte graisse="tresGras" taille={17} couleur="#FFFFFF" numberOfLines={2}>{nomCompagnie}</Texte>
+          {!!user?.compagnie?.localisation && (
+            <Texte graisse="moyen" taille={12.5} couleur={couleurs.texteSurMarine}>{user.compagnie.localisation}</Texte>
           )}
-          <View className="flex-row mt-4" style={{ gap: 12 }}>
-            <TouchableOpacity
-              onPress={pickAndUploadLogo}
-              className="bg-blue-900 px-5 py-2.5 rounded-xl flex-row items-center"
-              disabled={logoUploading}
-              activeOpacity={0.7}
-            >
-              <Ionicons name={compagnieLogo ? 'swap-horizontal' : 'cloud-upload-outline'} size={16} color="#ffffff" />
-              <Text className="text-white font-bold text-sm ml-2">
-                {compagnieLogo ? 'Changer' : 'Ajouter un logo'}
-              </Text>
-            </TouchableOpacity>
-            {compagnieLogo && (
-              <TouchableOpacity
-                onPress={handleDeleteLogo}
-                className="bg-red-50 px-4 py-2.5 rounded-xl flex-row items-center"
-                disabled={logoUploading}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                <Text className="text-red-500 font-bold text-sm ml-1">Supprimer</Text>
-              </TouchableOpacity>
-            )}
-          </View>
         </View>
       </View>
 
-      {/* Options */}
-      <View
-        className="bg-white rounded-2xl mb-5"
-        style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
-      >
-        {[
-          { icon: 'person', bg: '#dbeafe', color: '#3b82f6', label: 'Mon profil', onPress: () => router.push('/screens/profils/monProfil') },
-          { icon: 'notifications', bg: '#ede9fe', color: '#8b5cf6', label: 'Notifications' },
-          { icon: 'shield-checkmark', bg: '#d1fae5', color: '#10b981', label: 'Sécurité' },
-          { icon: 'help-circle', bg: '#ffedd5', color: '#f97316', label: 'Aide & Support' },
-        ].map((item, index, arr) => (
-          <TouchableOpacity
-            key={item.label}
-            className={`flex-row items-center p-4 ${index < arr.length - 1 ? 'border-b border-gray-100' : ''}`}
-            onPress={item.onPress}
-            activeOpacity={0.7}
-          >
-            <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: item.bg, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name={item.icon as any} size={20} color={item.color} />
-            </View>
-            <Text className="flex-1 text-gray-900 font-medium ml-4">{item.label}</Text>
-            <Ionicons name="chevron-forward" size={18} color="#d1d5db" />
-          </TouchableOpacity>
-        ))}
-      </View>
+      <Texte variante="etiquette" style={{ marginLeft: 4 }}>Compagnie</Texte>
+      <Carte padding={0}>
+        <LigneReglage premiere icone="business-outline" titre="Informations publiques" sousTitre="Description, contact, adresse" />
+        <LigneReglage icone="card-outline" titre="Modes de paiement" sousTitre="MVola, Orange Money, Airtel Money" onPress={() => setActiveTab('paiements')} />
+        <LigneReglage icone="map-outline" titre="Provinces desservies" />
+      </Carte>
 
-      {/* Version */}
-      <View className="items-center py-6">
-        <Text className="text-gray-300 text-sm">Fandrio v1.0.0</Text>
-      </View>
+      <Texte variante="etiquette" style={{ marginLeft: 4 }}>Mon compte</Texte>
+      <Carte padding={0}>
+        <LigneReglage premiere icone="person-outline" titre="Mon profil" sousTitre={nomAdmin || 'Nom, téléphone, mot de passe'} onPress={() => router.push('/screens/profils/monProfil')} />
+        <LigneReglage icone="notifications-outline" titre="Notifications" sousTitre="Réservations, paiements, collectes" onPress={() => router.push('/screens/notifications/notificationsScreen')} />
+        <LigneReglage icone="help-circle-outline" titre="Aide et contact FANDRIO" />
+      </Carte>
+
+      <Bouton titre="Se déconnecter" variante="danger" icone="log-out-outline" onPress={handleLogout} />
+      <Texte graisse="moyen" taille={12} couleur={couleurs.grisClair} centre>FANDRIO version 1.0.0</Texte>
     </ScrollView>
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
+      <StatusBar barStyle="dark-content" backgroundColor={accueil ? couleurs.fond : couleurs.surface} />
       <DialogComponent />
 
-      {/* Header premium */}
+      {/* Barre du haut : sur le fond pour l'accueil, blanche ailleurs */}
       <View
-        className="bg-white px-5 py-3 flex-row items-center justify-between"
-        style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 4 }}
+        style={{
+          paddingTop: insets.top + 8,
+          paddingBottom: accueil ? 4 : 12,
+          paddingHorizontal: 16,
+          backgroundColor: accueil ? couleurs.fond : couleurs.surface,
+          borderBottomWidth: accueil ? 0 : 1,
+          borderBottomColor: couleurs.ligne,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+        }}
       >
-        <TouchableOpacity
-          onPress={toggleDrawer}
-          className="w-10 h-10 rounded-xl items-center justify-center"
-          style={{ backgroundColor: '#f1f5f9' }}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name={drawerOpen ? "close" : "menu"}
-            size={22}
-            color="#1e293b"
-          />
-        </TouchableOpacity>
-
-        <View className="flex-1 mx-4 items-center">
-          <Text className="text-base font-bold text-gray-900" numberOfLines={1}>
-            {activeTab === 'dashboard' ? 'Tableau de bord' :
-             activeTab === 'chauffeurs' ? 'Chauffeurs' :
-             activeTab === 'voitures' ? 'Voitures' :
-             activeTab === 'trajets' ? 'Trajets' :
-             activeTab === 'voyages' ? 'Voyages' :
-             activeTab === 'reservations' ? 'Réservations' :
-             activeTab === 'factures' ? 'Factures' :
-             activeTab === 'paiements' ? 'Paiements' :
-             activeTab === 'portefeuille' ? 'Portefeuille' :
-             activeTab === 'remboursements' ? 'Remboursements' :
-             activeTab === 'settings' ? 'Paramètres' : ''}
-          </Text>
+        <BoutonIcone icone="menu" libelle="Ouvrir le menu" onPress={() => setMenuOuvert(true)} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          {accueil && <Texte graisse="moyen" taille={12} couleur={couleurs.gris} numberOfLines={1}>{nomCompagnie}</Texte>}
+          <Texte graisse="tresGras" taille={17} numberOfLines={1}>{TITRES[activeTab] || 'Tableau de bord'}</Texte>
         </View>
-
-        <View className="flex-row items-center">
-          <TouchableOpacity
-            className="relative w-10 h-10 rounded-xl items-center justify-center"
-            style={{ backgroundColor: '#f1f5f9' }}
-            onPress={() => router.push('/screens/notifications/notificationsScreen')}
-          >
-            <Ionicons name="notifications-outline" size={20} color="#1e293b" />
-            {notificationCount > 0 && (
-              <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 items-center justify-center">
-                <Text className="text-white text-[9px] font-bold">{notificationCount > 99 ? '99+' : notificationCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            className="relative w-10 h-10 rounded-xl items-center justify-center ml-2"
-            style={{ backgroundColor: '#f1f5f9' }}
-          >
-            <Ionicons name="chatbubble-ellipses-outline" size={20} color="#1e293b" />
-            {messageCount > 0 && (
-              <View className="absolute -top-1 -right-1 bg-blue-500 rounded-full w-4 h-4 items-center justify-center">
-                <Text className="text-white text-[9px] font-bold">{messageCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Main content */}
-      <View className="flex-1 relative">
-        {/* Content - reste fixe */}
-        <View className="flex-1">
-          {activeTab === 'dashboard' && renderDashboard()}
-          {activeTab === 'chauffeurs' && <RenderChauffers />}
-          {activeTab === 'voitures' && <RenderVoitures />}
-          {activeTab === 'trajets' && <RenderTrajets />}
-          {activeTab === 'voyages' && <RenderVoyages />}
-          {activeTab === 'reservations' && <RenderReservations />}
-          {activeTab === 'factures' && <RenderFactures />}
-          {activeTab === 'paiements' && <RenderPaiements />}
-          {activeTab === 'portefeuille' && <RenderPortefeuille />}
-          {activeTab === 'remboursements' && <RenderRemboursements />}
-          {activeTab === 'settings' && renderSettings()}
-        </View>
-
-        {/* Drawer - overlay absolu */}
-        <Animated.View
-          style={{
-            transform: [{ translateX: drawerAnim }],
-            width: DRAWER_WIDTH,
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            zIndex: drawerOpen ? 1000 : -1,
-          }}
-        >
-          {renderDrawer()}
-        </Animated.View>
-
-        {/* Overlay - cliquable pour fermer le drawer */}
-        {drawerOpen && (
-          <TouchableOpacity
-            className="absolute inset-0"
-            onPress={toggleDrawer}
-            activeOpacity={1}
-            style={{ zIndex: 999, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
-          />
+        {accueil && (
+          <BoutonIcone icone="notifications-outline" libelle="Notifications" compteur={notificationCount} onPress={() => router.push('/screens/notifications/notificationsScreen')} />
         )}
       </View>
-    </SafeAreaView>
+
+      <View style={{ flex: 1 }}>
+        {accueil && (
+          <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 10, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+            <DashboardStats refreshTrigger={0} onNavigate={setActiveTab} />
+          </ScrollView>
+        )}
+        {activeTab === 'chauffeurs' && <RenderChauffers />}
+        {activeTab === 'voitures' && <RenderVoitures />}
+        {activeTab === 'trajets' && <RenderTrajets />}
+        {activeTab === 'voyages' && <RenderVoyages />}
+        {activeTab === 'reservations' && <RenderReservations />}
+        {activeTab === 'factures' && <RenderFactures />}
+        {activeTab === 'paiements' && <RenderPaiements />}
+        {activeTab === 'portefeuille' && <RenderPortefeuille />}
+        {activeTab === 'remboursements' && <RenderRemboursements />}
+        {activeTab === 'settings' && renderSettings()}
+      </View>
+
+      <BarreOngletsAdmin onglets={ONGLETS} actif={ongletActif} onPress={appuiOnglet} />
+
+      <MenuLateral
+        visible={menuOuvert}
+        onClose={fermerMenu}
+        sections={MENU}
+        actif={activeTab}
+        onSelect={choisirOnglet}
+        onDeconnexion={() => {
+          setMenuOuvert(false);
+          handleLogout();
+        }}
+        entete={
+          <View style={{ gap: 14, marginBottom: 2 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 6 }}>
+              <View style={{ width: 50, height: 50, borderRadius: 16, backgroundColor: couleurs.ocean800, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                {user?.photo ? (
+                  <Image source={{ uri: user.photo }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                ) : (
+                  <Texte graisse="tresGras" taille={17} couleur="#FFFFFF">{initiales(nomAdmin)}</Texte>
+                )}
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Texte graisse="tresGras" taille={16} couleur="#FFFFFF" numberOfLines={1}>{nomAdmin || 'Administrateur'}</Texte>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#3DD68C' }} />
+                  <Texte graisse="moyen" taille={12.5} couleur={couleurs.texteSurMarine}>Admin compagnie</Texte>
+                </View>
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)' }}>
+              <Ionicons name="business-outline" size={18} color={couleurs.ocean300} />
+              <Texte graisse="gras" taille={13.5} couleur="#D5E2F0" numberOfLines={1} style={{ flex: 1 }}>{nomCompagnie}</Texte>
+            </View>
+          </View>
+        }
+      />
+
+      <FeuilleModale visible={feuilleLogo} onClose={() => setFeuilleLogo(false)} titre="Logo de la compagnie" sousTitre="Affiché aux voyageurs. Image carrée, 5 Mo maximum.">
+        <View style={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 20, gap: 10 }}>
+          <Bouton titre={compagnieLogo ? 'Choisir une autre image' : 'Choisir une image'} icone="image-outline" onPress={pickAndUploadLogo} />
+          {!!compagnieLogo && <Bouton titre="Retirer le logo" variante="danger" icone="trash-outline" onPress={handleDeleteLogo} />}
+        </View>
+      </FeuilleModale>
+    </View>
   );
 }

@@ -11,7 +11,8 @@ import { clearPendingReservation } from '@/app/services/reservations/pendingRese
 import { useUser } from '@/app/hooks/useUser';
 import { Skeleton } from '@/app/components/common/Skeleton';
 import { useConfirmDialog } from '@/app/components/common/ConfirmDialog';
-import { Bouton, Carte, ChampSaisie, FeuilleModale, Texte } from '@/app/components/ui';
+import { Bouton, Carte, Texte } from '@/app/components/ui';
+import { FeuilleInfosPerso, FeuilleMotDePasse } from '@/app/components/profil/FeuillesProfil';
 import { couleurs } from '@/app/theme/ocean';
 
 type NomIcone = keyof typeof Ionicons.glyphMap;
@@ -50,20 +51,8 @@ export default function CompteScreen() {
   const [loadingLogout, setLoadingLogout] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
 
-  // Modification des informations
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [editNom, setEditNom] = useState('');
-  const [editPrenom, setEditPrenom] = useState('');
-  const [editEmail, setEditEmail] = useState('');
-  const [editTelephone, setEditTelephone] = useState('');
-  const [editLoading, setEditLoading] = useState(false);
-
-  // Mot de passe
   const [pwdModalVisible, setPwdModalVisible] = useState(false);
-  const [ancienMdp, setAncienMdp] = useState('');
-  const [nouveauMdp, setNouveauMdp] = useState('');
-  const [confirmMdp, setConfirmMdp] = useState('');
-  const [pwdLoading, setPwdLoading] = useState(false);
 
   const message = (title: string, msg: string, type: 'success' | 'danger' | 'warning' = 'danger') =>
     showDialog({ title, message: msg, type, confirmText: 'OK', onConfirm: () => {}, onCancel: () => {} });
@@ -158,82 +147,6 @@ export default function CompteScreen() {
     });
   };
 
-  // ── Modification des informations ──
-  const openEditModal = () => {
-    if (!utilisateur) return;
-    setEditNom(utilisateur.nom);
-    setEditPrenom(utilisateur.prenom);
-    setEditEmail(utilisateur.email);
-    setEditTelephone(utilisateur.telephone);
-    setEditModalVisible(true);
-  };
-
-  const handleUpdateProfil = async () => {
-    if (!utilisateur) return;
-    try {
-      setEditLoading(true);
-      const data: any = {};
-      if (editNom !== utilisateur.nom) data.nom = editNom;
-      if (editPrenom !== utilisateur.prenom) data.prenom = editPrenom;
-      if (editEmail !== utilisateur.email) data.email = editEmail;
-      if (editTelephone !== utilisateur.telephone) data.telephone = editTelephone;
-
-      if (Object.keys(data).length === 0) {
-        setEditModalVisible(false);
-        return;
-      }
-      const response = await profilService.updateProfil(data);
-      if (response.statut && response.utilisateur) {
-        setUtilisateur(response.utilisateur);
-        setContextUser(response.utilisateur as any);
-        setEditModalVisible(false);
-        message('Informations enregistrées', 'Vos informations ont été mises à jour.', 'success');
-      } else {
-        message('Modification impossible', response.message || 'Erreur de mise à jour.');
-      }
-    } catch (e: any) {
-      const msg = e?.erreurs && Object.keys(e.erreurs).length > 0
-        ? Object.values(e.erreurs).flat().join('\n')
-        : (e?.message || 'Erreur de mise à jour.');
-      message('Modification impossible', msg);
-    } finally {
-      setEditLoading(false);
-    }
-  };
-
-  // ── Mot de passe ──
-  const openPwdModal = () => {
-    setAncienMdp('');
-    setNouveauMdp('');
-    setConfirmMdp('');
-    setPwdModalVisible(true);
-  };
-
-  const erreurNouveau = nouveauMdp.length > 0 && nouveauMdp.length < 6 ? 'Au moins 6 caractères.' : undefined;
-  const erreurConfirm = confirmMdp.length > 0 && nouveauMdp !== confirmMdp ? 'Les deux mots de passe ne correspondent pas.' : undefined;
-
-  const handleChangerMotDePasse = async () => {
-    if (!ancienMdp || !nouveauMdp || !confirmMdp || erreurNouveau || erreurConfirm) return;
-    try {
-      setPwdLoading(true);
-      const response = await profilService.changerMotDePasse({
-        ancien_mot_de_passe: ancienMdp,
-        nouveau_mot_de_passe: nouveauMdp,
-        nouveau_mot_de_passe_confirmation: confirmMdp,
-      });
-      if (response.statut) {
-        setPwdModalVisible(false);
-        message('Mot de passe modifié', 'Utilisez-le lors de votre prochaine connexion.', 'success');
-      } else {
-        message('Modification impossible', response.message || 'Erreur.');
-      }
-    } catch (e: any) {
-      message('Modification impossible', e?.message || 'Ancien mot de passe incorrect.');
-    } finally {
-      setPwdLoading(false);
-    }
-  };
-
   // ── Déconnexion ──
   const handleLogout = () => {
     showDialog({
@@ -325,8 +238,8 @@ export default function CompteScreen() {
 
             <Texte variante="etiquette" style={{ marginLeft: 4 }}>Compte</Texte>
             <Carte padding={0}>
-              <LigneMenu premiere icone="person-outline" titre="Informations personnelles" sousTitre="Nom, prénom, email, téléphone" onPress={openEditModal} />
-              <LigneMenu icone="lock-closed-outline" titre="Mot de passe" sousTitre="Modifier votre mot de passe" onPress={openPwdModal} />
+              <LigneMenu premiere icone="person-outline" titre="Informations personnelles" sousTitre="Nom, prénom, email, téléphone" onPress={() => setEditModalVisible(true)} />
+              <LigneMenu icone="lock-closed-outline" titre="Mot de passe" sousTitre="Modifier votre mot de passe" onPress={() => setPwdModalVisible(true)} />
             </Carte>
 
             <Texte variante="etiquette" style={{ marginLeft: 4 }}>Mes voyages</Texte>
@@ -346,47 +259,17 @@ export default function CompteScreen() {
         )}
       </ScrollView>
 
-      {/* Modifier mes informations */}
-      <FeuilleModale
+      <FeuilleInfosPerso
         visible={editModalVisible}
         onClose={() => setEditModalVisible(false)}
-        titre="Informations personnelles"
-        pied={<Bouton titre="Enregistrer" onPress={handleUpdateProfil} chargement={editLoading} />}
-      >
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8, gap: 14 }}>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <View style={{ flex: 1 }}>
-              <ChampSaisie libelle="Prénom" value={editPrenom} onChangeText={setEditPrenom} autoCapitalize="words" autoComplete="given-name" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <ChampSaisie libelle="Nom" value={editNom} onChangeText={setEditNom} autoCapitalize="words" autoComplete="family-name" />
-            </View>
-          </View>
-          <ChampSaisie libelle="Email" icone="mail-outline" value={editEmail} onChangeText={setEditEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
-          <ChampSaisie libelle="Téléphone" icone="call-outline" value={editTelephone} onChangeText={setEditTelephone} keyboardType="phone-pad" autoComplete="tel" />
-        </ScrollView>
-      </FeuilleModale>
-
-      {/* Mot de passe */}
-      <FeuilleModale
-        visible={pwdModalVisible}
-        onClose={() => setPwdModalVisible(false)}
-        titre="Changer le mot de passe"
-        pied={
-          <Bouton
-            titre="Changer le mot de passe"
-            onPress={handleChangerMotDePasse}
-            chargement={pwdLoading}
-            desactive={!ancienMdp || !nouveauMdp || !confirmMdp || !!erreurNouveau || !!erreurConfirm}
-          />
-        }
-      >
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8, gap: 14 }}>
-          <ChampSaisie libelle="Mot de passe actuel" icone="lock-closed-outline" value={ancienMdp} onChangeText={setAncienMdp} motDePasse autoCapitalize="none" autoComplete="password" />
-          <ChampSaisie libelle="Nouveau mot de passe" icone="lock-closed-outline" value={nouveauMdp} onChangeText={setNouveauMdp} motDePasse autoCapitalize="none" autoComplete="new-password" erreur={erreurNouveau} aide="Au moins 6 caractères." />
-          <ChampSaisie libelle="Confirmer le nouveau mot de passe" icone="lock-closed-outline" value={confirmMdp} onChangeText={setConfirmMdp} motDePasse autoCapitalize="none" autoComplete="new-password" erreur={erreurConfirm} />
-        </ScrollView>
-      </FeuilleModale>
+        utilisateur={utilisateur}
+        onEnregistre={(u) => {
+          setUtilisateur(u);
+          setContextUser(u as any);
+        }}
+        message={message}
+      />
+      <FeuilleMotDePasse visible={pwdModalVisible} onClose={() => setPwdModalVisible(false)} message={message} />
     </View>
   );
 }
