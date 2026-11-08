@@ -95,6 +95,17 @@ export const tonalites = {
 
 export type Tonalite = keyof typeof tonalites;
 
+/**
+ * Date locale au format AAAA-MM-JJ (pour l'API).
+ * Ne pas utiliser toISOString() : il donne la date en heure de Greenwich,
+ * soit la veille entre 0 h et 3 h à Madagascar (UTC+3).
+ */
+export function dateLocaleISO(date: Date): string {
+  const mois = String(date.getMonth() + 1).padStart(2, '0');
+  const jour = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${mois}-${jour}`;
+}
+
 /** Formate un montant en Ariary : 35000 -> "35 000". */
 export function formatAriary(montant: number): string {
   return Math.round(montant)

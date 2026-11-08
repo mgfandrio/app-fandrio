@@ -20,6 +20,7 @@ import { Platform, KeyboardAvoidingView } from 'react-native';
 import echo from '../../../../services/echo/echoConfig';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
+import { dateLocaleISO } from '@/app/theme/ocean';
 
 const STEPS = [
     'Itinéraire',
@@ -257,11 +258,12 @@ export default function ReserverScreen() {
 
             // N'appliquer le filtre de date que si explicitement demandé par l'utilisateur
             if (applyDateFilter && dateDebut) {
-                const debut = dateDebut.toISOString().split('T')[0];
+                // Dates locales (toISOString donnait la veille entre 0 h et 3 h)
+                const debut = dateLocaleISO(dateDebut);
                 if (dateFin && dateFin > dateDebut) {
                     // Plage de dates
                     filters.date_debut = debut;
-                    filters.date_fin = dateFin.toISOString().split('T')[0];
+                    filters.date_fin = dateLocaleISO(dateFin);
                 } else {
                     // Date exacte
                     filters.date_exacte = debut;

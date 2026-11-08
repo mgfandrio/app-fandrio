@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { reservationAdminService } from '@/app/services/reservations/reservationAdminService';
+import { dateLocaleISO } from '@/app/theme/ocean';
 
 const formatMontant = (montant: number) =>
   montant.toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' Ar';
@@ -53,14 +54,15 @@ export const RenderFactures = () => {
     const periode = PERIODES[periodeIdx].value;
     const now = new Date();
     if (periode === 'aujourdhui') {
-      params.date_debut = now.toISOString().split('T')[0];
-      params.date_fin = now.toISOString().split('T')[0];
+      // Date locale (toISOString donnait la veille entre 0 h et 3 h)
+      params.date_debut = dateLocaleISO(now);
+      params.date_fin = dateLocaleISO(now);
     } else if (periode === 'semaine') {
       const day = now.getDay();
       const diff = now.getDate() - day + (day === 0 ? -6 : 1);
       const start = new Date(now);
       start.setDate(diff);
-      params.date_debut = start.toISOString().split('T')[0];
+      params.date_debut = dateLocaleISO(start);
     } else if (periode === 'mois') {
       params.date_debut = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     } else if (periode === 'annee') {

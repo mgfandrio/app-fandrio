@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { View, Pressable, TextInput, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Texte } from '../ui/Texte';
+import { couleurs, polices } from '../../theme/ocean';
 
 interface SearchableDropdownProps {
     label: string;
@@ -14,6 +16,7 @@ interface SearchableDropdownProps {
     allOptionLabel?: string;
 }
 
+/** Liste déroulante avec recherche (thème Océan). Même API qu'avant. */
 export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
     label,
     placeholder,
@@ -33,166 +36,120 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
         (item[displayKey] || '').toLowerCase().includes(searchText.toLowerCase())
     );
 
-    return (
-        <View style={{ marginBottom: 20 }}>
-            <Text style={{ color: '#374151', fontWeight: 'bold', marginBottom: 8, marginLeft: 4 }}>{label}</Text>
+    const choisir = (id: any) => {
+        onSelect(id);
+        setIsOpen(false);
+        setSearchText('');
+    };
 
-            {/* Bouton d'ouverture du dropdown */}
-            <TouchableOpacity
+    const ligne = (libelle: string, selectionne: boolean, onPress: () => void, cle: string) => (
+        <Pressable
+            key={cle}
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityState={{ selected: selectionne }}
+            style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                minHeight: 46,
+                paddingHorizontal: 14,
+                backgroundColor: selectionne ? couleurs.ocean50 : 'transparent',
+                borderBottomWidth: 1,
+                borderBottomColor: couleurs.separateur,
+            }}
+        >
+            <Texte graisse={selectionne ? 'tresGras' : 'moyen'} taille={14} couleur={selectionne ? couleurs.ocean950 : couleurs.encre} style={{ flex: 1 }}>
+                {libelle}
+            </Texte>
+            {selectionne && <Ionicons name="checkmark-circle" size={19} color={couleurs.ocean800} />}
+        </Pressable>
+    );
+
+    return (
+        <View style={{ marginBottom: 18, gap: 6 }}>
+            <Texte graisse="gras" taille={12.5} couleur={couleurs.encreDouce}>{label}</Texte>
+
+            {/* Bouton d'ouverture */}
+            <Pressable
                 onPress={() => setIsOpen(!isOpen)}
+                accessibilityRole="button"
+                accessibilityLabel={`${label} : ${selectedItem ? selectedItem[displayKey] : placeholder}`}
+                accessibilityState={{ expanded: isOpen }}
                 style={{
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    backgroundColor: '#f9fafb',
-                    borderRadius: 16,
-                    paddingHorizontal: 16,
-                    paddingVertical: 14,
-                    borderWidth: 1,
-                    borderColor: isOpen ? '#1e3a8a' : '#e5e7eb',
+                    gap: 8,
+                    minHeight: 50,
+                    paddingHorizontal: 14,
+                    backgroundColor: couleurs.surface,
+                    borderRadius: 14,
+                    borderWidth: 1.5,
+                    borderColor: isOpen ? couleurs.ocean800 : couleurs.champ,
                 }}
             >
-                <Text style={{
-                    color: selectedItem ? '#1f2937' : '#9ca3af',
-                    fontWeight: selectedItem ? '600' : '400',
-                    fontSize: 15,
-                }} numberOfLines={1}>
+                <Texte
+                    graisse={selectedItem ? 'gras' : 'moyen'}
+                    taille={15}
+                    couleur={selectedItem ? couleurs.encre : '#8A99AD'}
+                    numberOfLines={1}
+                    style={{ flex: 1 }}
+                >
                     {selectedItem ? selectedItem[displayKey] : placeholder}
-                </Text>
-                <Ionicons
-                    name={isOpen ? 'chevron-up' : 'chevron-down'}
-                    size={20}
-                    color="#1e3a8a"
-                />
-            </TouchableOpacity>
+                </Texte>
+                <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={20} color={couleurs.ocean800} />
+            </Pressable>
 
             {/* Liste déroulante */}
             {isOpen && (
                 <View style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: 16,
-                    marginTop: 8,
+                    backgroundColor: couleurs.surface,
+                    borderRadius: 14,
                     borderWidth: 1,
-                    borderColor: '#e5e7eb',
+                    borderColor: couleurs.ligne,
                     overflow: 'hidden',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.08,
-                    shadowRadius: 8,
-                    elevation: 4,
                     zIndex: 1000,
                 }}>
                     {/* Champ de recherche */}
                     <View style={{
                         flexDirection: 'row',
                         alignItems: 'center',
+                        gap: 8,
                         paddingHorizontal: 12,
-                        paddingVertical: 10,
+                        minHeight: 44,
                         borderBottomWidth: 1,
-                        borderBottomColor: '#f3f4f6',
-                        backgroundColor: '#f9fafb',
+                        borderBottomColor: couleurs.separateur,
+                        backgroundColor: couleurs.fond,
                     }}>
-                        <Ionicons name="search" size={18} color="#9ca3af" />
+                        <Ionicons name="search" size={17} color={couleurs.gris} />
                         <TextInput
-                            placeholder="Rechercher..."
-                            placeholderTextColor="#9ca3af"
+                            placeholder="Rechercher…"
+                            placeholderTextColor="#8A99AD"
                             value={searchText}
                             onChangeText={setSearchText}
-                            style={{
-                                flex: 1,
-                                marginLeft: 8,
-                                fontSize: 14,
-                                color: '#1f2937',
-                                paddingVertical: 2,
-                            }}
+                            accessibilityLabel={`Rechercher dans ${label}`}
+                            style={{ flex: 1, fontFamily: polices.moyen, fontSize: 14, color: couleurs.encre, paddingVertical: 8 }}
                             autoFocus
                         />
                         {searchText !== '' && (
-                            <TouchableOpacity onPress={() => setSearchText('')}>
-                                <Ionicons name="close-circle" size={18} color="#9ca3af" />
-                            </TouchableOpacity>
+                            <Pressable onPress={() => setSearchText('')} hitSlop={10} accessibilityLabel="Effacer la recherche">
+                                <Ionicons name="close-circle" size={18} color={couleurs.grisClair} />
+                            </Pressable>
                         )}
                     </View>
 
-                    {/* Option "Tous" si activée */}
-                    {showAllOption && (
-                        <TouchableOpacity
-                            onPress={() => {
-                                onSelect('');
-                                setIsOpen(false);
-                                setSearchText('');
-                            }}
-                            style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                paddingHorizontal: 16,
-                                paddingVertical: 12,
-                                backgroundColor: !selectedId ? '#eff6ff' : 'transparent',
-                                borderBottomWidth: 1,
-                                borderBottomColor: '#f3f4f6',
-                            }}
-                        >
-                            <Text style={{
-                                color: !selectedId ? '#1e3a8a' : '#6b7280',
-                                fontWeight: !selectedId ? 'bold' : '400',
-                                fontSize: 14,
-                            }}>
-                                {allOptionLabel}
-                            </Text>
-                            {!selectedId && (
-                                <Ionicons name="checkmark-circle" size={20} color="#1e3a8a" />
-                            )}
-                        </TouchableOpacity>
-                    )}
+                    {showAllOption && ligne(allOptionLabel, !selectedId, () => choisir(''), '__tous')}
 
-                    {/* Liste des items */}
-                    <ScrollView
-                        style={{ maxHeight: 200 }}
-                        nestedScrollEnabled
-                        showsVerticalScrollIndicator={true}
-                        keyboardShouldPersistTaps="handled"
-                    >
+                    <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
                         {filteredData.length > 0 ? filteredData.map((item) => {
                             if (!item) return null;
                             const itemId = item[valueKey];
                             const isSelected = (selectedId || '').toString() === (itemId || '').toString();
-                            return (
-                                <TouchableOpacity
-                                    key={itemId}
-                                    onPress={() => {
-                                        onSelect(itemId);
-                                        setIsOpen(false);
-                                        setSearchText('');
-                                    }}
-                                    style={{
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        paddingHorizontal: 16,
-                                        paddingVertical: 12,
-                                        backgroundColor: isSelected ? '#eff6ff' : 'transparent',
-                                        borderBottomWidth: 1,
-                                        borderBottomColor: '#f3f4f6',
-                                    }}
-                                >
-                                    <Text style={{
-                                        color: isSelected ? '#1e3a8a' : '#374151',
-                                        fontWeight: isSelected ? 'bold' : '400',
-                                        fontSize: 14,
-                                    }}>
-                                        {item[displayKey]}
-                                    </Text>
-                                    {isSelected && (
-                                        <Ionicons name="checkmark-circle" size={20} color="#1e3a8a" />
-                                    )}
-                                </TouchableOpacity>
-                            );
+                            return ligne(String(item[displayKey] ?? ''), isSelected, () => choisir(itemId), String(itemId));
                         }) : (
                             <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-                                <Text style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: 13 }}>
-                                    Aucun résultat
-                                </Text>
+                                <Texte variante="legende">Aucun résultat</Texte>
                             </View>
                         )}
                     </ScrollView>

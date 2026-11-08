@@ -1,10 +1,12 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal, Platform, FlatList } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, ScrollView, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { provinceService } from '@/app/services/provinces/provinceService';
 import { compagnieService } from '@/app/services/compagnies/compagnieService';
 import { voyageService } from '@/app/services/voyages/voyageService';
 import { SearchableDropdown } from '@/app/components/common';
+import { Bouton, ChampSaisie, FeuilleModale, Puce, Texte } from '@/app/components/ui';
+import { couleurs, dateLocaleISO } from '@/app/theme/ocean';
 
 interface RechercheFilterModalProps {
     visible: boolean;
@@ -13,20 +15,49 @@ interface RechercheFilterModalProps {
     setLoading: (loading: boolean) => void;
 }
 
+const FILTRES_VIDES = {
+    pro_depart: '',
+    pro_arrivee: '',
+    compagnie_id: '',
+    date_exacte: '',
+    type_voyage: '',
+    prix_max: '',
+    places_min: '1'
+};
 
+const JOURS = ['Dim.', 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'];
+const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
+/** Bloc titré du formulaire (déclaré hors du composant pour ne pas être recréé à chaque rendu). */
+function Section({ titre, children }: { titre: string; children: React.ReactNode }) {
+    return (
+        <View style={{ gap: 8, marginBottom: 18 }}>
+            <Texte graisse="gras" taille={12.5} couleur={couleurs.encreDouce}>{titre}</Texte>
+            {children}
+        </View>
+    );
+}
+
+/** Recherche détaillée : départ, destination, date, compagnie, type, prix, places. */
 export default function RechercheFilterModal({ visible, onClose, onApply, setLoading }: RechercheFilterModalProps) {
     const [provinces, setProvinces] = useState<any[]>([]);
     const [compagnies, setCompagnies] = useState<any[]>([]);
-    const [searchFilters, setSearchFilters] = useState({
-        pro_depart: '',
-        pro_arrivee: '',
-        compagnie_id: '',
-        date_exacte: '',
-        type_voyage: '',
-        prix_max: '',
-        places_min: '1'
-    });
+    const [searchFilters, setSearchFilters] = useState(FILTRES_VIDES);
+
+    // 7 prochains jours (dates LOCALES : voir dateLocaleISO)
+    const jours = useMemo(() => {
+        return Array.from({ length: 7 }, (_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() + i);
+            return {
+                valeur: dateLocaleISO(d),
+                libelle: i === 0 ? "Aujourd'hui" : i === 1 ? 'Demain' : JOURS[d.getDay()],
+                detail: `${d.getDate()} ${MOIS[d.getMonth()]}`,
+            };
+        });
+        // Recalculé à chaque ouverture (la date peut avoir changé)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [visible]);
 
     useEffect(() => {
         if (visible) {
@@ -61,17 +92,7 @@ export default function RechercheFilterModal({ visible, onClose, onApply, setLoa
         }
     };
 
-    const resetFilters = () => {
-        setSearchFilters({
-            pro_depart: '',
-            pro_arrivee: '',
-            compagnie_id: '',
-            date_exacte: '',
-            type_voyage: '',
-            prix_max: '',
-            places_min: '1'
-        });
-    };
+    const resetFilters = () => setSearchFilters(FILTRES_VIDES);
 
     const handleSearch = async () => {
         onClose();
@@ -85,7 +106,6 @@ export default function RechercheFilterModal({ visible, onClose, onApply, setLoa
             const res = await voyageService.rechercherVoyages(criteres);
             if (res && res.statut) {
                 const data = res.data;
-                // Extraire le tableau de voyages depuis la réponse
                 const voyages = data?.voyages || (Array.isArray(data) ? data : []);
                 onApply(voyages);
             }
@@ -96,234 +116,125 @@ export default function RechercheFilterModal({ visible, onClose, onApply, setLoa
         }
     };
 
+    const places = parseInt(searchFilters.places_min) || 1;
+    const changerPlaces = (delta: number) =>
+        setSearchFilters(f => ({ ...f, places_min: String(Math.min(20, Math.max(1, places + delta))) }));
+
     return (
-        <Modal
+        <FeuilleModale
             visible={visible}
-            animationType="slide"
-            transparent={true}
-            onRequestClose={onClose}
-        >
-            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
-                <View
-                    style={{
-                        backgroundColor: '#ffffff',
-                        borderTopLeftRadius: 35,
-                        borderTopRightRadius: 35,
-                        paddingTop: 24,
-                        paddingHorizontal: 24,
-                        paddingBottom: Platform.OS === 'ios' ? 40 : 30,
-                        maxHeight: '90%'
-                    }}
-                >
-                    {/* Header Modal */}
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                        <Text style={{ color: '#1e3a8a', fontSize: 22, fontWeight: 'bold' }}>Filtres de recherche</Text>
-                        <TouchableOpacity
-                            onPress={onClose}
-                            style={{ backgroundColor: '#f3f4f6', padding: 8, borderRadius: 20 }}
-                        >
-                            <Ionicons name="close" size={24} color="#1e3a8a" />
-                        </TouchableOpacity>
-                    </View>
-
-                    <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
-                        {/* Province Depart - Dropdown recherchable */}
-                        <SearchableDropdown
-                            label="Départ"
-                            placeholder="Sélectionner la province de départ"
-                            data={provinces}
-                            selectedId={searchFilters.pro_depart}
-                            onSelect={(id) => setSearchFilters(f => ({ ...f, pro_depart: id }))}
-                        />
-
-                        {/* Province Arrivee - Dropdown recherchable */}
-                        <SearchableDropdown
-                            label="Destination"
-                            placeholder="Sélectionner la destination"
-                            data={provinces}
-                            selectedId={searchFilters.pro_arrivee}
-                            onSelect={(id) => setSearchFilters(f => ({ ...f, pro_arrivee: id }))}
-                        />
-
-                        {/* Date */}
-                        <Text style={{ color: '#374151', fontWeight: 'bold', marginBottom: 8, marginLeft: 4 }}>Date du voyage</Text>
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 20 }}>
-                            {[
-                                { label: 'Indifférent', value: '' },
-                                { label: "Aujourd'hui", value: new Date().toISOString().split('T')[0] },
-                                { label: 'Demain', value: new Date(Date.now() + 86400000).toISOString().split('T')[0] }
-                            ].map((d) => {
-                                const isSelected = searchFilters.date_exacte === d.value;
-                                return (
-                                    <TouchableOpacity
-                                        key={d.label}
-                                        onPress={() => setSearchFilters(f => ({ ...f, date_exacte: d.value }))}
-                                        style={{
-                                            paddingHorizontal: 16,
-                                            paddingVertical: 10,
-                                            borderRadius: 16,
-                                            borderWidth: 1,
-                                            marginRight: 8,
-                                            marginBottom: 8,
-                                            backgroundColor: isSelected ? '#1e3a8a' : '#ffffff',
-                                            borderColor: isSelected ? '#1e3a8a' : '#e5e7eb',
-                                        }}
-                                    >
-                                        <Text style={{
-                                            color: isSelected ? '#ffffff' : '#6b7280',
-                                            fontWeight: isSelected ? 'bold' : '400',
-                                        }}>{d.label}</Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-
-                        {/* Compagnie */}
-                        <SearchableDropdown
-                            label="Compagnie"
-                            placeholder="Sélectionner une compagnie"
-                            data={compagnies}
-                            selectedId={searchFilters.compagnie_id}
-                            onSelect={(id) => setSearchFilters(f => ({ ...f, compagnie_id: id }))}
-                        />
-
-                        {/* Type Voyage */}
-                        <Text style={{ color: '#374151', fontWeight: 'bold', marginBottom: 8, marginLeft: 4 }}>Type de voyage</Text>
-                        <View style={{ flexDirection: 'row', marginBottom: 20 }}>
-                            {[
-                                { label: 'Tous', value: '' },
-                                { label: 'Jour', value: '1' },
-                                { label: 'Nuit', value: '2' }
-                            ].map((t) => {
-                                const isSelected = searchFilters.type_voyage === t.value;
-                                return (
-                                    <TouchableOpacity
-                                        key={t.value}
-                                        onPress={() => setSearchFilters(f => ({ ...f, type_voyage: t.value }))}
-                                        style={{
-                                            flex: 1,
-                                            paddingVertical: 12,
-                                            alignItems: 'center',
-                                            borderRadius: 16,
-                                            borderWidth: 1,
-                                            marginRight: 8,
-                                            backgroundColor: isSelected ? '#1e3a8a' : '#ffffff',
-                                            borderColor: isSelected ? '#1e3a8a' : '#e5e7eb',
-                                        }}
-                                    >
-                                        <Text style={{
-                                            color: isSelected ? '#ffffff' : '#6b7280',
-                                            fontWeight: isSelected ? 'bold' : '400',
-                                        }}>{t.label}</Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-
-                        {/* Prix Max */}
-                        <Text style={{ color: '#374151', fontWeight: 'bold', marginBottom: 8, marginLeft: 4 }}>Tarif Maximum (Ar)</Text>
-                        <View style={{
-                            backgroundColor: '#f9fafb',
-                            borderRadius: 16,
-                            paddingHorizontal: 16,
-                            paddingVertical: 12,
-                            marginBottom: 20,
-                            borderWidth: 1,
-                            borderColor: '#f3f4f6',
-                        }}>
-                            <TextInput
-                                placeholder="Ex: 50000"
-                                placeholderTextColor="#9ca3af"
-                                keyboardType="numeric"
-                                value={searchFilters.prix_max}
-                                onChangeText={(val) => setSearchFilters(f => ({ ...f, prix_max: val }))}
-                                style={{ color: '#1f2937', fontWeight: '600', fontSize: 15 }}
-                            />
-                        </View>
-
-                        {/* Places Min */}
-                        <Text style={{ color: '#374151', fontWeight: 'bold', marginBottom: 8, marginLeft: 4 }}>Places nécessaires</Text>
-                        <View style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            backgroundColor: '#eff6ff',
-                            padding: 16,
-                            borderRadius: 20,
-                            marginBottom: 30,
-                        }}>
-                            <TouchableOpacity
-                                onPress={() => {
-                                    const current = parseInt(searchFilters.places_min) || 1;
-                                    if (current > 1) setSearchFilters(f => ({ ...f, places_min: (current - 1).toString() }));
-                                }}
-                                style={{
-                                    backgroundColor: '#ffffff',
-                                    padding: 8,
-                                    borderRadius: 12,
-                                    shadowColor: '#000',
-                                    shadowOffset: { width: 0, height: 1 },
-                                    shadowOpacity: 0.05,
-                                    shadowRadius: 2,
-                                    elevation: 2,
-                                }}
-                            >
-                                <Ionicons name="remove" size={24} color="#1e3a8a" />
-                            </TouchableOpacity>
-                            <Text style={{ color: '#1e3a8a', fontSize: 24, fontWeight: 'bold' }}>{searchFilters.places_min}</Text>
-                            <TouchableOpacity
-                                onPress={() => setSearchFilters(f => ({ ...f, places_min: (parseInt(searchFilters.places_min) + 1).toString() }))}
-                                style={{
-                                    backgroundColor: '#ffffff',
-                                    padding: 8,
-                                    borderRadius: 12,
-                                    shadowColor: '#000',
-                                    shadowOffset: { width: 0, height: 1 },
-                                    shadowOpacity: 0.05,
-                                    shadowRadius: 2,
-                                    elevation: 2,
-                                }}
-                            >
-                                <Ionicons name="add" size={24} color="#1e3a8a" />
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Boutons */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <TouchableOpacity
-                                onPress={resetFilters}
-                                style={{
-                                    flex: 1,
-                                    paddingVertical: 16,
-                                    backgroundColor: '#f3f4f6',
-                                    borderRadius: 16,
-                                    alignItems: 'center',
-                                    marginRight: 12,
-                                }}
-                            >
-                                <Text style={{ color: '#6b7280', fontWeight: 'bold' }}>Réinitialiser</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={handleSearch}
-                                style={{
-                                    flex: 2,
-                                    paddingVertical: 16,
-                                    backgroundColor: '#1e3a8a',
-                                    borderRadius: 16,
-                                    alignItems: 'center',
-                                    shadowColor: '#1e3a8a',
-                                    shadowOffset: { width: 0, height: 4 },
-                                    shadowOpacity: 0.3,
-                                    shadowRadius: 8,
-                                    elevation: 6,
-                                }}
-                            >
-                                <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 16 }}>Appliquer</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </ScrollView>
+            onClose={onClose}
+            titre="Recherche détaillée"
+            sousTitre="Tous les champs sont facultatifs"
+            pied={
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <Bouton titre="Réinitialiser" variante="secondaire" onPress={resetFilters} style={{ flex: 1 }} />
+                    <Bouton titre="Voir les voyages" icone="search" onPress={handleSearch} style={{ flex: 1.6 }} />
                 </View>
-            </View>
-        </Modal>
+            }
+        >
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled
+                contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 8 }}
+            >
+                <SearchableDropdown
+                    label="Départ"
+                    placeholder="Province de départ"
+                    data={provinces}
+                    selectedId={searchFilters.pro_depart}
+                    onSelect={(id) => setSearchFilters(f => ({ ...f, pro_depart: id }))}
+                    allOptionLabel="Toutes les provinces"
+                />
+                <SearchableDropdown
+                    label="Destination"
+                    placeholder="Province d'arrivée"
+                    data={provinces}
+                    selectedId={searchFilters.pro_arrivee}
+                    onSelect={(id) => setSearchFilters(f => ({ ...f, pro_arrivee: id }))}
+                    allOptionLabel="Toutes les provinces"
+                />
+
+                <Section titre="Date du voyage">
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                        <Puce libelle="Peu importe" detail="toutes dates" active={searchFilters.date_exacte === ''} onPress={() => setSearchFilters(f => ({ ...f, date_exacte: '' }))} />
+                        {jours.map((j) => (
+                            <Puce
+                                key={j.valeur}
+                                libelle={j.libelle}
+                                detail={j.detail}
+                                active={searchFilters.date_exacte === j.valeur}
+                                onPress={() => setSearchFilters(f => ({ ...f, date_exacte: j.valeur }))}
+                            />
+                        ))}
+                    </ScrollView>
+                </Section>
+
+                <SearchableDropdown
+                    label="Compagnie"
+                    placeholder="Toutes les compagnies"
+                    data={compagnies}
+                    selectedId={searchFilters.compagnie_id}
+                    onSelect={(id) => setSearchFilters(f => ({ ...f, compagnie_id: id }))}
+                    allOptionLabel="Toutes les compagnies"
+                />
+
+                <Section titre="Type de voyage">
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                        {[
+                            { label: 'Tous', value: '', icone: undefined },
+                            { label: 'Jour', value: '1', icone: 'sunny-outline' as const },
+                            { label: 'Nuit', value: '2', icone: 'moon-outline' as const },
+                        ].map((t) => (
+                            <View key={t.value} style={{ flex: 1 }}>
+                                <Puce
+                                    libelle={t.label}
+                                    icone={t.icone}
+                                    active={searchFilters.type_voyage === t.value}
+                                    onPress={() => setSearchFilters(f => ({ ...f, type_voyage: t.value }))}
+                                />
+                            </View>
+                        ))}
+                    </View>
+                </Section>
+
+                <View style={{ marginBottom: 18 }}>
+                    <ChampSaisie
+                        libelle="Prix maximum par place"
+                        placeholder="Ex. 50 000"
+                        keyboardType="numeric"
+                        suffixe="Ar"
+                        value={searchFilters.prix_max}
+                        onChangeText={(val) => setSearchFilters(f => ({ ...f, prix_max: val.replace(/[^0-9]/g, '') }))}
+                    />
+                </View>
+
+                <Section titre="Nombre de places">
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 8, borderRadius: 16, backgroundColor: couleurs.fond }}>
+                        <Pressable
+                            onPress={() => changerPlaces(-1)}
+                            disabled={places <= 1}
+                            accessibilityRole="button"
+                            accessibilityLabel="Une place de moins"
+                            style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: couleurs.surface, borderWidth: 1, borderColor: couleurs.ligne, alignItems: 'center', justifyContent: 'center', opacity: places <= 1 ? 0.4 : 1 }}
+                        >
+                            <Ionicons name="remove" size={22} color={couleurs.ocean800} />
+                        </Pressable>
+                        <Texte variante="montant" taille={22} accessibilityLiveRegion="polite">
+                            {places} place{places > 1 ? 's' : ''}
+                        </Texte>
+                        <Pressable
+                            onPress={() => changerPlaces(1)}
+                            accessibilityRole="button"
+                            accessibilityLabel="Une place de plus"
+                            style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: couleurs.surface, borderWidth: 1, borderColor: couleurs.ligne, alignItems: 'center', justifyContent: 'center' }}
+                        >
+                            <Ionicons name="add" size={22} color={couleurs.ocean800} />
+                        </Pressable>
+                    </View>
+                </Section>
+            </ScrollView>
+        </FeuilleModale>
     );
 }
