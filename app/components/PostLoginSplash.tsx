@@ -1,393 +1,147 @@
-import React, { useEffect, useRef } from 'react';
-import {
-  Animated,
-  Dimensions,
-  Easing,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, LayoutChangeEvent, StatusBar, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { couleurs, polices } from '../theme/ocean';
 
 interface PostLoginSplashProps {
   userName: string;
   onFinish: () => void;
 }
 
-// Petit point lumineux qui monte le long de la route
-function RoadDot({ delay, x }: { delay: number; x: number }) {
-  const anim = useRef(new Animated.Value(0)).current;
+const ETAPES = ['Session sécurisée', 'Synchronisation de vos données', 'Préparation de votre espace'];
 
-  useEffect(() => {
-    Animated.loop(
-      Animated.timing(anim, {
-        toValue: 1,
-        duration: 2000,
-        delay,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-  }, []);
-
-  const translateY = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [60, -60],
-  });
-  const opacity = anim.interpolate({
-    inputRange: [0, 0.3, 0.7, 1],
-    outputRange: [0, 1, 1, 0],
-  });
-
-  return (
-    <Animated.View
-      style={{
-        position: 'absolute',
-        left: x,
-        top: '50%',
-        width: 4,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: '#93c5fd',
-        opacity,
-        transform: [{ translateY }],
-      }}
-    />
-  );
-}
-
+/** Écran affiché juste après la connexion : coche, salutation, petit bus sur la route. Durée ≈ 3,7 s. */
 export default function PostLoginSplash({ userName, onFinish }: PostLoginSplashProps) {
-  // Animations
-  const checkScale = useRef(new Animated.Value(0)).current;
-  const checkOpacity = useRef(new Animated.Value(0)).current;
-  const ringScale = useRef(new Animated.Value(0.3)).current;
-  const ringOpacity = useRef(new Animated.Value(0)).current;
-  const welcomeOpacity = useRef(new Animated.Value(0)).current;
-  const welcomeTranslateY = useRef(new Animated.Value(20)).current;
-  const nameOpacity = useRef(new Animated.Value(0)).current;
-  const nameTranslateY = useRef(new Animated.Value(15)).current;
-  const loaderOpacity = useRef(new Animated.Value(0)).current;
-  const dotAnim = useRef(new Animated.Value(0)).current;
-  const busTranslateX = useRef(new Animated.Value(-60)).current;
-  const busOpacity = useRef(new Animated.Value(0)).current;
-  const screenOpacity = useRef(new Animated.Value(1)).current;
-  const stepsOpacity = useRef(new Animated.Value(0)).current;
-  const step1 = useRef(new Animated.Value(0)).current;
-  const step2 = useRef(new Animated.Value(0)).current;
-  const step3 = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const coche = useRef(new Animated.Value(0)).current;
+  const halo = useRef(new Animated.Value(0)).current;
+  const titre = useRef(new Animated.Value(0)).current;
+  const nom = useRef(new Animated.Value(0)).current;
+  const route = useRef(new Animated.Value(0)).current;
+  const bus = useRef(new Animated.Value(0)).current;
+  const etapes = useRef(ETAPES.map(() => new Animated.Value(0))).current;
+  const ecran = useRef(new Animated.Value(1)).current;
+  const [largeurRoute, setLargeurRoute] = useState(0);
 
   useEffect(() => {
-    // 1. Anneau lumineux
-    Animated.parallel([
-      Animated.spring(ringScale, { toValue: 1, damping: 10, stiffness: 80, useNativeDriver: true }),
-      Animated.timing(ringOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-    ]).start();
-
-    // 2. Checkmark bounce
-    Animated.parallel([
-      Animated.timing(checkOpacity, { toValue: 1, duration: 300, delay: 300, useNativeDriver: true }),
-      Animated.spring(checkScale, { toValue: 1, damping: 8, stiffness: 120, delay: 300, useNativeDriver: true }),
-    ]).start();
-
-    // 3. Texte "Bienvenue"
-    Animated.parallel([
-      Animated.timing(welcomeOpacity, { toValue: 1, duration: 500, delay: 600, useNativeDriver: true }),
-      Animated.spring(welcomeTranslateY, { toValue: 0, damping: 14, stiffness: 100, delay: 600, useNativeDriver: true }),
-    ]).start();
-
-    // 4. Nom de l'utilisateur
-    Animated.parallel([
-      Animated.timing(nameOpacity, { toValue: 1, duration: 500, delay: 800, useNativeDriver: true }),
-      Animated.spring(nameTranslateY, { toValue: 0, damping: 14, stiffness: 100, delay: 800, useNativeDriver: true }),
-    ]).start();
-
-    // 5. Bus animation
-    Animated.parallel([
-      Animated.timing(busOpacity, { toValue: 1, duration: 300, delay: 1000, useNativeDriver: true }),
-      Animated.timing(busTranslateX, {
-        toValue: SCREEN_WIDTH + 60,
-        duration: 2500,
-        delay: 1000,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // 6. Étapes de chargement
-    Animated.timing(stepsOpacity, { toValue: 1, duration: 400, delay: 1200, useNativeDriver: true }).start();
-    Animated.timing(step1, { toValue: 1, duration: 400, delay: 1400, useNativeDriver: true }).start();
-    Animated.timing(step2, { toValue: 1, duration: 400, delay: 1800, useNativeDriver: true }).start();
-    Animated.timing(step3, { toValue: 1, duration: 400, delay: 2200, useNativeDriver: true }).start();
-
-    // 7. Loader dots
-    Animated.timing(loaderOpacity, { toValue: 1, duration: 300, delay: 1100, useNativeDriver: true }).start();
-    Animated.loop(
-      Animated.timing(dotAnim, { toValue: 3, duration: 1200, easing: Easing.linear, useNativeDriver: true })
-    ).start();
-
-    // 8. Fondu de sortie → navigation
-    Animated.timing(screenOpacity, {
-      toValue: 0,
-      duration: 500,
-      delay: 3200,
-      useNativeDriver: true,
-    }).start(() => {
-      onFinish();
-    });
+    Animated.spring(coche, { toValue: 1, damping: 9, stiffness: 130, delay: 150, useNativeDriver: true }).start();
+    Animated.timing(halo, { toValue: 1, duration: 1100, delay: 250, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+    Animated.timing(titre, { toValue: 1, duration: 450, delay: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    Animated.timing(nom, { toValue: 1, duration: 450, delay: 700, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    Animated.timing(route, { toValue: 1, duration: 350, delay: 950, useNativeDriver: true }).start();
+    Animated.timing(bus, { toValue: 1, duration: 2100, delay: 1000, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }).start();
+    etapes.forEach((v, i) =>
+      Animated.timing(v, { toValue: 1, duration: 350, delay: 1300 + i * 420, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start()
+    );
+    Animated.timing(ecran, { toValue: 0, duration: 450, delay: 3250, useNativeDriver: true }).start(() => onFinish());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Dots animation helpers
-  const getDotOpacity = (index: number) =>
-    dotAnim.interpolate({
-      inputRange: [index, index + 0.5, index + 1],
-      outputRange: [0.3, 1, 0.3],
-      extrapolate: 'clamp',
-    });
+  const monte = (v: Animated.Value, distance: number) => ({
+    opacity: v,
+    transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [distance, 0] }) }],
+  });
+
+  const prenom = (userName || '').trim().split(/\s+/)[0];
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFillObject, { opacity: screenOpacity }]}>
+    <Animated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: couleurs.ocean950, opacity: ecran }]}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <LinearGradient
-        colors={['#0f172a', '#1e3a8a', '#1e40af']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
-      />
+      <View pointerEvents="none" style={{ position: 'absolute', top: -160, alignSelf: 'center', width: 420, height: 420, borderRadius: 210, backgroundColor: couleurs.ocean800, opacity: 0.35 }} />
 
-      {/* Points lumineux de route */}
-      {[0, 1, 2, 3, 4].map((i) => (
-        <RoadDot key={i} delay={i * 400} x={SCREEN_WIDTH * 0.15 + i * (SCREEN_WIDTH * 0.17)} />
-      ))}
-
-      <View style={styles.content}>
-        {/* Anneau lumineux + checkmark */}
-        <View style={styles.checkContainer}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+        {/* Coche dans un halo */}
+        <View style={{ width: 110, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: 26 }}>
           <Animated.View
-            style={[
-              styles.ring,
-              { opacity: ringOpacity, transform: [{ scale: ringScale }] },
-            ]}
+            style={{
+              position: 'absolute',
+              width: 110,
+              height: 110,
+              borderRadius: 55,
+              backgroundColor: couleurs.succesVif,
+              opacity: halo.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 0.3, 0.12] }),
+              transform: [{ scale: halo.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }],
+            }}
           />
           <Animated.View
-            style={[
-              styles.checkCircle,
-              { opacity: checkOpacity, transform: [{ scale: checkScale }] },
-            ]}
+            style={{
+              width: 76,
+              height: 76,
+              borderRadius: 38,
+              backgroundColor: couleurs.succesVif,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: coche,
+              transform: [{ scale: coche }],
+            }}
           >
-            <LinearGradient
-              colors={['#22c55e', '#16a34a']}
-              style={styles.checkGradient}
-            >
-              <Ionicons name="checkmark" size={40} color="#fff" />
-            </LinearGradient>
+            <Ionicons name="checkmark" size={40} color="#FFFFFF" />
           </Animated.View>
         </View>
 
-        {/* Bienvenue */}
-        <Animated.Text
-          style={[
-            styles.welcomeText,
-            { opacity: welcomeOpacity, transform: [{ translateY: welcomeTranslateY }] },
-          ]}
-        >
-          Connexion réussie !
+        <Animated.Text accessibilityRole="header" style={[{ fontFamily: polices.tresGras, fontSize: 25, color: '#FFFFFF', textAlign: 'center' }, monte(titre, 14)]}>
+          Connexion réussie
+        </Animated.Text>
+        <Animated.Text style={[{ fontFamily: polices.moyen, fontSize: 17, color: couleurs.texteSurMarine, textAlign: 'center', marginTop: 6 }, monte(nom, 12)]}>
+          {prenom ? `Bonjour, ${prenom}` : 'Bon retour parmi nous'}
         </Animated.Text>
 
-        {/* Nom */}
-        <Animated.Text
-          style={[
-            styles.nameText,
-            { opacity: nameOpacity, transform: [{ translateY: nameTranslateY }] },
-          ]}
-        >
-          Bienvenue, {userName} 👋
-        </Animated.Text>
-
-        {/* Bus qui traverse */}
+        {/* Route et bus */}
         <Animated.View
-          style={[
-            styles.busContainer,
-            { opacity: busOpacity, transform: [{ translateX: busTranslateX }] },
-          ]}
+          onLayout={(e: LayoutChangeEvent) => setLargeurRoute(e.nativeEvent.layout.width)}
+          style={{ alignSelf: 'stretch', height: 44, marginTop: 40, justifyContent: 'center', opacity: route }}
         >
-          <View style={styles.busTrail} />
-          <View style={styles.busBubble}>
-            <Ionicons name="bus" size={22} color="#3b82f6" />
+          <View style={{ height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.12)' }} />
+          <View style={{ position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 6 }}>
+            {Array.from({ length: 9 }).map((_, i) => (
+              <View key={i} style={{ width: 10, height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.18)' }} />
+            ))}
           </View>
+          {largeurRoute > 0 && (
+            <Animated.View
+              style={{
+                position: 'absolute',
+                left: 0,
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                backgroundColor: '#FFFFFF',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transform: [{ translateX: bus.interpolate({ inputRange: [0, 1], outputRange: [0, largeurRoute - 40] }) }],
+              }}
+            >
+              <Ionicons name="bus" size={21} color={couleurs.ocean800} />
+            </Animated.View>
+          )}
         </Animated.View>
 
-        {/* Route line */}
-        <View style={styles.roadLine}>
-          <LinearGradient
-            colors={['transparent', '#3b82f6', '#60a5fa', '#3b82f6', 'transparent']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={{ height: 2, width: '100%', borderRadius: 1 }}
-          />
-        </View>
-
-        {/* Étapes de préparation */}
-        <Animated.View style={[styles.stepsContainer, { opacity: stepsOpacity }]}>
-          {[
-            { icon: 'shield-checkmark-outline' as const, label: 'Session sécurisée', anim: step1 },
-            { icon: 'sync-outline' as const, label: 'Synchronisation', anim: step2 },
-            { icon: 'rocket-outline' as const, label: 'Préparation du tableau de bord', anim: step3 },
-          ].map((step, i) => (
-            <Animated.View key={i} style={[styles.stepRow, { opacity: step.anim }]}>
-              <View style={styles.stepDot}>
-                <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
-              </View>
-              <Text style={styles.stepLabel}>{step.label}</Text>
+        {/* Étapes */}
+        <View style={{ alignSelf: 'stretch', marginTop: 26, gap: 10 }}>
+          {ETAPES.map((libelle, i) => (
+            <Animated.View key={libelle} style={[{ flexDirection: 'row', alignItems: 'center', gap: 10 }, monte(etapes[i], 6)]}>
+              <Ionicons name="checkmark-circle" size={17} color={couleurs.ocean300} />
+              <Animated.Text style={{ fontFamily: polices.moyen, fontSize: 13.5, color: couleurs.texteSurMarine }}>{libelle}</Animated.Text>
             </Animated.View>
           ))}
-        </Animated.View>
-
-        {/* Loading dots */}
-        <Animated.View style={[styles.dotsContainer, { opacity: loaderOpacity }]}>
-          {[0, 1, 2].map((i) => (
-            <Animated.View
-              key={i}
-              style={[styles.dot, { opacity: getDotOpacity(i) }]}
-            />
-          ))}
-        </Animated.View>
+        </View>
       </View>
 
-      {/* Footer */}
-      <Animated.View style={[styles.footer, { opacity: nameOpacity }]}>
-        <Text style={styles.footerText}>FANDRIO • Transport régional</Text>
-      </Animated.View>
+      <Animated.Text
+        style={{
+          fontFamily: polices.gras,
+          fontSize: 11.5,
+          letterSpacing: 1.6,
+          color: 'rgba(169,195,222,0.6)',
+          textAlign: 'center',
+          textTransform: 'uppercase',
+          paddingBottom: insets.bottom + 32,
+          opacity: nom,
+        }}
+      >
+        FANDRIO · Transport régional
+      </Animated.Text>
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  checkContainer: {
-    width: 100,
-    height: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  ring: {
-    position: 'absolute',
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
-    borderColor: 'rgba(34, 197, 94, 0.3)',
-  },
-  checkCircle: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    overflow: 'hidden',
-  },
-  checkGradient: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  welcomeText: {
-    color: '#ffffff',
-    fontSize: 24,
-    fontWeight: '800',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  nameText: {
-    color: '#93c5fd',
-    fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 40,
-  },
-  busContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'absolute',
-    top: SCREEN_HEIGHT * 0.6,
-  },
-  busBubble: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 10,
-    elevation: 6,
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  busTrail: {
-    width: 40,
-    height: 2,
-    backgroundColor: '#3b82f640',
-    borderRadius: 1,
-    marginRight: -2,
-  },
-  roadLine: {
-    position: 'absolute',
-    top: SCREEN_HEIGHT * 0.6 + 20,
-    left: 30,
-    right: 30,
-  },
-  stepsContainer: {
-    alignSelf: 'stretch',
-    paddingHorizontal: 20,
-    marginTop: 20,
-  },
-  stepRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  stepDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  stepLabel: {
-    color: '#94a3b8',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  dotsContainer: {
-    flexDirection: 'row',
-    marginTop: 30,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#60a5fa',
-    marginHorizontal: 4,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 40,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  footerText: {
-    color: '#475569',
-    fontSize: 12,
-    fontWeight: '500',
-    letterSpacing: 1,
-  },
-});
