@@ -12,5 +12,6 @@ export { Segmente } from './Segmente';
 export { CaseACocher } from './CaseACocher';
 export { Etapes } from './Etapes';
 export type { OptionSegment } from './Segmente';
+export { BarreOnglets } from './BarreOnglets';
 export { PlanSieges, LegendePlan, dispositionMinibus } from './PlanSieges';
 export type { SiegePlan } from './PlanSieges';
