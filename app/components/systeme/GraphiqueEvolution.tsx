@@ -35,7 +35,7 @@ const SERIES: Record<Vue, Serie[]> = {
 
 const NOTES: Record<Vue, string> = {
   commissions: 'Commission FANDRIO sur les billets payés chaque mois.',
-  clients: 'Actifs : ont payé au moins un billet dans le mois. Perdus : actifs le mois précédent, sans achat ce mois-ci.',
+  clients: 'Actifs : ont payé au moins un billet dans le mois. Perdus : aucun achat depuis 3 mois (comptés le mois où ils atteignent ces 3 mois).',
   compagnies: 'Actives : ont vendu au moins un billet dans le mois. Nouvelles : inscrites dans le mois.',
 };
 

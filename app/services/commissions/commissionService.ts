@@ -136,6 +136,18 @@ class CommissionService {
   }
 
   /**
+   * Relancer la compagnie pour une collecte non payée (une fois toutes les 12 h)
+   */
+  async relancerCollecte(collecteId: number) {
+    try {
+      const response = await apiClient.post(`${this.BASE_PATH}/collectes/${collecteId}/relancer`);
+      return response.data;
+    } catch (error: any) {
+      return { statut: false, message: error.response?.data?.message || 'Erreur réseau : la relance n’a pas été envoyée.' };
+    }
+  }
+
+  /**
    * Historique des collectes d'une compagnie
    */
   async getHistoriqueCollectes(compagnieId: number) {

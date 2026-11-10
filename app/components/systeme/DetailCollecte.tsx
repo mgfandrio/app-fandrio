@@ -84,6 +84,34 @@ function Contenu({ collecteId, onClose, onChange }: Props) {
     });
   };
 
+  const [relance, setRelance] = useState(false);
+  const relancer = () => {
+    showDialog({
+      title: 'Relancer la compagnie ?',
+      message: `Les administrateurs de ${c.compagnie?.nom || c.comp_nom} recevront une notification leur rappelant de régler ${formatAriary(c.montant_commission)} Ar.`,
+      type: 'warning',
+      confirmText: 'Relancer',
+      cancelText: 'Retour',
+      onConfirm: async () => {
+        setRelance(true);
+        try {
+          const r: any = await commissionService.relancerCollecte(collecteId!);
+          showDialog({
+            title: r?.statut ? 'Relance envoyée' : 'Relance impossible',
+            message: r?.message || (r?.statut ? 'La compagnie a été prévenue.' : 'Une erreur est survenue.'),
+            type: r?.statut ? 'success' : 'danger',
+            confirmText: 'OK',
+            onConfirm: () => {},
+            onCancel: () => {},
+          });
+        } finally {
+          setRelance(false);
+        }
+      },
+      onCancel: () => {},
+    });
+  };
+
   const etat = c ? etatCollecte(c) : null;
   const nom = c?.compagnie?.nom || c?.comp_nom || '';
 
@@ -161,7 +189,10 @@ function Contenu({ collecteId, onClose, onChange }: Props) {
             </ScrollView>
             {etat!.cle !== 'payee' && (
               <View style={{ backgroundColor: couleurs.surface, borderTopWidth: 1, borderTopColor: couleurs.ligne, paddingHorizontal: 16, paddingTop: 12, paddingBottom: Math.max(insets.bottom, 12) + 8 }}>
-                <Bouton titre="Confirmer la collecte" icone="checkmark-done" onPress={confirmer} chargement={envoi} />
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Bouton titre="Relancer" variante="secondaire" icone="notifications-outline" onPress={relancer} chargement={relance} style={{ flex: 1 }} />
+                  <Bouton titre="Confirmer" icone="checkmark-done" onPress={confirmer} chargement={envoi} style={{ flex: 1.4 }} />
+                </View>
               </View>
             )}
           </>

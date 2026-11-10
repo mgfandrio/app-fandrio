@@ -189,5 +189,35 @@ class CompagnieService {
 
 // Exporter une instance unique du service
 export const compagnieService = new CompagnieService();
+
+/** Admin compagnie : informations publiques de SA compagnie. */
+export const maCompagnieService = {
+  async obtenir() {
+    try {
+      const response = await apiClient.get('/api/adminCompagnie/ma-compagnie');
+      return { statut: true, data: response.data?.data || null };
+    } catch (error: any) {
+      return { statut: false, message: error.response?.data?.message || 'Impossible de charger les informations.', data: null };
+    }
+  },
+
+  async mettreAJour(donnees: {
+    comp_description?: string | null;
+    comp_phone?: string | null;
+    comp_email?: string | null;
+    comp_adresse?: string | null;
+    comp_localisation?: number | null;
+    provinces_desservies?: number[];
+  }) {
+    try {
+      const response = await apiClient.put('/api/adminCompagnie/ma-compagnie', donnees);
+      return response.data;
+    } catch (error: any) {
+      const data = error.response?.data;
+      const premiere = data?.errors ? (Object.values(data.errors)[0] as string[])?.[0] : null;
+      return { statut: false, message: premiere || data?.message || 'Erreur réseau : rien n’a été enregistré.' };
+    }
+  },
+};
 export default compagnieService;
 

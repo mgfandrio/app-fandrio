@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConfirmDialog } from '../../../components/common/ConfirmDialog';
 import { DashboardStats } from '../../../components/dashboard/DashboardStats';
 import { MenuLateral, SectionMenu } from '../../../components/dashboard/MenuLateral';
+import { InfosCompagnie } from '../../../components/dashboard/InfosCompagnie';
 import { BarreOngletsAdmin, OngletAdmin } from '../../../components/dashboard/BarreOngletsAdmin';
 import { Bouton, BoutonIcone, Carte, FeuilleModale, Texte } from '../../../components/ui';
 import { RenderChauffers } from '../../../components/renders/chauffeurs/RenderChauffers';
@@ -104,6 +105,7 @@ export default function DashboardCompagnie() {
   const [user, setUser] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState(tab || 'dashboard');
   const [menuOuvert, setMenuOuvert] = useState(false);
+  const [infosOuvertes, setInfosOuvertes] = useState(false);
   const [compagnieLogo, setCompagnieLogo] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [feuilleLogo, setFeuilleLogo] = useState(false);
@@ -275,9 +277,9 @@ export default function DashboardCompagnie() {
 
       <Texte variante="etiquette" style={{ marginLeft: 4 }}>Compagnie</Texte>
       <Carte padding={0}>
-        <LigneReglage premiere icone="business-outline" titre="Informations publiques" sousTitre="Description, contact, adresse" />
+        <LigneReglage premiere icone="business-outline" titre="Informations publiques" sousTitre="Description, contact, adresse" onPress={() => setInfosOuvertes(true)} />
         <LigneReglage icone="card-outline" titre="Modes de paiement" sousTitre="MVola, Orange Money, Airtel Money" onPress={() => setActiveTab('paiements')} />
-        <LigneReglage icone="map-outline" titre="Provinces desservies" />
+        <LigneReglage icone="map-outline" titre="Provinces desservies" sousTitre="Où les clients vous trouvent" onPress={() => setInfosOuvertes(true)} />
       </Carte>
 
       <Texte variante="etiquette" style={{ marginLeft: 4 }}>Mon compte</Texte>
@@ -342,6 +344,8 @@ export default function DashboardCompagnie() {
       </View>
 
       <BarreOngletsAdmin onglets={ONGLETS} actif={ongletActif} onPress={appuiOnglet} />
+
+      <InfosCompagnie visible={infosOuvertes} onClose={() => setInfosOuvertes(false)} />
 
       <MenuLateral
         visible={menuOuvert}

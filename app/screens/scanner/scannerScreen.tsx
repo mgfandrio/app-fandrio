@@ -5,7 +5,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { reservationAdminService } from '@/app/services/reservations/reservationAdminService';
-import { Bouton, Texte } from '@/app/components/ui';
+import { Bouton, ChampSaisie, FeuilleModale, Texte } from '@/app/components/ui';
 import { couleurs, formatAriary } from '@/app/theme/ocean';
 import { dateCourte, dateVoyage } from '@/app/utils/voyageStatut';
 
@@ -85,6 +85,8 @@ export default function ScannerScreen() {
   // Voyageurs cochés comme présents (voya_id) ; par défaut tous ceux pas encore à bord
   const [presents, setPresents] = useState<number[]>([]);
   const [restants, setRestants] = useState(0);
+  const [saisie, setSaisie] = useState(false);
+  const [numero, setNumero] = useState('');
   const verrou = useRef(false);
   const balayage = useRef(new Animated.Value(0)).current;
 
@@ -99,12 +101,15 @@ export default function ScannerScreen() {
     return () => boucle.stop();
   }, [balayage]);
 
-  const lire = useCallback(async ({ data }: { data: string }) => {
+  /** Vérifie un billet : par son QR code (data) ou par son numéro saisi à la main. */
+  const verifier = useCallback(async (source: { data?: string; numero?: string }) => {
     if (verrou.current) return;
     verrou.current = true;
     setVerification(true);
     try {
-      const r = await reservationAdminService.scannerQR(data);
+      const r = source.numero
+        ? await reservationAdminService.scannerNumero(source.numero)
+        : await reservationAdminService.scannerQR(source.data || '');
       setResultat(r);
       setPresents((r?.data?.voyageurs || []).filter((v: any) => !v.embarque).map((v: any) => Number(v.id)));
     } catch {
@@ -113,6 +118,16 @@ export default function ScannerScreen() {
       setVerification(false);
     }
   }, []);
+
+  const lire = useCallback(({ data }: { data: string }) => verifier({ data }), [verifier]);
+
+  const verifierNumero = () => {
+    const n = numero.trim();
+    if (!n) return;
+    setSaisie(false);
+    setNumero('');
+    verifier({ numero: n });
+  };
 
   const recommencer = () => {
     setResultat(null);
@@ -226,6 +241,18 @@ export default function ScannerScreen() {
             <Texte graisse="gras" taille={15} couleur="#FFFFFF" centre>Placez le QR code du billet{'\n'}dans le cadre</Texte>
           </View>
 
+          <View style={{ paddingHorizontal: 24, paddingBottom: insets.bottom + 24, alignItems: 'center' }}>
+            <Pressable
+              onPress={() => setSaisie(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Saisir le numéro du billet"
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, paddingHorizontal: 18, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.14)' }}
+            >
+              <Ionicons name="keypad-outline" size={18} color="#FFFFFF" />
+              <Texte graisse="tresGras" taille={14} couleur="#FFFFFF">QR illisible ? Saisir le numéro</Texte>
+            </Pressable>
+          </View>
+
           {verification && (
             <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(7,15,26,0.75)', alignItems: 'center', justifyContent: 'center', gap: 12 }]}>
               <ActivityIndicator size="large" color="#FFFFFF" />
@@ -319,6 +346,25 @@ export default function ScannerScreen() {
           </View>
         </>
       )}
+
+      {/* Saisie manuelle du numéro de billet */}
+      <FeuilleModale visible={saisie} onClose={() => setSaisie(false)} titre="Numéro du billet" sousTitre="Inscrit sous le QR code, ex. FAN202611100005">
+        <View style={{ gap: 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 20 }}>
+          <ChampSaisie
+            libelle="Numéro"
+            icone="ticket-outline"
+            value={numero}
+            onChangeText={(t) => setNumero(t.toUpperCase())}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            autoFocus
+            returnKeyType="search"
+            onSubmitEditing={verifierNumero}
+            placeholder="FAN…"
+          />
+          <Bouton titre="Vérifier le billet" icone="search" onPress={verifierNumero} desactive={!numero.trim()} />
+        </View>
+      </FeuilleModale>
     </View>
   );
 }

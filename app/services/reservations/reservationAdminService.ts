@@ -140,6 +140,16 @@ export const reservationAdminService = {
     }
   },
 
+  /** Vérifie un billet à partir de son numéro (QR illisible, téléphone du client hors d'usage). */
+  scannerNumero: async (numero: string) => {
+    try {
+      const response = await apiClient.post('/api/adminCompagnie/reservations/scanner-qr', { numero });
+      return response.data;
+    } catch (error: any) {
+      return error.response?.data || { statut: false, message: 'Erreur réseau', validation: 'erreur' };
+    }
+  },
+
   /** Embarque les voyageurs présents (voya_id) d'un billet ; sans liste : tout le billet. */
   embarquer: async (resId: number, voyageurs?: number[]) => {
     try {
