@@ -11,6 +11,7 @@ import { Bouton, BoutonIcone, Carte, FeuilleModale, Pastille, Segmente, Texte } 
 import { couleurs, formatAriary } from '@/app/theme/ocean';
 import { dateDepuisJJMMAAAA, statutBillet, vignetteDate } from '@/app/utils/statutBillet';
 import { billetMemorise, billetsMemorises, ligneDepuisCopie, synchroniserBillets } from '@/app/services/reservations/billetsHorsLigne';
+import { LEGENDE_QR, AvisSansInternet } from '@/app/components/billets/AvisSansInternet';
 
 type Onglet = 'avenir' | 'passe' | 'annule';
 
@@ -217,6 +218,8 @@ export default function ReservationScreen() {
               </Carte>
             )}
 
+            {prochain && <AvisSansInternet />}
+
             {/* Raccourcis */}
             <Carte padding={0} style={{ flexDirection: 'row' }}>
               {RACCOURCIS.map((r, i) => (
@@ -322,7 +325,7 @@ export default function ReservationScreen() {
               <View style={{ padding: 14, borderRadius: 18, borderWidth: 1, borderColor: couleurs.ligne }}>
                 <QRCode value={qrString} size={230} color={couleurs.ocean950} backgroundColor="#FFFFFF" />
               </View>
-              <Texte variante="legende" centre>Présentez ce code au chauffeur à l'embarquement.</Texte>
+              <Texte variante="legende" centre>{LEGENDE_QR}</Texte>
             </>
           ) : (
             <View style={{ height: 200, alignItems: 'center', justifyContent: 'center', gap: 8 }}>

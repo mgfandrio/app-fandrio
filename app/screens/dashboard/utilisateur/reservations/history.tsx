@@ -9,6 +9,7 @@ import { Skeleton } from '@/app/components/common/Skeleton';
 import { BoutonIcone, Carte, EnTete, FeuilleModale, Pastille, Texte } from '@/app/components/ui';
 import { couleurs, formatAriary } from '@/app/theme/ocean';
 import { statutBillet, vignetteDate } from '@/app/utils/statutBillet';
+import { LEGENDE_QR } from '@/app/components/billets/AvisSansInternet';
 
 /** Historique complet des réservations du client, toutes dates et tous statuts, paginé. */
 export default function HistoryScreen() {
@@ -149,7 +150,7 @@ export default function HistoryScreen() {
                             <View style={{ padding: 14, borderRadius: 18, borderWidth: 1, borderColor: couleurs.ligne }}>
                                 <QRCode value={qr.valeur} size={204} color={couleurs.ocean950} backgroundColor="#FFFFFF" />
                             </View>
-                            <Texte variante="legende" centre>Présentez ce code au chauffeur à l'embarquement.</Texte>
+                            <Texte variante="legende" centre>{LEGENDE_QR}</Texte>
                         </>
                     ) : (
                         <View style={{ alignItems: 'center', gap: 6, paddingVertical: 20 }}>

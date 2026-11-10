@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import authService, { UtilisateurMoi } from '@/app/services/auth/authService';
 import { profilService } from '@/app/services/profil/profilService';
 import { clearPendingReservation } from '@/app/services/reservations/pendingReservation';
-import { effacerBilletsHorsLigne } from '@/app/services/reservations/billetsHorsLigne';
+import { effacerBilletsHorsLigne, billetsMemorises } from '@/app/services/reservations/billetsHorsLigne';
 import { useUser } from '@/app/hooks/useUser';
 import { Skeleton } from '@/app/components/common/Skeleton';
 import { useConfirmDialog } from '@/app/components/common/ConfirmDialog';
@@ -149,10 +149,14 @@ export default function CompteScreen() {
   };
 
   // ── Déconnexion ──
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const billets = await billetsMemorises();
+    const n = billets.length;
     showDialog({
       title: 'Se déconnecter ?',
-      message: 'Vous devrez saisir à nouveau vos identifiants.',
+      message: n > 0
+        ? `Attention : ${n > 1 ? `vos ${n} billets à venir enregistrés` : 'votre billet à venir enregistré'} sur ce téléphone ${n > 1 ? 'seront effacés' : 'sera effacé'}. Sans internet, vous ne pourrez plus ${n > 1 ? 'les' : 'le'} présenter à l'embarquement. Pour ${n > 1 ? 'les' : 'le'} retrouver, reconnectez-vous avec internet avant le départ.`
+        : 'Vous devrez saisir à nouveau vos identifiants.',
       type: 'danger',
       confirmText: 'Se déconnecter',
       cancelText: 'Annuler',

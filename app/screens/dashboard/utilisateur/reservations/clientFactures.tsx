@@ -10,6 +10,7 @@ import { Skeleton } from '@/app/components/common/Skeleton';
 import { Bouton, Carte, EnTete, FeuilleModale, Pastille, Segmente, Texte } from '@/app/components/ui';
 import { couleurs, formatAriary } from '@/app/theme/ocean';
 import { statutBillet } from '@/app/utils/statutBillet';
+import { LEGENDE_QR } from '@/app/components/billets/AvisSansInternet';
 
 type Filtre = 'toutes' | 'avenir' | 'passe';
 
@@ -275,7 +276,7 @@ export default function ClientFacturesScreen() {
                                 <View style={{ padding: 12, borderRadius: 16, borderWidth: 1, borderColor: couleurs.ligne, backgroundColor: '#FFFFFF' }}>
                                     <QRCode value={qrString} size={168} color={couleurs.ocean950} backgroundColor="#FFFFFF" getRef={(c: any) => (qrRef.current = c)} />
                                 </View>
-                                {statutFacture?.groupe === 'avenir' && <Texte variante="legende" centre>Présentez ce code au chauffeur à l'embarquement.</Texte>}
+                                {statutFacture?.groupe === 'avenir' && <Texte variante="legende" centre>{LEGENDE_QR}</Texte>}
                             </View>
                         )}
 

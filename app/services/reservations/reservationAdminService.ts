@@ -140,9 +140,10 @@ export const reservationAdminService = {
     }
   },
 
-  embarquer: async (resId: number) => {
+  /** Embarque les voyageurs présents (voya_id) d'un billet ; sans liste : tout le billet. */
+  embarquer: async (resId: number, voyageurs?: number[]) => {
     try {
-      const response = await apiClient.post(`/api/adminCompagnie/reservations/${resId}/embarquer`);
+      const response = await apiClient.post(`/api/adminCompagnie/reservations/${resId}/embarquer`, voyageurs?.length ? { voyageurs } : {});
       return response.data;
     } catch (error: any) {
       return error.response?.data || { statut: false, message: 'Erreur réseau' };

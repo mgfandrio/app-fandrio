@@ -25,6 +25,8 @@ import {
     LegendePlan, Pastille, PlanSieges, Texte,
 } from '@/app/components/ui';
 import { couleurs, dateLocaleISO, formatAriary } from '@/app/theme/ocean';
+import { LEGENDE_QR, AvisSansInternet } from '@/app/components/billets/AvisSansInternet';
+import { memoriserBillet } from '@/app/services/reservations/billetsHorsLigne';
 
 /*
  * Parcours de réservation (étapes internes) :
@@ -457,6 +459,7 @@ export default function ReserverScreen() {
             const response = await reservationService.obtenirFacture(reservationResult.res_id);
             if (response.statut) {
                 setInvoiceData(response.data);
+                memoriserBillet(response.data);
                 setCurrentStep(6);
             }
         } catch (error) {
@@ -494,6 +497,7 @@ export default function ReserverScreen() {
                 await clearPendingReservation();
                 stopTimer();
                 setInvoiceData(response.data);
+                memoriserBillet(response.data);
                 setCurrentStep(6);
             } else {
                 alerte('Paiement en attente', "Le paiement n'est pas encore confirmé. Si vous venez de payer, patientez quelques secondes puis appuyez à nouveau sur « Vérifier le paiement ».", 'info');
@@ -1076,7 +1080,7 @@ export default function ReserverScreen() {
                                 </View>
                             )}
                         </View>
-                        <Texte variante="legende" centre>Présentez ce code au chauffeur à l'embarquement</Texte>
+                        <Texte variante="legende" centre>{LEGENDE_QR}</Texte>
                         {(invoiceData?.voyageurs || []).length > 0 && (
                             <View style={{ alignSelf: 'stretch', gap: 4, paddingTop: 8, borderTopWidth: 1, borderTopColor: couleurs.separateur }}>
                                 {invoiceData.voyageurs.map((v: any, i: number) => (
@@ -1086,6 +1090,8 @@ export default function ReserverScreen() {
                         )}
                     </View>
                 </View>
+
+                <AvisSansInternet />
             </View>
         );
     };

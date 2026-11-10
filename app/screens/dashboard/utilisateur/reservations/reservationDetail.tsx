@@ -11,6 +11,7 @@ import { couleurs, formatAriary } from '@/app/theme/ocean';
 import { dateDepuisJJMMAAAA, statutBillet } from '@/app/utils/statutBillet';
 import { useConfirmDialog } from '@/app/components/common/ConfirmDialog';
 import { billetMemorise, memoriserBillet, oublierBillet } from '@/app/services/reservations/billetsHorsLigne';
+import { LEGENDE_QR, AvisSansInternet } from '@/app/components/billets/AvisSansInternet';
 
 /** Départ du voyage (date « JJ/MM/AAAA » + heure « HH:mm[:ss] »), ou null. */
 function dateDepart(voyage: any): Date | null {
@@ -184,9 +185,10 @@ export default function ReservationDetailScreen() {
                             <View style={{ padding: 12, borderRadius: 16, borderWidth: 1, borderColor: couleurs.ligne }}>
                                 <QRCode value={getQrString()} size={200} color={couleurs.ocean950} backgroundColor="#FFFFFF" />
                             </View>
-                            <Texte variante="legende" centre>Présentez ce code au chauffeur à l'embarquement.</Texte>
+                            <Texte variante="legende" centre>{LEGENDE_QR}</Texte>
                         </Carte>
                     ) : null}
+                    {invoiceData.reservation.statut === 2 && statut?.groupe === 'avenir' && getQrString() ? <AvisSansInternet /> : null}
 
                     {/* Voyageurs */}
                     {(invoiceData.voyageurs || []).length > 0 && (

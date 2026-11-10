@@ -15,11 +15,15 @@ const CADRE = 250;
 type Issue = { titre: string; sousTitre: string; ton: 'ok' | 'alerte' | 'refus' };
 
 /** Traduit la réponse de l'API en état d'écran : valide, déjà utilisé, autre jour, refusé. */
-function issueDu(resultat: any, embarque: boolean): Issue {
+function issueDu(resultat: any, embarque: boolean, restants: number): Issue {
   const v = resultat?.validation || 'erreur';
   const d = resultat?.data;
-  if (embarque) return { titre: 'Embarquement confirmé', sousTitre: 'Bon voyage !', ton: 'ok' };
+  if (embarque) {
+    const suite = restants > 0 ? `${restants} voyageur${restants > 1 ? 's' : ''} pas encore à bord : rescannez le billet à son arrivée.` : 'Bon voyage !';
+    return { titre: 'Embarquement confirmé', sousTitre: suite, ton: 'ok' };
+  }
   if (v === 'valide' && d?.reservation?.tous_embarques) return { titre: 'Billet déjà utilisé', sousTitre: 'Tous les voyageurs de ce billet sont déjà embarqués.', ton: 'alerte' };
+  if (v === 'valide' && (d?.voyageurs || []).some((x: any) => x.embarque)) return { titre: 'Billet valide', sousTitre: 'Une partie des voyageurs est déjà à bord.', ton: 'ok' };
   if (v === 'valide') return { titre: 'Billet valide', sousTitre: "Prêt pour l'embarquement", ton: 'ok' };
   if (v === 'futur') return { titre: 'Billet pour un autre jour', sousTitre: `Ce billet est pour le ${dateCourte(dateVoyage(d?.voyage?.date))} à ${String(d?.voyage?.heure || '').slice(0, 5)}.`, ton: 'alerte' };
   if (v === 'passe') return { titre: 'Voyage déjà passé', sousTitre: `Ce billet concernait le départ du ${dateCourte(dateVoyage(d?.voyage?.date))}.`, ton: 'alerte' };
@@ -78,6 +82,9 @@ export default function ScannerScreen() {
   const [resultat, setResultat] = useState<any>(null);
   const [embarque, setEmbarque] = useState(false);
   const [envoi, setEnvoi] = useState(false);
+  // Voyageurs cochés comme présents (voya_id) ; par défaut tous ceux pas encore à bord
+  const [presents, setPresents] = useState<number[]>([]);
+  const [restants, setRestants] = useState(0);
   const verrou = useRef(false);
   const balayage = useRef(new Animated.Value(0)).current;
 
@@ -97,7 +104,9 @@ export default function ScannerScreen() {
     verrou.current = true;
     setVerification(true);
     try {
-      setResultat(await reservationAdminService.scannerQR(data));
+      const r = await reservationAdminService.scannerQR(data);
+      setResultat(r);
+      setPresents((r?.data?.voyageurs || []).filter((v: any) => !v.embarque).map((v: any) => Number(v.id)));
     } catch {
       setResultat({ statut: false, validation: 'erreur', message: 'Problème de connexion. Réessayez.' });
     } finally {
@@ -108,18 +117,26 @@ export default function ScannerScreen() {
   const recommencer = () => {
     setResultat(null);
     setEmbarque(false);
+    setPresents([]);
+    setRestants(0);
     verrou.current = false;
   };
+
+  const basculer = (id: number) => setPresents((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
   const embarquer = async () => {
     const id = resultat?.data?.reservation?.res_id;
     if (!id) return;
     setEnvoi(true);
     try {
-      const r = await reservationAdminService.embarquer(id);
+      const r = await reservationAdminService.embarquer(id, presents);
       if (r?.statut) {
         setEmbarque(true);
-        setResultat((p: any) => ({ ...p, data: { ...p.data, voyageurs: (p.data.voyageurs || []).map((v: any) => ({ ...v, embarque: true })) } }));
+        setRestants(Number(r.data?.restants) || 0);
+        setResultat((p: any) => ({
+          ...p,
+          data: { ...p.data, voyageurs: (p.data.voyageurs || []).map((v: any) => (presents.includes(Number(v.id)) ? { ...v, embarque: true } : v)) },
+        }));
       } else {
         setResultat({ statut: false, validation: 'erreur', message: r?.message || 'Embarquement impossible.' });
       }
@@ -149,11 +166,11 @@ export default function ScannerScreen() {
   }
 
   const d = resultat?.data;
-  const issue = resultat ? issueDu(resultat, embarque) : null;
+  const issue = resultat ? issueDu(resultat, embarque, restants) : null;
   const ton = issue ? TONS[issue.ton] : null;
   const peutEmbarquer = resultat?.validation === 'valide' && !d?.reservation?.tous_embarques && !embarque;
   const voyageurs: any[] = d?.voyageurs || [];
-  const aEmbarquer = voyageurs.filter((v) => !v.embarque).length;
+  const aEmbarquer = presents.length;
 
   return (
     <View style={{ flex: 1, backgroundColor: FOND }}>
@@ -253,24 +270,49 @@ export default function ScannerScreen() {
               {voyageurs.length > 0 && (
                 <>
                   <Texte variante="etiquette">Voyageurs</Texte>
-                  {voyageurs.map((v, i) => (
-                    <View key={v.id ?? i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1.5, borderColor: couleurs.champ }}>
-                      <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: couleurs.ocean800, alignItems: 'center', justifyContent: 'center' }}>
-                        <Texte graisse="tresGras" taille={14} couleur="#FFFFFF">{v.siege}</Texte>
-                      </View>
-                      <Texte graisse="tresGras" taille={14.5} style={{ flex: 1 }} numberOfLines={1}>{v.nom}</Texte>
-                      {v.embarque ? (
-                        <Ionicons name="checkmark-circle" size={22} color={couleurs.succesVif} accessibilityLabel="Embarqué" />
-                      ) : (
-                        <Texte graisse="gras" taille={12} couleur={couleurs.gris}>À bord ?</Texte>
-                      )}
-                    </View>
-                  ))}
+                  {peutEmbarquer && (
+                    <Texte graisse="moyen" taille={12.5} couleur={couleurs.gris}>
+                      Décochez les voyageurs absents : ils pourront embarquer plus tard en rescannant le billet.
+                    </Texte>
+                  )}
+                  {voyageurs.map((v, i) => {
+                    const id = Number(v.id);
+                    const coche = presents.includes(id);
+                    const modifiable = peutEmbarquer && !v.embarque;
+                    return (
+                      <Pressable
+                        key={v.id ?? i}
+                        disabled={!modifiable}
+                        onPress={() => basculer(id)}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: v.embarque || coche, disabled: !modifiable }}
+                        accessibilityLabel={`${v.nom}, siège ${v.siege}`}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1.5, borderColor: modifiable && coche ? couleurs.succesVif : couleurs.champ }}
+                      >
+                        <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: couleurs.ocean800, alignItems: 'center', justifyContent: 'center' }}>
+                          <Texte graisse="tresGras" taille={14} couleur="#FFFFFF">{v.siege}</Texte>
+                        </View>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Texte graisse="tresGras" taille={14.5} numberOfLines={1}>{v.nom}</Texte>
+                          {v.embarque ? (
+                            <Texte graisse="gras" taille={12} couleur={couleurs.succesVif}>{embarque && coche ? 'Embarqué' : 'Déjà à bord'}</Texte>
+                          ) : !modifiable ? (
+                            <Texte graisse="gras" taille={12} couleur={couleurs.gris}>{embarque ? 'Absent' : 'Pas à bord'}</Texte>
+                          ) : null}
+                        </View>
+                        {v.embarque ? (
+                          <Ionicons name="checkmark-circle" size={24} color={couleurs.succesVif} />
+                        ) : modifiable ? (
+                          <Ionicons name={coche ? 'checkbox' : 'square-outline'} size={24} color={coche ? couleurs.succesVif : couleurs.gris} />
+                        ) : null}
+                      </Pressable>
+                    );
+                  })}
                 </>
               )}
 
               {peutEmbarquer && (
-                <Bouton titre={`Confirmer l'embarquement${aEmbarquer ? ` (${aEmbarquer})` : ''}`} variante="succes" icone="checkmark-done" onPress={embarquer} chargement={envoi} style={{ marginTop: 4 }} />
+                <Bouton titre={`Confirmer l'embarquement${aEmbarquer ? ` (${aEmbarquer})` : ''}`} variante="succes" icone="checkmark-done" onPress={embarquer} chargement={envoi} desactive={aEmbarquer === 0} style={{ marginTop: 4 }} />
               )}
               <Bouton titre="Scanner un autre billet" variante={peutEmbarquer ? 'lien' : 'principal'} icone={peutEmbarquer ? undefined : 'scan-outline'} onPress={recommencer} />
             </ScrollView>
