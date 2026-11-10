@@ -224,6 +224,7 @@ function DetailVoyageContenu({ visible, voyageId, apercu, onClose, onModifier, o
                 {[p.reservation_numero, p.cin ? `CIN ${p.cin}` : null, p.age ? `${p.age} ans` : null].filter(Boolean).join(' · ')}
               </Texte>
             </View>
+            {p.embarque && <Ionicons name="checkmark-circle" size={20} color={couleurs.succesVif} accessibilityLabel="À bord" />}
             {!!p.phone && <BoutonIcone icone="call-outline" libelle={`Appeler ${p.prenom}`} onPress={() => Linking.openURL(`tel:${p.phone}`)} />}
           </View>
         ))}
@@ -252,10 +253,14 @@ function DetailVoyageContenu({ visible, voyageId, apercu, onClose, onModifier, o
           {billets.map((b, i) => (
             <View key={b.res_id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, paddingHorizontal: 14, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: couleurs.separateur }}>
               <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: couleurs.ocean50, alignItems: 'center', justifyContent: 'center' }}>
-                <Texte graisse="tresGras" taille={13} couleur={couleurs.ocean800}>{initiales(b.client?.prenom, b.client?.nom)}</Texte>
+                {b.canal === 'guichet' ? (
+                  <Ionicons name="storefront-outline" size={18} color={couleurs.ocean800} />
+                ) : (
+                  <Texte graisse="tresGras" taille={13} couleur={couleurs.ocean800}>{initiales(b.client?.prenom, b.client?.nom)}</Texte>
+                )}
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Texte graisse="tresGras" taille={14} numberOfLines={1}>{b.client ? `${b.client.prenom} ${b.client.nom}` : b.res_numero}</Texte>
+                <Texte graisse="tresGras" taille={14} numberOfLines={1}>{b.canal === 'guichet' ? 'Vente au guichet' : b.client ? `${b.client.prenom} ${b.client.nom}` : b.res_numero}</Texte>
                 <Texte graisse="moyen" taille={12} couleur={couleurs.gris} numberOfLines={1}>
                   {[b.res_numero, b.sieges?.length ? `siège${b.sieges.length > 1 ? 's' : ''} ${b.sieges.join(', ')}` : null, b.type_paiement?.nom].filter(Boolean).join(' · ')}
                 </Texte>

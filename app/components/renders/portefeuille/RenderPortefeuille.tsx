@@ -85,7 +85,7 @@ export function RenderPortefeuille() {
     }
   };
 
-  const mois = data?.par_periode?.ce_mois || { brut: 0, commission: 0, net: 0, billets: 0 };
+  const mois = data?.par_periode?.ce_mois || { brut: 0, commission: 0, net: 0, billets: 0, guichet: 0 };
   const taux = data?.taux_commission ?? collecte?.config?.taux;
   const aPayer = (collecte?.collectes || []).find((c: any) => c.payable);
   const prochaine = collecte?.prochaine_collecte;
@@ -124,6 +124,9 @@ export function RenderPortefeuille() {
               <View style={{ flex: 1 }}>
                 <Texte graisse="moyen" taille={12} couleur={couleurs.texteSurMarine}>Revenu brut</Texte>
                 <Texte variante="montant" taille={15} couleur="#FFFFFF">{formatAriary(mois.brut)} Ar</Texte>
+                {Number(mois.guichet) > 0 && (
+                  <Texte graisse="moyen" taille={11} couleur={couleurs.texteSurMarine}>dont guichet {formatAriary(mois.guichet)} Ar (sans commission)</Texte>
+                )}
               </View>
               <View style={{ flex: 1 }}>
                 <Texte graisse="moyen" taille={12} couleur={couleurs.texteSurMarine}>Commission FANDRIO{taux != null ? ` (${String(taux).replace('.', ',')} %)` : ''}</Texte>

@@ -151,6 +151,25 @@ export const reservationAdminService = {
   },
 
   /**
+   * Vente au guichet : places payées en espèces sur place (sans commission FANDRIO).
+   * Renvoie { res_id, res_numero, montant_total, trajet, date, heure, voyageurs, qr_data }.
+   */
+  vendreAuGuichet: async (params: {
+    voyage_id: number;
+    voyageurs: { siege: string; nom: string; prenom?: string; telephone?: string }[];
+    embarquer?: boolean;
+  }) => {
+    try {
+      const response = await apiClient.post('/api/adminCompagnie/reservations/guichet', params);
+      return response.data;
+    } catch (error: any) {
+      const data = error.response?.data;
+      const premiereErreur = data?.errors ? (Object.values(data.errors)[0] as string[])?.[0] : null;
+      return { statut: false, message: premiereErreur || data?.message || 'Erreur réseau : la vente n’a pas été enregistrée.' };
+    }
+  },
+
+  /**
    * Portefeuille : solde, commission, historique transactions
    */
   obtenirPortefeuille: async (params?: {

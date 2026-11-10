@@ -33,6 +33,7 @@ const MENU: SectionMenu[] = [
       { key: 'dashboard', label: 'Tableau de bord', icon: 'home-outline', activeIcon: 'home' },
       { key: 'voyages', label: 'Voyages', icon: 'git-commit-outline', activeIcon: 'git-commit' },
       { key: 'reservations', label: 'Réservations', icon: 'ticket-outline', activeIcon: 'ticket' },
+      { key: 'guichet', label: 'Vente au guichet', icon: 'storefront-outline', activeIcon: 'storefront' },
     ],
   },
   {
@@ -227,8 +228,9 @@ export default function DashboardCompagnie() {
 
   const fermerMenu = useCallback(() => setMenuOuvert(false), []);
   const choisirOnglet = (key: string) => {
-    setActiveTab(key);
     setMenuOuvert(false);
+    if (key === 'guichet') router.push('/screens/guichet/guichetScreen' as any);
+    else setActiveTab(key);
   };
   const appuiOnglet = (key: string) => {
     if (key === 'scanner') router.push('/screens/scanner/scannerScreen');
@@ -324,7 +326,7 @@ export default function DashboardCompagnie() {
       <View style={{ flex: 1 }}>
         {accueil && (
           <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 10, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
-            <DashboardStats refreshTrigger={0} onNavigate={setActiveTab} />
+            <DashboardStats refreshTrigger={0} onNavigate={(t) => (t === 'guichet' ? router.push('/screens/guichet/guichetScreen' as any) : setActiveTab(t))} />
           </ScrollView>
         )}
         {activeTab === 'chauffeurs' && <RenderChauffers onMenu={() => setMenuOuvert(true)} />}

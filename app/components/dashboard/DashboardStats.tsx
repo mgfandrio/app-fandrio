@@ -160,6 +160,20 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ refreshTrigger =
         </View>
       </View>
 
+      {/* Raccourci : vente au guichet */}
+      {onNavigate && (
+        <Carte onPress={() => onNavigate('guichet')} accessibilityLabel="Vente au guichet : vendre des places payées en espèces" style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ width: 44, height: 44, borderRadius: 13, backgroundColor: couleurs.ocean800, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="storefront-outline" size={22} color="#FFFFFF" />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Texte graisse="tresGras" taille={15}>Vente au guichet</Texte>
+            <Texte graisse="moyen" taille={12.5} couleur={couleurs.gris} numberOfLines={1}>Un voyageur sur place ? Vendez-lui une place</Texte>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={couleurs.grisClair} />
+        </Carte>
+      )}
+
       {/* Indicateurs */}
       <Carte padding={0} style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
         <Indicateur valeur={totaux.reservations || 0} libelle="Réservations" droite bas />
