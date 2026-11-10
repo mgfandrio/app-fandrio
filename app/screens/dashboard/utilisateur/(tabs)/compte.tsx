@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import authService, { UtilisateurMoi } from '@/app/services/auth/authService';
 import { profilService } from '@/app/services/profil/profilService';
 import { clearPendingReservation } from '@/app/services/reservations/pendingReservation';
+import { effacerBilletsHorsLigne } from '@/app/services/reservations/billetsHorsLigne';
 import { useUser } from '@/app/hooks/useUser';
 import { Skeleton } from '@/app/components/common/Skeleton';
 import { useConfirmDialog } from '@/app/components/common/ConfirmDialog';
@@ -166,6 +167,8 @@ export default function CompteScreen() {
           await SecureStore.deleteItemAsync('fandrioUser');
           // Une réservation en cours appartient au compte qui se déconnecte
           await clearPendingReservation();
+          // Les billets gardés hors connexion appartiennent au compte qui se déconnecte
+          await effacerBilletsHorsLigne();
           setLoadingLogout(false);
           router.replace('/screens/authentification/loginScreen');
         }

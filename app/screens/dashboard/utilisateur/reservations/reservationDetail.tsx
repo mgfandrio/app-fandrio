@@ -8,7 +8,18 @@ import { reservationService } from '@/app/services/reservations/reservationServi
 import { Skeleton } from '@/app/components/common/Skeleton';
 import { Bouton, BoutonIcone, Carte, EnTete, Pastille, Texte } from '@/app/components/ui';
 import { couleurs, formatAriary } from '@/app/theme/ocean';
-import { statutBillet } from '@/app/utils/statutBillet';
+import { dateDepuisJJMMAAAA, statutBillet } from '@/app/utils/statutBillet';
+import { useConfirmDialog } from '@/app/components/common/ConfirmDialog';
+import { billetMemorise, memoriserBillet, oublierBillet } from '@/app/services/reservations/billetsHorsLigne';
+
+/** Départ du voyage (date « JJ/MM/AAAA » + heure « HH:mm[:ss] »), ou null. */
+function dateDepart(voyage: any): Date | null {
+    const d = dateDepuisJJMMAAAA(voyage?.date);
+    if (!d) return null;
+    const [h, m] = String(voyage?.heure || '00:00').split(':').map(Number);
+    d.setHours(h || 0, m || 0, 0, 0);
+    return d;
+}
 
 /** Ligne libellé / valeur d'une carte d'informations. */
 function Ligne({ libelle, valeur, fort }: { libelle: string; valeur?: string; fort?: boolean }) {
@@ -29,6 +40,9 @@ export default function ReservationDetailScreen() {
     const [loading, setLoading] = useState(true);
     const [invoiceData, setInvoiceData] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
+    const [horsLigne, setHorsLigne] = useState(false);
+    const [annulation, setAnnulation] = useState(false);
+    const { showDialog, DialogComponent } = useConfirmDialog();
 
     useEffect(() => {
         if (id) loadDetail();
@@ -40,10 +54,18 @@ export default function ReservationDetailScreen() {
         setError(null);
         try {
             const response = await reservationService.obtenirFacture(Number(id));
-            if (response.statut) setInvoiceData(response.data);
-            else setError(response.message || 'Impossible de charger ce billet.');
+            if (response.statut) {
+                setInvoiceData(response.data);
+                setHorsLigne(false);
+                memoriserBillet(response.data);
+            } else setError(response.message || 'Impossible de charger ce billet.');
         } catch {
-            setError('Impossible de charger ce billet. Vérifiez votre connexion.');
+            // Sans réseau : copie gardée sur le téléphone (billets confirmés à venir)
+            const copie = await billetMemorise(Number(id));
+            if (copie) {
+                setInvoiceData(copie.facture);
+                setHorsLigne(true);
+            } else setError('Impossible de charger ce billet. Vérifiez votre connexion.');
         } finally {
             setLoading(false);
         }
@@ -69,10 +91,40 @@ export default function ReservationDetailScreen() {
     };
 
     const statut = invoiceData ? statutBillet(invoiceData.reservation.statut, invoiceData.voyage?.date) : null;
+    const depart = invoiceData ? dateDepart(invoiceData.voyage) : null;
+    // Annulation possible par le client jusqu'à 24 h avant le départ (règle de l'API)
+    const annulable = !horsLigne && invoiceData?.reservation?.statut === 2 && !!depart && depart.getTime() - Date.now() >= 24 * 3600 * 1000;
+
+    const annuler = () => {
+        const nb = Number(invoiceData.reservation.nb_voyageurs) || 1;
+        showDialog({
+            title: 'Annuler ce billet ?',
+            message: `${invoiceData.voyage.depart} → ${invoiceData.voyage.arrivee}, ${invoiceData.voyage.date}. ${nb > 1 ? `Les ${nb} places seront libérées` : 'La place sera libérée'} pour d'autres voyageurs. Le billet n'est pas remboursé.`,
+            type: 'danger',
+            confirmText: 'Annuler le billet',
+            cancelText: 'Garder mon billet',
+            onConfirm: async () => {
+                setAnnulation(true);
+                try {
+                    const r = await reservationService.annulerBillet(Number(id));
+                    if (r?.statut) {
+                        await oublierBillet(Number(id));
+                        await loadDetail();
+                    } else {
+                        showDialog({ title: 'Annulation impossible', message: r?.message || 'Une erreur est survenue.', type: 'danger', confirmText: 'OK', onConfirm: () => {}, onCancel: () => {} });
+                    }
+                } finally {
+                    setAnnulation(false);
+                }
+            },
+            onCancel: () => {},
+        });
+    };
 
     return (
         <View style={{ flex: 1, backgroundColor: couleurs.fond }}>
             <StatusBar barStyle="dark-content" backgroundColor={couleurs.surface} />
+            <DialogComponent />
             <EnTete
                 titre={invoiceData ? `Billet ${invoiceData.reservation.numero}` : 'Détail du billet'}
                 sousTitre={invoiceData?.reservation?.date_reservation ? `Réservé le ${invoiceData.reservation.date_reservation}` : undefined}
@@ -93,6 +145,14 @@ export default function ReservationDetailScreen() {
                 </View>
             ) : (
                 <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24, gap: 14 }} showsVerticalScrollIndicator={false}>
+                    {horsLigne && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, backgroundColor: couleurs.alerteFond }}>
+                            <Ionicons name="cloud-offline-outline" size={20} color={couleurs.alerte} />
+                            <Texte graisse="gras" taille={12.5} couleur={couleurs.alerte} style={{ flex: 1, lineHeight: 18 }}>
+                                Hors connexion : billet enregistré sur ce téléphone. Le QR code reste valable pour l’embarquement.
+                            </Texte>
+                        </View>
+                    )}
                     {/* Trajet */}
                     <Carte marine style={{ gap: 12 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -165,6 +225,16 @@ export default function ReservationDetailScreen() {
                             </View>
                         </Carte>
                     </View>
+
+                    {annulable && (
+                        <View style={{ gap: 6, marginTop: 4 }}>
+                            <Bouton titre="Annuler ce billet" variante="danger" icone="close-circle-outline" onPress={annuler} chargement={annulation} />
+                            <Texte variante="legende" centre>Possible jusqu’à 24 h avant le départ. Le billet n’est pas remboursé.</Texte>
+                        </View>
+                    )}
+                    {invoiceData.reservation.statut === 6 && (
+                        <Texte variante="legende" centre>Vous avez annulé ce billet. Il n’a pas été remboursé.</Texte>
+                    )}
                 </ScrollView>
             )}
         </View>

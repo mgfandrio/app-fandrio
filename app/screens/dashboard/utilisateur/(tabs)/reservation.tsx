@@ -10,6 +10,7 @@ import { reservationService } from '@/app/services/reservations/reservationServi
 import { Bouton, BoutonIcone, Carte, FeuilleModale, Pastille, Segmente, Texte } from '@/app/components/ui';
 import { couleurs, formatAriary } from '@/app/theme/ocean';
 import { dateDepuisJJMMAAAA, statutBillet, vignetteDate } from '@/app/utils/statutBillet';
+import { billetMemorise, billetsMemorises, ligneDepuisCopie, synchroniserBillets } from '@/app/services/reservations/billetsHorsLigne';
 
 type Onglet = 'avenir' | 'passe' | 'annule';
 
@@ -29,6 +30,8 @@ export default function ReservationScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [dashboardData, setDashboardData] = useState<any>(null);
+  // Vrai quand la liste vient de la copie gardée sur le téléphone (pas de réseau)
+  const [horsLigne, setHorsLigne] = useState(false);
   const [onglet, setOnglet] = useState<Onglet>('avenir');
 
   // Filtre par date de réservation
@@ -47,9 +50,21 @@ export default function ReservationScreen() {
   const fetchData = useCallback(async () => {
     try {
       const dashResp = await reservationService.obtenirDashboard();
-      if (dashResp && dashResp.statut) setDashboardData(dashResp.data);
+      if (dashResp && dashResp.statut) {
+        setDashboardData(dashResp.data);
+        setHorsLigne(false);
+        // Garde une copie des billets à venir pour les présenter sans réseau
+        synchroniserBillets(dashResp.data?.historique || []);
+        return;
+      }
+      throw new Error('indisponible');
     } catch (e) {
-      console.warn('Error loading reservation data:', e);
+      // Pas de réseau : on montre les billets gardés sur le téléphone
+      const copies = await billetsMemorises();
+      if (copies.length) {
+        setDashboardData({ stats: null, historique: copies.map((c) => ligneDepuisCopie(c.facture)) });
+        setHorsLigne(true);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -76,7 +91,17 @@ export default function ReservationScreen() {
         setQrNumero(response.data.reservation.numero || '');
       }
     } catch (e) {
-      console.error('Error loading QR:', e);
+      // Sans réseau : QR code de la copie gardée sur le téléphone
+      const copie = await billetMemorise(resId);
+      const qrData = copie?.facture?.reservation?.qr_data;
+      if (qrData) {
+        try {
+          setQrString(atob(qrData));
+        } catch {
+          setQrString(qrData);
+        }
+        setQrNumero(copie.facture.reservation.numero || '');
+      }
     } finally {
       setQrLoading(false);
     }
@@ -135,11 +160,20 @@ export default function ReservationScreen() {
           <View style={{ flex: 1 }}>
             <Texte variante="titre">Mes billets</Texte>
             <Texte variante="legende" taille={13}>
-              {loading ? ' ' : `${dashboardData?.stats?.total_reservations || 0} voyage${(dashboardData?.stats?.total_reservations || 0) > 1 ? 's' : ''} avec FANDRIO`}
+              {loading ? ' ' : horsLigne ? 'Billets à venir gardés sur ce téléphone' : `${dashboardData?.stats?.total_reservations || 0} voyage${(dashboardData?.stats?.total_reservations || 0) > 1 ? 's' : ''} avec FANDRIO`}
             </Texte>
           </View>
           <BoutonIcone icone="calendar-outline" libelle="Filtrer par date de réservation" onPress={() => setShowDateModal(true)} />
         </View>
+
+        {horsLigne && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, backgroundColor: couleurs.alerteFond }}>
+            <Ionicons name="cloud-offline-outline" size={20} color={couleurs.alerte} />
+            <Texte graisse="gras" taille={12.5} couleur={couleurs.alerte} style={{ flex: 1, lineHeight: 18 }}>
+              Hors connexion. Vos billets à venir et leurs QR codes restent utilisables pour l’embarquement.
+            </Texte>
+          </View>
+        )}
 
         {loading ? (
           <View style={{ gap: 12 }}>

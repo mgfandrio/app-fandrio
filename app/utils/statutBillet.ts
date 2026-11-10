@@ -4,7 +4,8 @@ import type { Tonalite } from '@/app/theme/ocean';
  * Statut d'une réservation pour l'affichage client.
  *
  * res_statut de l'API : 1 = en attente de paiement, 2 = confirmée (payée),
- * 4 = annulée (ou expirée / remboursée), 5 = abandonnée. Il n'y a pas de
+ * 4 = annulée (ou expirée / remboursée), 5 = abandonnée, 6 = annulée par le
+ * client (non remboursée). Il n'y a pas de
  * statut « terminée » : un billet confirmé dont la date est passée est « Effectué ».
  */
 export interface StatutBillet {
@@ -42,6 +43,9 @@ export function statutBillet(statut: number, dateVoyage?: string): StatutBillet 
       return { libelle: 'Annulé', tonalite: 'danger', groupe: 'annule' };
     case 5:
       return { libelle: 'Abandonné', tonalite: 'neutre', groupe: 'annule' };
+    case 6:
+      // Annulé par le client lui-même : sièges libérés, pas de remboursement
+      return { libelle: 'Annulé par vous', tonalite: 'neutre', groupe: 'annule' };
     default:
       return { libelle: 'Inconnu', tonalite: 'neutre', groupe: 'passe' };
   }

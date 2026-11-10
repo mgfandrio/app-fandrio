@@ -107,6 +107,18 @@ export const reservationService = {
     },
 
     /**
+     * Annule un billet PAYÉ (jusqu'à 24 h avant le départ) : sièges libérés, pas de remboursement
+     */
+    annulerBillet: async (resId: number) => {
+        try {
+            const response = await apiClient.post(`/api/client/reservation/${resId}/annuler-billet`);
+            return response.data;
+        } catch (error: any) {
+            return error.response?.data || { statut: false, message: 'Problème de connexion. Réessayez.' };
+        }
+    },
+
+    /**
      * Récupère toutes les réservations de l'utilisateur (paginé)
      */
     obtenirToutesReservations: async (page: number = 1) => {
