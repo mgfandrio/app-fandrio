@@ -5,9 +5,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { chauffeurService, voitureService } from '../../services';
 import { useConfirmDialog } from '../common/ConfirmDialog';
 import { Skeleton } from '../common/Skeleton';
-import { Bouton, BoutonIcone, Carte, dispositionMinibus, PlanSieges, Texte, ModalPleinEcran } from '../ui';
+import { Bouton, BoutonIcone, Carte, dispositionGrille, dispositionMinibus, PlanSieges, Texte, ModalPleinEcran } from '../ui';
 import { couleurs } from '../../theme/ocean';
 import { compagnieIdCourante, libelleCategorie } from './communs';
+import { EditeurPlan } from './EditeurPlan';
 
 interface Props {
   visible: boolean;
@@ -19,16 +20,24 @@ interface Props {
 
 /** Décrit une rangée du plan : « Chauffeur + 2 places », « 2 + couloir + 1 »… */
 function decrireRangee(r: any[], i: number, total: number) {
-  if (r.some((c) => c.type === 'chauffeur')) {
-    const n = r.filter((c) => c.type === 'siege').length;
-    return `Chauffeur + ${n} place${n > 1 ? 's' : ''}`;
-  }
   const sieges = r.filter((c) => c.type === 'siege').length;
-  const couloir = r.findIndex((c) => c.type === 'couloir');
-  if (couloir === -1) return i === total - 1 && total > 2 ? `Banquette arrière de ${sieges}` : `Banquette de ${sieges}`;
-  const gauche = r.slice(0, couloir).filter((c) => c.type === 'siege').length;
-  const droite = r.slice(couloir + 1).filter((c) => c.type === 'siege').length;
-  return `${gauche} + couloir + ${droite}`;
+  if (r.some((c) => c.type === 'chauffeur')) {
+    return sieges ? `Chauffeur + ${sieges} place${sieges > 1 ? 's' : ''}` : 'Chauffeur';
+  }
+  if (sieges === 0) return 'Vide';
+  // Groupes de sièges côte à côte, séparés par un couloir ou une case vide
+  const groupes: number[] = [];
+  let courant = 0;
+  for (const c of r) {
+    if (c.type === 'siege') courant++;
+    else if (courant) {
+      groupes.push(courant);
+      courant = 0;
+    }
+  }
+  if (courant) groupes.push(courant);
+  if (groupes.length === 1) return i === total - 1 && total > 2 ? `Banquette arrière de ${sieges}` : `Banquette de ${sieges}`;
+  return groupes.join(' + couloir + ');
 }
 
 /** Détail d'un véhicule : informations, plan de sièges vu par les clients, disponibilité. */
@@ -39,13 +48,16 @@ function DetailVehiculeContenu({ visible, voitureId, onClose, onModifier, onChan
   const [chauffeur, setChauffeur] = useState<any>(null);
   const [chargement, setChargement] = useState(true);
   const [envoi, setEnvoi] = useState(false);
+  const [grille, setGrille] = useState<string[][] | null>(null);
+  const [editeur, setEditeur] = useState(false);
 
   const charger = async () => {
     if (!voitureId) return;
     try {
-      const r: any = await voitureService.obtenirVoiture(voitureId);
+      const [r, plan]: any[] = await Promise.all([voitureService.obtenirVoiture(voitureId), voitureService.obtenirPlan(voitureId)]);
       const v = r?.data;
       setVoiture(v || null);
+      setGrille(plan?.grille || null);
       if (v?.chauff_id) {
         const c: any = await chauffeurService.obtenirChauffeur(v.chauff_id).catch(() => null);
         setChauffeur(c?.data || null);
@@ -65,7 +77,7 @@ function DetailVehiculeContenu({ visible, voitureId, onClose, onModifier, onChan
 
   const places = Number(voiture?.voit_places) || 0;
   const codes = useMemo(() => Array.from({ length: places }, (_, i) => String(i + 1)), [places]);
-  const rangees = useMemo(() => dispositionMinibus(codes), [codes]);
+  const rangees = useMemo(() => (grille?.length ? dispositionGrille(grille) : dispositionMinibus(codes)), [codes, grille]);
   const disponible = Number(voiture?.voit_statut) === 1;
 
   const basculer = () => {
@@ -136,12 +148,12 @@ function DetailVehiculeContenu({ visible, voitureId, onClose, onModifier, onChan
               </Carte>
 
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 4 }}>
-                <Texte variante="etiquette">Plan de sièges</Texte>
-                <Texte graisse="tresGras" taille={13} couleur={couleurs.ocean800}>{places} places</Texte>
+                <Texte variante="etiquette">Plan de sièges · {places} places</Texte>
+                <Bouton titre="Modifier le plan" variante="lien" icone="create-outline" compact onPress={() => setEditeur(true)} />
               </View>
 
               <Carte style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
-                <PlanSieges sieges={codes.map((code) => ({ code, statut: 'disponible' }))} mode="compagnie" taille={26} />
+                <PlanSieges sieges={codes.map((code) => ({ code, statut: 'disponible' }))} grille={grille} mode="compagnie" taille={26} />
                 <View style={{ flex: 1, minWidth: 0, borderWidth: 1, borderColor: couleurs.separateur, borderRadius: 12, overflow: 'hidden' }}>
                   {rangees.map((r, i) => (
                     <View key={i} style={{ paddingVertical: 9, paddingHorizontal: 12, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: couleurs.separateur }}>
@@ -172,6 +184,21 @@ function DetailVehiculeContenu({ visible, voitureId, onClose, onModifier, onChan
           </>
         )}
       </View>
+
+      {!!voiture && (
+        <EditeurPlan
+          visible={editeur}
+          voitureId={voitureId!}
+          titre={`${voiture.voit_marque} ${voiture.voit_modele} · ${voiture.voit_matricule}`}
+          grilleInitiale={grille}
+          placesActuelles={places}
+          onClose={() => setEditeur(false)}
+          onEnregistre={async () => {
+            await charger();
+            onChange?.();
+          }}
+        />
+      )}
     </>
   );
 }

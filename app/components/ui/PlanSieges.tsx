@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, useWindowDimensions, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { couleurs } from '../../theme/ocean';
 import { Texte } from './Texte';
@@ -54,6 +54,19 @@ export function dispositionMinibus(codes: string[]): Case[][] {
   return rangees;
 }
 
+/**
+ * Disposition dessinée par la compagnie, telle que renvoyée par l'API :
+ * une liste de rangées dont chaque case vaut 'C' (chauffeur), '' (vide ou
+ * couloir) ou le numéro du siège.
+ */
+export type GrillePlan = string[][];
+
+export function dispositionGrille(grille: GrillePlan): Case[][] {
+  return grille.map((rangee) =>
+    rangee.map((c): Case => (c === 'C' ? { type: 'chauffeur' } : c ? { type: 'siege', code: String(c) } : { type: 'vide' }))
+  );
+}
+
 export interface PlanSiegesProps {
   sieges: SiegePlan[];
   /** Codes choisis par l'utilisateur courant. */
@@ -66,15 +79,26 @@ export interface PlanSiegesProps {
   mode?: 'client' | 'compagnie';
   /** Taille d'un siège (56 sur l'écran de réservation, 46 en vue compacte). */
   taille?: number;
+  /** Disposition dessinée par la compagnie ; sans elle, disposition standard de minibus. */
+  grille?: GrillePlan | null;
 }
 
 /** Plan de sièges réaliste : véhicule vu de dessus, volant, appuie-têtes, couloir. */
-export function PlanSieges({ sieges, selection = [], onToggle, mode = 'client', taille = 56 }: PlanSiegesProps) {
+export function PlanSieges({ sieges, selection = [], onToggle, mode = 'client', taille: tailleVoulue = 56, grille }: PlanSiegesProps) {
+  const { width } = useWindowDimensions();
   const parCode = useMemo(() => new Map(sieges.map((s) => [s.code, s])), [sieges]);
   const rangees = useMemo(
-    () => dispositionMinibus([...sieges].sort((a, b) => Number(a.code) - Number(b.code)).map((s) => s.code)),
-    [sieges]
+    () =>
+      grille?.length
+        ? dispositionGrille(grille)
+        : dispositionMinibus([...sieges].sort((a, b) => Number(a.code) - Number(b.code)).map((s) => s.code)),
+    [sieges, grille]
   );
+  // Un plan large (bus 2 + 2) doit tenir dans l'écran : on réduit les sièges si besoin
+  const colonnes = Math.max(...rangees.map((r) => r.length), 1);
+  const ecartVoulu = tailleVoulue >= 52 ? 10 : 8;
+  const place = width - 32 - 36 - 4 - 32; // marges de l'écran, de la carrosserie et de la carte
+  const taille = Math.min(tailleVoulue, Math.max(30, Math.floor((place - (colonnes - 1) * ecartVoulu) / colonnes)));
   const ecart = taille >= 52 ? 10 : 8;
 
   const rendreCase = (c: Case, cle: string) => {

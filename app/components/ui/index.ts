@@ -15,6 +15,6 @@ export type { OptionSegment } from './Segmente';
 export { BarreOnglets } from './BarreOnglets';
 export { FeuilleModale } from './FeuilleModale';
 export { Puce } from './Puce';
-export { PlanSieges, LegendePlan, dispositionMinibus } from './PlanSieges';
-export type { SiegePlan } from './PlanSieges';
+export { PlanSieges, LegendePlan, dispositionMinibus, dispositionGrille } from './PlanSieges';
+export type { SiegePlan, GrillePlan } from './PlanSieges';
 export { ModalPleinEcran } from './ModalPleinEcran';

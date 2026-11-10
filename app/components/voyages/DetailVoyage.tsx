@@ -196,7 +196,7 @@ function DetailVoyageContenu({ visible, voyageId, apercu, onClose, onModifier, o
     ) : (
       <View style={{ gap: 12, alignItems: 'center' }}>
         <LegendePlan mode="compagnie" />
-        <PlanSieges sieges={plan.plan} mode="compagnie" taille={46} />
+        <PlanSieges sieges={plan.plan} grille={plan.grille} mode="compagnie" taille={46} />
         {!!plan.voiture && (
           <Texte variante="legende" centre>
             {[plan.voiture.marque, plan.voiture.modele].filter(Boolean).join(' ')} · {plan.plan.length} places{plan.voiture.chauffeur ? ` · ${plan.voiture.chauffeur}` : ''}

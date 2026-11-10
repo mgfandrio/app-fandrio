@@ -102,6 +102,34 @@ class VoitureService {
   }
 
   /**
+   * Plan de sièges d'un véhicule (grille dessinée, ou null pour la disposition standard)
+   * GET /api/adminCompagnie/plans-sieges/voiture/{id}
+   */
+  async obtenirPlan(voitureId: number): Promise<{ grille: string[][] | null; nombre_total_sieges: number } | null> {
+    try {
+      const response = await apiClient.get(`/api/adminCompagnie/plans-sieges/voiture/${voitureId}`);
+      return response.data?.data || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Enregistre le plan dessiné dans l'éditeur.
+   * grille : rangées de cases 'C' (chauffeur), 'S' (siège), '-' (vide / couloir).
+   */
+  async enregistrerGrille(voitureId: number, grille: string[][]): Promise<{ statut: boolean; message?: string; data?: any }> {
+    try {
+      const response = await apiClient.put(`/api/adminCompagnie/plans-sieges/voiture/${voitureId}/grille`, { grille });
+      return response.data;
+    } catch (error: any) {
+      const data = error.response?.data;
+      const premiere = data?.errors ? (Object.values(data.errors)[0] as string[])?.[0] : null;
+      return { statut: false, message: data?.message || premiere || 'Erreur réseau : le plan n’a pas été enregistré.' };
+    }
+  }
+
+  /**
    * Supprimer une voiture
    * DELETE /api/adminCompagnie/voiture/supprimer/{id}
    */

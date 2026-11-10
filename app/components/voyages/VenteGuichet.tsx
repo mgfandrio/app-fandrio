@@ -9,7 +9,7 @@ import echo from '../../services/echo/echoConfig';
 import { useConfirmDialog } from '../common/ConfirmDialog';
 import { Skeleton } from '../common/Skeleton';
 import { Bouton, Carte, CaseACocher, ChampSaisie, EnTete, Etapes, LegendePlan, PlanSieges, Texte } from '../ui';
-import type { SiegePlan } from '../ui';
+import type { GrillePlan, SiegePlan } from '../ui';
 import { couleurs, formatAriary } from '../../theme/ocean';
 import { dateCourte, dateVoyage, statutValeur, titreJour } from '../../utils/voyageStatut';
 
@@ -57,6 +57,7 @@ export function VenteGuichet({ onClose }: Props) {
 
   // Plan et vente
   const [sieges, setSieges] = useState<SiegePlan[]>([]);
+  const [grille, setGrille] = useState<GrillePlan | null>(null);
   const [chargementPlan, setChargementPlan] = useState(false);
   const [selection, setSelection] = useState<string[]>([]);
   const [fiches, setFiches] = useState<Record<string, Fiche>>({});
@@ -94,7 +95,10 @@ export function VenteGuichet({ onClose }: Props) {
   // ── Plan du voyage choisi, en temps réel ──
   const chargerPlan = useCallback(async (id: number) => {
     const r = await reservationAdminService.obtenirPlanSieges(id).catch(() => null);
-    if (r?.statut && r.data?.plan) setSieges(r.data.plan);
+    if (r?.statut && r.data?.plan) {
+      setSieges(r.data.plan);
+      setGrille(r.data.grille || null);
+    }
   }, []);
 
   useEffect(() => {
@@ -126,6 +130,7 @@ export function VenteGuichet({ onClose }: Props) {
     setVente(null);
     setEmbarquer(dateVoyage(v.date)?.getTime() === minuit().getTime());
     setSieges([]);
+    setGrille(null);
     setEtape('sieges');
     setChargementPlan(true);
     await chargerPlan(v.id);
@@ -296,7 +301,7 @@ export function VenteGuichet({ onClose }: Props) {
           {libres > 0 ? 'Touchez les sièges libres à vendre.' : 'Plus aucun siège libre sur ce voyage.'}
         </Texte>
         <LegendePlan mode="client" />
-        <PlanSieges sieges={sieges} selection={selection} onToggle={basculer} mode="client" taille={52} />
+        <PlanSieges sieges={sieges} grille={grille} selection={selection} onToggle={basculer} mode="client" taille={52} />
       </View>
     );
 

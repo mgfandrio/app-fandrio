@@ -103,6 +103,7 @@ export default function ReserverScreen() {
     const [availableVoyages, setAvailableVoyages] = useState<any[]>([]);
     const [pagination, setPagination] = useState({ currentPage: 1, lastPage: 1, total: 0 });
     const [seatPlan, setSeatPlan] = useState<any[]>([]);
+    const [grilleSieges, setGrilleSieges] = useState<string[][] | null>(null);
 
     // Filtre de dates (étape 2)
     const [dateDebut, setDateDebut] = useState<Date | null>(null);
@@ -255,6 +256,7 @@ export default function ReserverScreen() {
             const response = await siegeService.getPlan(voyageId);
             if (response.statut === true || response.status === 'true') {
                 setSeatPlan(response.data.plan || []);
+                setGrilleSieges(response.data.grille || null);
                 setPlans(response.data);
                 setChauffeur(nomChauffeur(response.data.voiture?.chauffeur));
             }
@@ -765,7 +767,7 @@ export default function ReserverScreen() {
                             </View>
                         )}
                         <LegendePlan />
-                        <PlanSieges sieges={seatPlan} selection={selectedSeats} onToggle={toggleSeat} />
+                        <PlanSieges sieges={seatPlan} grille={grilleSieges} selection={selectedSeats} onToggle={toggleSeat} />
                         <Texte variante="legende" centre>Les sièges se mettent à jour en direct quand d'autres clients réservent.</Texte>
                     </>
                 )}
