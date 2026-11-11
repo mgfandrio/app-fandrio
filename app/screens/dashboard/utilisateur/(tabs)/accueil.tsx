@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, ScrollView, Image, RefreshControl, Pressable, StatusBar } from 'react-native';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
+import { ActivityIndicator, View, ScrollView, Image, RefreshControl, Pressable, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { accueilService } from '@/app/services/accueil/accueilService';
 import { Skeleton } from '@/app/components/common/Skeleton';
@@ -43,6 +43,11 @@ export default function AccueilScreen() {
   const [loadingCompagnies, setLoadingCompagnies] = useState(true);
   const [loadingVoyages, setLoadingVoyages] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // Fil des voyages paginé (défilement infini)
+  const [page, setPage] = useState(1);
+  const [aSuivre, setASuivre] = useState(false);
+  const [chargementSuite, setChargementSuite] = useState(false);
+  const dernierChargement = useRef(0);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [showDestinationModal, setShowDestinationModal] = useState(false);
@@ -59,10 +64,12 @@ export default function AccueilScreen() {
     }
   }, [params.openSearch]);
 
-  const fetchData = async () => {
+  const fetchData = async (silencieux = false) => {
     try {
-      setLoadingCompagnies(true);
-      setLoadingVoyages(true);
+      if (!silencieux) {
+        setLoadingCompagnies(true);
+        setLoadingVoyages(true);
+      }
 
       // Récupérer la position GPS si pas encore fait
       if (!locationRef.current) {
@@ -85,6 +92,9 @@ export default function AccueilScreen() {
         setCompagnies(resp.data.compagnies || []);
         setVoyages(resp.data.voyages || []);
         setProvinceDetectee(resp.data.province_detectee?.nom || null);
+        setPage(1);
+        setASuivre(!!resp.data.pagination?.a_suivre);
+        dernierChargement.current = Date.now();
       }
     } catch (e) {
       console.error('Fetch data error:', e);
@@ -97,6 +107,40 @@ export default function AccueilScreen() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Retour sur l'onglet : actualiser le fil s'il date de plus d'une minute
+  useFocusEffect(
+    useCallback(() => {
+      if (!isSearchMode && dernierChargement.current && Date.now() - dernierChargement.current > 60_000) {
+        fetchData(true);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isSearchMode])
+  );
+
+  /** Page suivante du fil, quand on approche du bas. */
+  const chargerSuite = async () => {
+    if (isSearchMode || !aSuivre || chargementSuite || loadingVoyages) return;
+    setChargementSuite(true);
+    try {
+      const resp: any = await accueilService.getDonneesAccueil(locationRef.current?.lat, locationRef.current?.lng, page + 1);
+      if (resp?.statut && resp.data) {
+        setVoyages((prev) => {
+          const deja = new Set(prev.map((v) => v.voyage_id));
+          return [...prev, ...(resp.data.voyages || []).filter((v: any) => !deja.has(v.voyage_id))];
+        });
+        setPage((p) => p + 1);
+        setASuivre(!!resp.data.pagination?.a_suivre);
+      }
+    } finally {
+      setChargementSuite(false);
+    }
+  };
+
+  const surDefilement = (e: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 500) chargerSuite();
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -125,6 +169,8 @@ export default function AccueilScreen() {
         showsVerticalScrollIndicator={false}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 32 }}
+        onScroll={surDefilement}
+        scrollEventThrottle={250}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -383,6 +429,17 @@ export default function AccueilScreen() {
                 <Bouton titre="Modifier la recherche" variante="secondaire" compact onPress={() => setShowSearchModal(true)} style={{ marginTop: 6 }} />
               )}
             </Carte>
+          )}
+
+          {/* Suite du fil */}
+          {!isSearchMode && !loadingVoyages && voyages.length > 0 && (
+            chargementSuite ? (
+              <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                <ActivityIndicator color={couleurs.ocean800} />
+              </View>
+            ) : !aSuivre ? (
+              <Texte variante="legende" centre style={{ paddingVertical: 12 }}>Vous avez vu tous les départs disponibles.</Texte>
+            ) : null
           )}
         </View>
       </ScrollView>

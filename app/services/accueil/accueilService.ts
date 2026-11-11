@@ -4,10 +4,11 @@ export const accueilService = {
     /**
      * Récupère les données de la page d'accueil (compagnies + voyages)
      * avec priorisation par géolocalisation et rotation toutes les 2h.
+     * page > 1 : suite du fil des voyages ({ voyages, pagination }).
      */
-    getDonneesAccueil: async (latitude?: number, longitude?: number) => {
+    getDonneesAccueil: async (latitude?: number, longitude?: number, page = 1) => {
         try {
-            const params: any = {};
+            const params: any = { page };
             if (latitude !== undefined && longitude !== undefined) {
                 params.lat = latitude;
                 params.lng = longitude;

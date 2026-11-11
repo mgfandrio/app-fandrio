@@ -130,6 +130,9 @@ export function PlanSieges({ sieges, selection = [], onToggle, mode = 'client', 
     if (mode === 'client') {
       if (choisi) {
         fond = couleurs.ocean800; bord = couleurs.ocean800; texte = '#FFFFFF'; etat = 'sélectionné';
+      } else if (enAttente) {
+        // Un autre client est en train de payer ce siège : il redevient libre s'il abandonne
+        fond = couleurs.alerteFond; bord = couleurs.alerteVif; texte = '#7A4304'; etat = 'en cours de réservation par un autre client';
       } else if (!libre) {
         fond = '#E7EBF1'; bord = '#E1E6ED'; texte = '#9AA7B8'; etat = 'occupé';
       }
@@ -213,6 +216,7 @@ export function LegendePlan({ mode = 'client' }: { mode?: 'client' | 'compagnie'
       ? [
           { libelle: 'Libre', fond: couleurs.surface, bord: couleurs.ocean200 },
           { libelle: 'Votre choix', fond: couleurs.ocean800, bord: couleurs.ocean800 },
+          { libelle: 'En cours', fond: couleurs.alerteFond, bord: couleurs.alerteVif },
           { libelle: 'Occupé', fond: '#E7EBF1', bord: '#E7EBF1' },
         ]
       : [
@@ -221,7 +225,7 @@ export function LegendePlan({ mode = 'client' }: { mode?: 'client' | 'compagnie'
           { libelle: 'Libre', fond: couleurs.surface, bord: couleurs.ocean200 },
         ];
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16 }}>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', columnGap: 14, rowGap: 6 }}>
       {items.map((it) => (
         <View key={it.libelle} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <View style={{ width: 16, height: 16, borderRadius: 5, backgroundColor: it.fond, borderWidth: 1.5, borderColor: it.bord }} />

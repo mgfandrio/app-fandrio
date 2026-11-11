@@ -768,7 +768,16 @@ export default function ReserverScreen() {
                         )}
                         <LegendePlan />
                         <PlanSieges sieges={seatPlan} grille={grilleSieges} selection={selectedSeats} onToggle={toggleSeat} />
-                        <Texte variante="legende" centre>Les sièges se mettent à jour en direct quand d'autres clients réservent.</Texte>
+                        {seatPlan.some((s: any) => s.statut === 'selectionne') ? (
+                            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start', padding: 12, borderRadius: 12, backgroundColor: couleurs.alerteFond }}>
+                                <Ionicons name="hourglass-outline" size={16} color={couleurs.alerte} style={{ marginTop: 1 }} />
+                                <Texte graisse="moyen" taille={12.5} couleur={couleurs.alerte} style={{ flex: 1, lineHeight: 18 }}>
+                                    « En cours » : un autre client est en train de payer ce siège. S'il abandonne ou ne paie pas à temps, le siège redevient libre automatiquement.
+                                </Texte>
+                            </View>
+                        ) : (
+                            <Texte variante="legende" centre>Les sièges se mettent à jour en direct quand d'autres clients réservent.</Texte>
+                        )}
                     </>
                 )}
             </View>
