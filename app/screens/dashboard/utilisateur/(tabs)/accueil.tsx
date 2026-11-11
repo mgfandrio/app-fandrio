@@ -12,6 +12,8 @@ import { useNotifications } from '@/app/hooks/useNotifications';
 import { useUser } from '@/app/hooks/useUser';
 import { Bouton, BoutonIcone, Carte, Pastille, Texte } from '@/app/components/ui';
 import { couleurs, formatAriary } from '@/app/theme/ocean';
+import { ChoixDepart, heureCourte, iconeCreneau } from '@/app/components/voyages/ChoixDepart';
+import type { Depart } from '@/app/components/voyages/ChoixDepart';
 
 /** Initiales d'un nom de compagnie : « Mahery Trans » -> « MT ». */
 function initiales(nom?: string) {
@@ -147,6 +149,21 @@ export default function AccueilScreen() {
     setIsSearchMode(false);
     await fetchData();
     setRefreshing(false);
+  };
+
+  // Carte à plusieurs départs le même jour : le client choisit d'abord son heure
+  const [carteChoix, setCarteChoix] = useState<any>(null);
+
+  /** La carte du fil + le départ choisi = le voyage à réserver. */
+  const avecDepart = (carte: any, d?: Depart) => {
+    const { departs, ...voyage } = carte;
+    return d ? { ...voyage, ...d, voiture: d.voiture ?? voyage.voiture } : voyage;
+  };
+
+  const ouvrirCarte = (carte: any) => {
+    const departs: Depart[] = carte.departs || [];
+    if (departs.length > 1) setCarteChoix(carte);
+    else reserver(avecDepart(carte, departs[0]));
   };
 
   const reserver = (voyage: any) =>
@@ -354,14 +371,21 @@ export default function AccueilScreen() {
           ) : voyages.length > 0 ? (
             voyages.map((voyage) => {
               const categorie = String(voyage.categorie || voyage.trajet?.categorie || '').toLowerCase();
-              const complet = voyage.est_complet || voyage.places_disponibles === 0;
+              const departs: Depart[] = voyage.departs || [];
+              const plusieurs = departs.length > 1;
+              const placesTotal = plusieurs ? departs.reduce((t, d) => t + (Number(d.places_disponibles) || 0), 0) : voyage.places_disponibles;
+              const complet = plusieurs ? placesTotal === 0 : voyage.est_complet || voyage.places_disponibles === 0;
               const depart = nomProvince(voyage.trajet?.province_depart, 'Départ');
               const arrivee = nomProvince(voyage.trajet?.province_arrivee, 'Arrivée');
               return (
                 <Carte
                   key={voyage.voyage_id}
-                  onPress={complet ? undefined : () => reserver(voyage)}
-                  accessibilityLabel={`${voyage.compagnie?.nom || 'Compagnie'}, ${depart} vers ${arrivee}, ${voyage.date || ''} à ${voyage.heure_depart || ''}`}
+                  onPress={complet ? undefined : () => (isSearchMode ? reserver(voyage) : ouvrirCarte(voyage))}
+                  accessibilityLabel={
+                    plusieurs
+                      ? `${voyage.compagnie?.nom || 'Compagnie'}, ${depart} vers ${arrivee}, le ${voyage.date || ''}, ${departs.length} départs : ${departs.map((d) => heureCourte(d.heure_depart)).join(', ')}. Touchez pour choisir votre heure.`
+                      : `${voyage.compagnie?.nom || 'Compagnie'}, ${depart} vers ${arrivee}, ${voyage.date || ''} à ${voyage.heure_depart || ''}`
+                  }
                   style={{ gap: 10, opacity: complet ? 0.6 : 1 }}
                 >
                   {/* Compagnie + places */}
@@ -376,7 +400,7 @@ export default function AccueilScreen() {
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Texte graisse="tresGras" taille={14} numberOfLines={1}>{voyage.compagnie?.nom || 'Compagnie'}</Texte>
                       <Texte variante="legende" numberOfLines={1}>
-                        {voyage.type === 'nuit' ? 'Nuit' : 'Jour'}
+                        {plusieurs ? `${departs.length} départs ce jour` : voyage.type === 'nuit' ? 'Nuit' : 'Jour'}
                         {voyage.trajet?.distance_km ? ` · ${voyage.trajet.distance_km} km` : ''}
                         {voyage.trajet?.duree ? ` · ${voyage.trajet.duree}` : ''}
                       </Texte>
@@ -384,7 +408,7 @@ export default function AccueilScreen() {
                     {(categorie === 'vip' || categorie === 'premium') && (
                       <Pastille libelle={categorie === 'vip' ? 'VIP' : 'Premium'} tonalite="marine" point={false} />
                     )}
-                    <PastillePlaces places={voyage.places_disponibles ?? voyage.places_disponibles_restantes} complet={voyage.est_complet} />
+                    <PastillePlaces places={placesTotal ?? voyage.places_disponibles_restantes} complet={complet} />
                   </View>
 
                   {/* Trajet */}
@@ -398,12 +422,30 @@ export default function AccueilScreen() {
                     </View>
                   </View>
 
+                  {/* Plusieurs heures de départ : bien visibles */}
+                  {plusieurs && (
+                    <View style={{ gap: 6 }}>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                        {departs.map((d) => (
+                          <View
+                            key={d.voyage_id}
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 5, height: 30, paddingHorizontal: 10, borderRadius: 999, backgroundColor: couleurs.ocean50, opacity: d.est_complet ? 0.45 : 1 }}
+                          >
+                            <Ionicons name={iconeCreneau(d.heure_depart)} size={14} color={couleurs.ocean800} />
+                            <Texte graisse="tresGras" taille={13} couleur={couleurs.ocean950} style={{ fontVariant: ['tabular-nums'] }}>{heureCourte(d.heure_depart)}</Texte>
+                          </View>
+                        ))}
+                      </View>
+                      <Texte graisse="gras" taille={12} couleur={couleurs.ocean800}>Touchez pour choisir votre heure de départ</Texte>
+                    </View>
+                  )}
+
                   {/* Date + prix */}
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, borderTopWidth: 1, borderTopColor: couleurs.separateur }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Ionicons name="calendar-outline" size={15} color={couleurs.gris} />
                       <Texte graisse="gras" taille={13} couleur={couleurs.encreDouce}>
-                        {voyage.date || '—'} · {voyage.heure_depart || '—'}
+                        {plusieurs ? `${voyage.date || '—'} · ${departs.length} horaires` : `${voyage.date || '—'} · ${voyage.heure_depart || '—'}`}
                       </Texte>
                     </View>
                     <Texte variante="montant" couleur={couleurs.ocean800}>
@@ -443,6 +485,20 @@ export default function AccueilScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Choix de l'heure de départ (plusieurs départs le même jour) */}
+      <ChoixDepart
+        visible={!!carteChoix}
+        onClose={() => setCarteChoix(null)}
+        trajet={carteChoix ? `${nomProvince(carteChoix.trajet?.province_depart, 'Départ')} → ${nomProvince(carteChoix.trajet?.province_arrivee, 'Arrivée')}` : ''}
+        sousTitre={carteChoix ? [carteChoix.date, carteChoix.compagnie?.nom].filter(Boolean).join(' · ') : ''}
+        departs={carteChoix?.departs || []}
+        onChoisir={(d) => {
+          const carte = carteChoix;
+          setCarteChoix(null);
+          reserver(avecDepart(carte, d));
+        }}
+      />
 
       {/* Recherche rapide (départ / arrivée) */}
       <DestinationSearchModal

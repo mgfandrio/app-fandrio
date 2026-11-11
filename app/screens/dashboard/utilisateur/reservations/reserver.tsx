@@ -589,8 +589,13 @@ export default function ReserverScreen() {
                             {nomProvince(selectedVoyage.trajet?.province_depart)} → {nomProvince(selectedVoyage.trajet?.province_arrivee)}
                         </Texte>
                         <Texte graisse="moyen" taille={12.5} couleur={couleurs.texteSurMarine} numberOfLines={1}>
-                            {selectedVoyage.compagnie?.nom || 'Compagnie'} · {selectedVoyage.date} · {selectedVoyage.heure_depart}
+                            {selectedVoyage.compagnie?.nom || 'Compagnie'} · {selectedVoyage.date}
                         </Texte>
+                    </View>
+                    {/* Heure de départ choisie : bien visible (plusieurs départs possibles le même jour) */}
+                    <View accessible accessibilityLabel={`Départ à ${String(selectedVoyage.heure_depart || '').slice(0, 5)}`} style={{ alignItems: 'center', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.12)' }}>
+                        <Texte graisse="gras" taille={10.5} couleur={couleurs.texteSurMarine} style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>Départ</Texte>
+                        <Texte variante="montant" taille={20} couleur="#FFFFFF">{String(selectedVoyage.heure_depart || '—').slice(0, 5)}</Texte>
                     </View>
                 </View>
             </Carte>
