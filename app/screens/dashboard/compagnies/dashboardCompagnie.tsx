@@ -2,13 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StatusBar, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConfirmDialog } from '../../../components/common/ConfirmDialog';
 import { DashboardStats } from '../../../components/dashboard/DashboardStats';
 import { MenuLateral, SectionMenu } from '../../../components/dashboard/MenuLateral';
 import { InfosCompagnie } from '../../../components/dashboard/InfosCompagnie';
+import { RenderPlanning } from '../../../components/renders/planning/RenderPlanning';
+import { voyageService } from '../../../services/voyages/voyageService';
 import { BarreOngletsAdmin, OngletAdmin } from '../../../components/dashboard/BarreOngletsAdmin';
 import { Bouton, BoutonIcone, Carte, FeuilleModale, Texte } from '../../../components/ui';
 import { RenderChauffers } from '../../../components/renders/chauffeurs/RenderChauffers';
@@ -33,6 +35,7 @@ const MENU: SectionMenu[] = [
     items: [
       { key: 'dashboard', label: 'Tableau de bord', icon: 'home-outline', activeIcon: 'home' },
       { key: 'voyages', label: 'Voyages', icon: 'git-commit-outline', activeIcon: 'git-commit' },
+      { key: 'planning', label: 'Planning des voyages', icon: 'calendar-outline', activeIcon: 'calendar' },
       { key: 'reservations', label: 'Réservations', icon: 'ticket-outline', activeIcon: 'ticket' },
       { key: 'guichet', label: 'Vente au guichet', icon: 'storefront-outline', activeIcon: 'storefront' },
     ],
@@ -106,6 +109,8 @@ export default function DashboardCompagnie() {
   const [activeTab, setActiveTab] = useState(tab || 'dashboard');
   const [menuOuvert, setMenuOuvert] = useState(false);
   const [infosOuvertes, setInfosOuvertes] = useState(false);
+  // Voyages en attente de publication : pastille sur « Planning des voyages » dans le menu
+  const [rappelsPlanning, setRappelsPlanning] = useState(0);
   const [compagnieLogo, setCompagnieLogo] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [feuilleLogo, setFeuilleLogo] = useState(false);
@@ -228,6 +233,22 @@ export default function DashboardCompagnie() {
     });
   };
 
+  // Recalculé à l'ouverture du menu et au changement d'onglet
+  useEffect(() => {
+    let actif = true;
+    voyageService.obtenirRappelsPublication().then((r) => {
+      if (actif && r.statut) setRappelsPlanning(r.total);
+    });
+    return () => {
+      actif = false;
+    };
+  }, [activeTab, menuOuvert]);
+
+  const menuAvecRappels = useMemo(
+    () => MENU.map((s) => ({ ...s, items: s.items.map((i) => (i.key === 'planning' ? { ...i, compteur: rappelsPlanning || undefined } : i)) })),
+    [rappelsPlanning]
+  );
+
   const fermerMenu = useCallback(() => setMenuOuvert(false), []);
   const choisirOnglet = (key: string) => {
     setMenuOuvert(false);
@@ -335,6 +356,7 @@ export default function DashboardCompagnie() {
         {activeTab === 'voitures' && <RenderVoitures onMenu={() => setMenuOuvert(true)} />}
         {activeTab === 'trajets' && <RenderTrajets onMenu={() => setMenuOuvert(true)} />}
         {activeTab === 'voyages' && <RenderVoyages />}
+        {activeTab === 'planning' && <RenderPlanning onMenu={() => setMenuOuvert(true)} onRappels={setRappelsPlanning} />}
         {activeTab === 'reservations' && <RenderReservations />}
         {activeTab === 'factures' && <RenderFactures onMenu={() => setMenuOuvert(true)} />}
         {activeTab === 'paiements' && <RenderPaiements onMenu={() => setMenuOuvert(true)} />}
@@ -350,7 +372,7 @@ export default function DashboardCompagnie() {
       <MenuLateral
         visible={menuOuvert}
         onClose={fermerMenu}
-        sections={MENU}
+        sections={menuAvecRappels}
         actif={activeTab}
         onSelect={choisirOnglet}
         onDeconnexion={() => {

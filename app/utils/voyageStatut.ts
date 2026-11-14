@@ -9,6 +9,9 @@ import { dateLocaleISO } from '../theme/ocean';
  *
  * `voyage_is_active` (false) = voyage mis en pause (réservations masquées).
  * La pause ne concerne que les voyages programmés / en cours.
+ *
+ * `publie` (false) = voyage planifié mais non publié : prévision de la compagnie,
+ * invisible des clients. `publication_prevue` (instant ISO) = publication automatique.
  */
 
 /** Extrait la valeur numérique du statut, quel que soit le nom de champ reçu. */
@@ -16,11 +19,29 @@ export function statutValeur(voyage: any): number {
   return Number(voyage?.statut ?? voyage?.voyage_statut ?? 1);
 }
 
+/** Vrai si le voyage est planifié mais pas encore publié (seulement pour un voyage programmé). */
+export function estNonPublie(voyage: any): boolean {
+  return statutValeur(voyage) === 1 && (voyage?.publie === false || voyage?.voyage_publie === false);
+}
+
+/** Instant de publication automatique d'un voyage non publié, ou null. */
+export function publicationPrevue(voyage: any): Date | null {
+  const t = voyage?.publication_prevue;
+  if (!estNonPublie(voyage) || !t) return null;
+  const d = new Date(t);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/** « 14 nov. à 08:00 » (heure du téléphone). */
+export function dateHeureCourte(d: Date) {
+  return `${d.getDate()} ${MOIS[d.getMonth()]} à ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 /** Vrai si le voyage est en pause (réservations suspendues), seulement pour programmé / en cours. */
 export function estEnPause(voyage: any): boolean {
   const s = statutValeur(voyage);
   const isActive = voyage?.is_active !== false && voyage?.voyage_is_active !== false;
-  return (s === 1 || s === 2) && !isActive;
+  return (s === 1 || s === 2) && !isActive && !estNonPublie(voyage);
 }
 
 /** Places vendues / places mises en vente, et complet ou non. */
@@ -35,6 +56,7 @@ export function infoStatutVoyage(voyage: any): { libelle: string; tonalite: Tona
   const s = statutValeur(voyage);
   if (s === 4) return { libelle: 'Annulé', tonalite: 'danger' };
   if (s === 3) return { libelle: 'Terminé', tonalite: 'neutre' };
+  if (estNonPublie(voyage)) return { libelle: publicationPrevue(voyage) ? 'Publication programmée' : 'Non publié', tonalite: 'neutre' };
   if (estEnPause(voyage)) return { libelle: 'En pause', tonalite: 'alerte' };
   if (s === 2) return { libelle: 'En cours', tonalite: 'alerte' };
   if (remplissage(voyage).complet) return { libelle: 'Complet', tonalite: 'succes' };

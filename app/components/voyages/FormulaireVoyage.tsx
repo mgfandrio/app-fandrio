@@ -9,9 +9,10 @@ import { useConfirmDialog } from '../common/ConfirmDialog';
 import { Skeleton } from '../common/Skeleton';
 import { Bouton, BoutonIcone, ChampSaisie, Segmente, Texte, ModalPleinEcran } from '../ui';
 import { couleurs, dateLocaleISO, formatAriary } from '../../theme/ocean';
-import { dateCourte, dateVoyage } from '../../utils/voyageStatut';
+import { dateCourte, dateHeureCourte, dateVoyage } from '../../utils/voyageStatut';
 import { ChampChoix, FeuilleChoix } from './FeuilleChoix';
 import { ChampDateHeure } from './ChampDateHeure';
+import { CalendrierDates } from './CalendrierDates';
 
 interface Props {
   visible: boolean;
@@ -21,7 +22,11 @@ interface Props {
   onSuccess?: () => void;
 }
 
-type Mode = 'un' | 'plusieurs';
+/**
+ * Publication : tout de suite ; plus tard (voyage planifié sans être publié : prévision,
+ * invisible des clients) ; ou automatiquement à une date programmée.
+ */
+type Publication = 'maintenant' | 'plus_tard' | 'programmee';
 const MAX_DATES = 20;
 
 const CATEGORIES: Record<string, string> = { vip: 'VIP', premium: 'Premium' };
@@ -30,7 +35,32 @@ function idVoiture(v: any) {
   return String(v.voit_id ?? v.id_voiture ?? v.id ?? '');
 }
 
-/** Programmer un voyage (une date ou plusieurs dates) ou modifier un voyage existant. */
+/** Nom du chauffeur affecté à un véhicule (liste des véhicules de l'API), ou ''. */
+function chauffeurDe(v: any): string {
+  const c = v?.chauffeur;
+  return c ? [c.chauff_prenom, c.chauff_nom].filter(Boolean).join(' ') : '';
+}
+
+const HEURE_VALIDE = /^\d{2}:\d{2}$/;
+const versHeure = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+const depuisHeure = (h: string) => (HEURE_VALIDE.test(h) ? new Date(2000, 0, 1, Number(h.slice(0, 2)), Number(h.slice(3, 5))) : null);
+
+/** Petit bouton « pastille » qui ouvre un sélecteur de date ou d'heure (lignes par date). */
+function PastilleChoix({ texte, icone, vide, onPress, libelle }: { texte: string; icone: keyof typeof Ionicons.glyphMap; vide?: boolean; onPress: () => void; libelle: string }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={libelle}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1.5, borderColor: vide ? couleurs.alerteVif : couleurs.champ, backgroundColor: couleurs.surface }}
+    >
+      <Ionicons name={icone} size={15} color={vide ? couleurs.alerte : couleurs.ocean800} />
+      <Texte graisse="tresGras" taille={13} couleur={vide ? couleurs.alerte : couleurs.encre} style={{ fontVariant: ['tabular-nums'] }}>{texte}</Texte>
+    </Pressable>
+  );
+}
+
+/** Programmer un ou plusieurs voyages (dates choisies sur un calendrier) ou modifier un voyage existant. */
 function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Props) {
   const insets = useSafeAreaInsets();
   const { showDialog, DialogComponent } = useConfirmDialog();
@@ -42,12 +72,21 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
   const [voitures, setVoitures] = useState<any[]>([]);
   const [feuille, setFeuille] = useState<'trajet' | 'voiture' | null>(null);
 
-  const [mode, setMode] = useState<Mode>('un');
   const [trajId, setTrajId] = useState('');
   const [voitId, setVoitId] = useState('');
-  const [date, setDate] = useState<Date | null>(null);
   const [dates, setDates] = useState<string[]>([]);
+  // Publication (à la création, ou tant que le voyage modifié n'est pas publié)
+  const [publication, setPublication] = useState<Publication>('maintenant');
+  const [pubDate, setPubDate] = useState<Date | null>(null);
+  const [pubHeure, setPubHeure] = useState('');
+  const [nonPublieExistant, setNonPublieExistant] = useState(false);
   const [heure, setHeure] = useState('');
+  // Plusieurs dates : la même heure pour toutes, ou une heure par date
+  const [heureParDate, setHeureParDate] = useState(false);
+  const [heures, setHeures] = useState<Record<string, string>>({});
+  // Publication programmée de plusieurs voyages : en une fois, ou une date par voyage
+  const [pubParVoyage, setPubParVoyage] = useState(false);
+  const [pubs, setPubs] = useState<Record<string, { date: Date | null; heure: string }>>({});
   const [type, setType] = useState<'1' | '2'>('1');
   const [places, setPlaces] = useState('');
 
@@ -56,12 +95,18 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
 
   useEffect(() => {
     if (!visible) return;
-    setMode('un');
     setTrajId('');
     setVoitId('');
-    setDate(null);
     setDates([]);
+    setPublication('maintenant');
+    setPubDate(null);
+    setPubHeure('');
+    setNonPublieExistant(false);
     setHeure('');
+    setHeureParDate(false);
+    setHeures({});
+    setPubParVoyage(false);
+    setPubs({});
     setType('1');
     setPlaces('');
     charger();
@@ -84,7 +129,20 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
       if (voyageId && v) {
         setTrajId(String(v.trajet?.id ?? v.traj_id ?? ''));
         setVoitId(String(v.voiture?.id ?? v.voit_id ?? ''));
-        setDate(dateVoyage(v.date || v.voyage_date));
+        const d = dateVoyage(v.date || v.voyage_date);
+        setDates(d ? [dateLocaleISO(d)] : []);
+        // Voyage pas encore publié : sa publication reste réglable
+        if (v.publie === false) {
+          setNonPublieExistant(true);
+          const prevue = v.publication_prevue ? new Date(v.publication_prevue) : null;
+          if (prevue && !isNaN(prevue.getTime())) {
+            setPublication('programmee');
+            setPubDate(new Date(prevue.getFullYear(), prevue.getMonth(), prevue.getDate()));
+            setPubHeure(`${String(prevue.getHours()).padStart(2, '0')}:${String(prevue.getMinutes()).padStart(2, '0')}`);
+          } else {
+            setPublication('plus_tard');
+          }
+        }
         setHeure(String(v.heure_depart || v.voyage_heure_depart || '').slice(0, 5));
         setType(Number(v.type ?? v.voyage_type) === 2 ? '2' : '1');
         setPlaces(String(v.places_disponibles ?? ''));
@@ -96,6 +154,9 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
     }
   };
 
+  const aujourdhui = new Date();
+  aujourdhui.setHours(0, 0, 0, 0);
+
   const trajet = trajets.find((t) => String(t.id_trajet) === trajId);
   const categorie = (trajet?.categorie || 'classique') as string;
   const voituresCompatibles = useMemo(
@@ -106,7 +167,49 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
   const capacite = Number(voiture?.voit_places) || 0;
   const tarif = Number(trajet?.tarif) || 0;
   const nbPlaces = parseInt(places, 10) || 0;
-  const nbVoyages = mode === 'plusieurs' ? dates.length : 1;
+  const nbVoyages = Math.max(dates.length, 1);
+  const plusieurs = dates.length > 1;
+  const reglerPublication = !edition || nonPublieExistant;
+
+  const heuresDistinctes = plusieurs && heureParDate;
+  const publicationsDistinctes = plusieurs && pubParVoyage && publication === 'programmee';
+
+  /** Heure de départ d'une date : la sienne si « une heure par date », sinon l'heure commune. */
+  const heureDe = (iso: string) => (heuresDistinctes ? heures[iso] || heure : heure);
+
+  /** Départ d'une date (heure du téléphone), ou null si l'heure manque. */
+  const departDe = (iso: string): Date | null => {
+    const h = heureDe(iso);
+    const d = dateVoyage(iso);
+    return d && HEURE_VALIDE.test(h) ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), Number(h.slice(0, 2)), Number(h.slice(3, 5))) : null;
+  };
+
+  const instantDe = (date: Date | null, h: string): Date | null =>
+    date && HEURE_VALIDE.test(h) ? new Date(date.getFullYear(), date.getMonth(), date.getDate(), Number(h.slice(0, 2)), Number(h.slice(3, 5))) : null;
+
+  /** Instant de publication commun (heure du téléphone), ou null. */
+  const instantPublication = (): Date | null => instantDe(pubDate, pubHeure);
+
+  /** Instant de publication d'un voyage quand chacun a la sienne. */
+  const instantPublicationDe = (iso: string): Date | null => instantDe(pubs[iso]?.date ?? null, pubs[iso]?.heure ?? '');
+
+  /** Passe à « une heure par date » en reprenant l'heure commune comme point de départ. */
+  const basculerHeureParDate = (parDate: boolean) => {
+    if (parDate) setHeures((h) => Object.fromEntries(dates.map((d) => [d, h[d] || heure])));
+    setHeureParDate(parDate);
+  };
+
+  /** Remplit la publication de chaque voyage : N jours avant son départ, à 08:00. */
+  const remplirPublications = (joursAvant: number) =>
+    setPubs(
+      Object.fromEntries(
+        dates.map((iso) => {
+          const d = dateVoyage(iso)!;
+          const pub = new Date(d.getFullYear(), d.getMonth(), d.getDate() - joursAvant);
+          return [iso, { date: pub.getTime() < aujourdhui.getTime() ? aujourdhui : pub, heure: '08:00' }];
+        })
+      )
+    );
 
   const choisirTrajet = (id: string) => {
     const nouveau = trajets.find((t) => String(t.id_trajet) === id);
@@ -122,30 +225,35 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
     if (cap && (!places || parseInt(places, 10) > cap)) setPlaces(String(cap));
   };
 
-  const ajouterDate = (d: Date) => {
-    const iso = dateLocaleISO(d);
-    setDates((prev) => (prev.includes(iso) || prev.length >= MAX_DATES ? prev : [...prev, iso].sort()));
-  };
-
-  const aujourdhui = new Date();
-  aujourdhui.setHours(0, 0, 0, 0);
-
   const valider = (): string | null => {
     if (!trajId) return 'Choisissez un trajet.';
     if (!voitId) return 'Choisissez un véhicule.';
-    if (mode === 'un' && !date) return 'Choisissez la date du voyage.';
-    if (mode === 'plusieurs' && dates.length === 0) return 'Ajoutez au moins une date.';
-    if (!/^\d{2}:\d{2}$/.test(heure)) return "Choisissez l'heure de départ.";
+    if (dates.length === 0) return edition ? 'Choisissez la date du voyage sur le calendrier.' : 'Choisissez au moins une date sur le calendrier.';
+    const sansHeure = dates.find((iso) => !HEURE_VALIDE.test(heureDe(iso)));
+    if (sansHeure) return heuresDistinctes ? `Choisissez l'heure de départ du ${dateCourte(dateVoyage(sansHeure))}.` : "Choisissez l'heure de départ.";
     if (!nbPlaces || nbPlaces < 1) return 'Indiquez le nombre de places mises en vente.';
     if (capacite && nbPlaces > capacite) return `Ce véhicule n'a que ${capacite} places.`;
-    const liste = mode === 'un' ? [dateLocaleISO(date!)] : dates;
     const maintenant = new Date();
-    for (const iso of liste) {
+    for (const iso of dates) {
       const d = dateVoyage(iso)!;
       if (d < aujourdhui) return `La date du ${dateCourte(d)} est déjà passée.`;
-      if (iso === dateLocaleISO(maintenant)) {
-        const [h, m] = heure.split(':').map(Number);
-        if (h * 60 + m <= maintenant.getHours() * 60 + maintenant.getMinutes()) return "L'heure de départ d'aujourd'hui est déjà passée.";
+      if (departDe(iso)!.getTime() <= maintenant.getTime()) return "L'heure de départ d'aujourd'hui est déjà passée.";
+    }
+    if (reglerPublication && publication === 'programmee') {
+      if (publicationsDistinctes) {
+        for (const iso of dates) {
+          const jour = dateCourte(dateVoyage(iso));
+          const instant = instantPublicationDe(iso);
+          if (!instant) return `Choisissez la date et l’heure de publication du voyage du ${jour}.`;
+          if (instant.getTime() <= maintenant.getTime()) return `La publication du voyage du ${jour} doit être dans le futur.`;
+          if (instant.getTime() >= departDe(iso)!.getTime()) return `Le voyage du ${jour} doit être publié avant son départ (${heureDe(iso)}).`;
+        }
+      } else {
+        const instant = instantPublication();
+        if (!instant) return 'Choisissez la date et l’heure de publication.';
+        if (instant.getTime() <= maintenant.getTime()) return 'La date de publication doit être dans le futur.';
+        const premier = [...dates].sort()[0];
+        if (instant.getTime() >= departDe(premier)!.getTime()) return `La publication doit avoir lieu avant le départ du ${dateCourte(dateVoyage(premier))} à ${heureDe(premier)}.`;
       }
     }
     return null;
@@ -158,38 +266,64 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
       return;
     }
     const base = {
-      voyage_heure_depart: heure,
       traj_id: parseInt(trajId, 10),
       voit_id: parseInt(voitId, 10),
       voyage_type: parseInt(type, 10),
       places_disponibles: nbPlaces,
     };
+    // Publication : envoyée à la création, et à la modification d'un voyage non publié
+    const instant = instantPublication();
+    // Une publication par voyage : envoyée avec chaque voyage, pas avec le lot
+    const champsPublication = reglerPublication && !publicationsDistinctes
+      ? { publication, ...(publication === 'programmee' && instant ? { publication_date: instant.toISOString() } : {}) }
+      : {};
+    const apres = () => {
+      onSuccess?.();
+      onClose();
+    };
+    const titreSucces =
+      publication === 'plus_tard' && reglerPublication
+        ? plusieurs ? 'Voyages planifiés' : 'Voyage planifié'
+        : publication === 'programmee' && reglerPublication
+          ? 'Publication programmée'
+          : edition ? 'Voyage modifié' : plusieurs ? 'Voyages publiés' : 'Voyage publié';
+
     setEnvoi(true);
     try {
-      if (mode === 'plusieurs') {
-        const r = await voyageService.ajouterVoyagesMultiples(dates.map((d) => ({ ...base, voyage_date: d })));
+      if (plusieurs) {
+        const r = await voyageService.ajouterVoyagesMultiples(
+          dates.map((d) => ({
+            ...base,
+            voyage_date: d,
+            voyage_heure_depart: heureDe(d),
+            ...(publicationsDistinctes ? { publication: 'programmee', publication_date: instantPublicationDe(d)!.toISOString() } : {}),
+          })),
+          champsPublication
+        );
         if (r.statut) {
           const erreurs: string[] = r.data?.erreurs || [];
           message(
-            erreurs.length ? 'Programmation partielle' : 'Voyages programmés',
-            (r.message || `${dates.length} voyages programmés.`) + (erreurs.length ? `\n\n${erreurs.join('\n')}` : ''),
+            erreurs.length ? 'Programmation partielle' : titreSucces,
+            (publicationsDistinctes && !erreurs.length
+              ? `${dates.length} voyages planifiés : chacun sera publié automatiquement à la date que vous avez choisie.`
+              : r.message || `${dates.length} voyages enregistrés.`) + (erreurs.length ? `\n\n${erreurs.join('\n')}` : ''),
             erreurs.length ? 'warning' : 'success',
-            () => {
-              onSuccess?.();
-              onClose();
-            }
+            apres
           );
         } else {
           message('Programmation impossible', r.message || 'Une erreur est survenue.');
         }
       } else {
-        const data = { ...base, voyage_date: dateLocaleISO(date!) };
+        const data = { ...base, voyage_date: dates[0], voyage_heure_depart: heure, ...champsPublication };
         const r = edition ? await voyageService.modifierVoyage(voyageId!, data) : await voyageService.ajouterVoyage(data);
         if (r.statut === true) {
-          message(edition ? 'Voyage modifié' : 'Voyage programmé', r.message || (edition ? 'Les modifications sont enregistrées.' : 'Le voyage est ouvert aux réservations.'), 'success', () => {
-            onSuccess?.();
-            onClose();
-          });
+          const detail =
+            publication === 'plus_tard' && reglerPublication
+              ? 'Ce voyage est planifié mais pas encore publié : les clients ne le voient pas. Publiez-le au moment voulu.'
+              : publication === 'programmee' && reglerPublication && instant
+                ? `Ce voyage sera publié automatiquement le ${dateHeureCourte(instant)}.`
+                : edition ? 'Les modifications sont enregistrées.' : 'Le voyage est ouvert aux réservations.';
+          message(titreSucces, detail, 'success', apres);
         } else {
           message(edition ? 'Modification impossible' : 'Programmation impossible', r.message || 'Une erreur est survenue.');
         }
@@ -211,7 +345,7 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
         {/* En-tête */}
         <View style={{ backgroundColor: couleurs.surface, borderBottomWidth: 1, borderBottomColor: couleurs.ligne, paddingTop: insets.top + 8, paddingBottom: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <BoutonIcone icone="close" libelle="Fermer" onPress={onClose} />
-          <Texte graisse="tresGras" taille={17} style={{ flex: 1 }}>{edition ? 'Modifier le voyage' : 'Programmer un voyage'}</Texte>
+          <Texte graisse="tresGras" taille={17} style={{ flex: 1 }}>{edition ? 'Modifier le voyage' : 'Planifier des voyages'}</Texte>
         </View>
 
         {chargement ? (
@@ -224,18 +358,6 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
         ) : (
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <ScrollView contentContainerStyle={{ padding: 16, gap: 14 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-              {!edition && (
-                <Segmente<Mode>
-                  libelleAccessible="Mode de programmation"
-                  valeur={mode}
-                  onChange={setMode}
-                  options={[
-                    { valeur: 'un', libelle: 'Un voyage' },
-                    { valeur: 'plusieurs', libelle: 'Plusieurs dates' },
-                  ]}
-                />
-              )}
-
               <ChampChoix
                 libelle="Trajet"
                 icone="git-commit-outline"
@@ -255,74 +377,94 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
                 libelle="Véhicule"
                 icone="bus-outline"
                 titre={voiture ? [voiture.voit_matricule, [voiture.voit_marque, voiture.voit_modele].filter(Boolean).join(' ')].filter(Boolean).join(' · ') : undefined}
-                detail={voiture ? `${capacite} places${CATEGORIES[voiture.voit_categorie] ? ` · ${CATEGORIES[voiture.voit_categorie]}` : ''}` : trajId ? undefined : "Choisissez d'abord le trajet"}
+                detail={
+                  voiture
+                    ? [`${capacite} places`, CATEGORIES[voiture.voit_categorie], chauffeurDe(voiture) ? `Chauffeur : ${chauffeurDe(voiture)}` : 'Aucun chauffeur affecté'].filter(Boolean).join(' · ')
+                    : trajId ? undefined : "Choisissez d'abord le trajet"
+                }
                 placeholder="Choisir un véhicule"
                 onPress={() => setFeuille('voiture')}
                 desactive={!trajId}
               />
 
-              {mode === 'un' ? (
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <ChampDateHeure libelle="Date" mode="date" valeur={date} affichage={date ? dateCourte(date) : undefined} placeholder="Choisir" minimumDate={aujourdhui} onChange={setDate} />
-                  <ChampDateHeure
-                    libelle="Heure de départ"
-                    mode="time"
-                    valeur={heure ? new Date(2000, 0, 1, Number(heure.slice(0, 2)), Number(heure.slice(3, 5))) : null}
-                    affichage={heure || undefined}
-                    placeholder="--:--"
-                    onChange={(d) => setHeure(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)}
-                  />
+              {/* Dates : calendrier (une ou plusieurs dates à la création, une seule en modification) */}
+              <View style={{ gap: 8 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <Texte graisse="gras" taille={12.5} couleur={couleurs.encreDouce}>{edition ? 'Date du voyage' : 'Dates des voyages'}</Texte>
+                  {!edition && (
+                    <Texte graisse="tresGras" taille={12.5} couleur={couleurs.ocean800}>
+                      {dates.length} / {MAX_DATES}
+                    </Texte>
+                  )}
                 </View>
-              ) : (
-                <>
-                  <View style={{ gap: 6 }}>
-                    <Texte graisse="gras" taille={12.5} couleur={couleurs.encreDouce}>Dates ({dates.length}/{MAX_DATES})</Texte>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      {dates.map((iso) => (
-                        <Pressable
-                          key={iso}
-                          onPress={() => setDates((p) => p.filter((x) => x !== iso))}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Retirer le ${dateCourte(dateVoyage(iso))}`}
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, paddingLeft: 12, paddingRight: 8, borderRadius: 999, backgroundColor: couleurs.ocean800 }}
-                        >
-                          <Texte graisse="gras" taille={13} couleur="#FFFFFF">{dateCourte(dateVoyage(iso))}</Texte>
-                          <Ionicons name="close" size={16} color="#FFFFFF" />
-                        </Pressable>
-                      ))}
-                      {dates.length < MAX_DATES && (
+                <CalendrierDates selection={dates} onChange={setDates} multiple={!edition} max={MAX_DATES} minimum={aujourdhui} />
+                {dates.length > 0 && (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {dates.map((iso) => (
+                      <Pressable
+                        key={iso}
+                        onPress={() => setDates((p) => p.filter((x) => x !== iso))}
+                        disabled={edition}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Retirer le ${dateCourte(dateVoyage(iso))}`}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingLeft: 12, paddingRight: edition ? 12 : 8, borderRadius: 999, backgroundColor: couleurs.ocean50 }}
+                      >
+                        <Texte graisse="gras" taille={13} couleur={couleurs.ocean950}>{dateCourte(dateVoyage(iso))}</Texte>
+                        {!edition && <Ionicons name="close" size={15} color={couleurs.ocean800} />}
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+                {plusieurs && (
+                  <Texte graisse="moyen" taille={12} couleur={couleurs.gris}>Même trajet, même véhicule et mêmes places pour chaque date.</Texte>
+                )}
+              </View>
+
+              {/* Heure de départ : commune, ou une par date quand il y a plusieurs dates */}
+              <View style={{ gap: 8 }}>
+                {plusieurs && (
+                  <>
+                    <Texte graisse="gras" taille={12.5} couleur={couleurs.encreDouce}>Heure de départ</Texte>
+                    <Segmente<'meme' | 'par_date'>
+                      libelleAccessible="Heure de départ identique ou différente selon la date"
+                      valeur={heureParDate ? 'par_date' : 'meme'}
+                      onChange={(v) => basculerHeureParDate(v === 'par_date')}
+                      options={[
+                        { valeur: 'meme', libelle: 'La même pour toutes' },
+                        { valeur: 'par_date', libelle: 'Une par date' },
+                      ]}
+                    />
+                  </>
+                )}
+                {heuresDistinctes ? (
+                  <View style={{ borderWidth: 1, borderColor: couleurs.ligne, borderRadius: 14, backgroundColor: couleurs.surface, overflow: 'hidden' }}>
+                    {dates.map((iso, i) => (
+                      <View key={iso} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 12, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: couleurs.separateur }}>
+                        <Texte graisse="tresGras" taille={13.5} style={{ flex: 1 }} numberOfLines={1}>{dateCourte(dateVoyage(iso))}</Texte>
                         <ChampDateHeure
-                          libelle="Ajouter une date"
-                          mode="date"
-                          valeur={null}
+                          libelle={`Heure de départ du ${dateCourte(dateVoyage(iso))}`}
+                          mode="time"
+                          valeur={depuisHeure(heureDe(iso))}
                           placeholder=""
-                          minimumDate={aujourdhui}
-                          onChange={ajouterDate}
+                          onChange={(d) => setHeures((h) => ({ ...h, [iso]: versHeure(d) }))}
                           declencheur={(ouvrir) => (
-                            <Pressable
-                              onPress={ouvrir}
-                              accessibilityRole="button"
-                              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1.5, borderColor: couleurs.ocean200, borderStyle: 'dashed', backgroundColor: couleurs.surface }}
-                            >
-                              <Ionicons name="add" size={17} color={couleurs.ocean800} />
-                              <Texte graisse="gras" taille={13} couleur={couleurs.ocean800}>Ajouter une date</Texte>
-                            </Pressable>
+                            <PastilleChoix texte={heureDe(iso) || '--:--'} icone="time-outline" vide={!heureDe(iso)} onPress={ouvrir} libelle={`Heure de départ du ${dateCourte(dateVoyage(iso))} : ${heureDe(iso) || 'à choisir'}`} />
                           )}
                         />
-                      )}
-                    </View>
-                    <Texte graisse="moyen" taille={12} couleur={couleurs.gris}>Même trajet, véhicule, heure et places pour chaque date. Touchez une date pour la retirer.</Texte>
+                      </View>
+                    ))}
                   </View>
+                ) : (
                   <ChampDateHeure
-                    libelle="Heure de départ"
+                    libelle={plusieurs ? 'Heure de départ de chaque voyage' : 'Heure de départ'}
                     mode="time"
-                    valeur={heure ? new Date(2000, 0, 1, Number(heure.slice(0, 2)), Number(heure.slice(3, 5))) : null}
+                    valeur={depuisHeure(heure)}
                     affichage={heure || undefined}
                     placeholder="--:--"
-                    onChange={(d) => setHeure(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)}
+                    onChange={(d) => setHeure(versHeure(d))}
                   />
-                </>
-              )}
+                )}
+              </View>
 
               <View style={{ gap: 6 }}>
                 <Texte graisse="gras" taille={12.5} couleur={couleurs.encreDouce}>Type de voyage</Texte>
@@ -346,6 +488,108 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
                 aide="Réduisez si des places sont gardées pour des clients au guichet."
                 erreur={capacite && nbPlaces > capacite ? `Ce véhicule n'a que ${capacite} places.` : undefined}
               />
+
+              {/* Publication */}
+              {reglerPublication && (
+                <View style={{ gap: 8 }}>
+                  <Texte graisse="gras" taille={12.5} couleur={couleurs.encreDouce}>Publication</Texte>
+                  <Segmente<Publication>
+                    libelleAccessible="Publication"
+                    valeur={publication}
+                    onChange={setPublication}
+                    options={[
+                      { valeur: 'maintenant', libelle: 'Maintenant' },
+                      { valeur: 'plus_tard', libelle: 'Plus tard' },
+                      { valeur: 'programmee', libelle: 'Programmée' },
+                    ]}
+                  />
+                  {publication === 'programmee' && plusieurs && (
+                    <Segmente<'une_fois' | 'par_voyage'>
+                      libelleAccessible="Publier tous les voyages en une fois ou chacun à sa date"
+                      valeur={pubParVoyage ? 'par_voyage' : 'une_fois'}
+                      onChange={(v) => setPubParVoyage(v === 'par_voyage')}
+                      options={[
+                        { valeur: 'une_fois', libelle: 'Tous en une fois' },
+                        { valeur: 'par_voyage', libelle: 'Une date par voyage' },
+                      ]}
+                    />
+                  )}
+                  {publication === 'programmee' && !publicationsDistinctes && (
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <ChampDateHeure libelle="Publier le" mode="date" valeur={pubDate} affichage={pubDate ? dateCourte(pubDate) : undefined} placeholder="Choisir" minimumDate={aujourdhui} onChange={setPubDate} />
+                      <ChampDateHeure libelle="À" mode="time" valeur={depuisHeure(pubHeure)} affichage={pubHeure || undefined} placeholder="--:--" onChange={(d) => setPubHeure(versHeure(d))} />
+                    </View>
+                  )}
+                  {publicationsDistinctes && (
+                    <View style={{ gap: 8 }}>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                        <Texte graisse="moyen" taille={12} couleur={couleurs.gris}>Remplir d’un coup :</Texte>
+                        {[3, 7, 14].map((n) => (
+                          <Pressable
+                            key={n}
+                            onPress={() => remplirPublications(n)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Publier chaque voyage ${n} jours avant son départ`}
+                            style={{ height: 32, paddingHorizontal: 12, borderRadius: 999, backgroundColor: couleurs.ocean50, justifyContent: 'center' }}
+                          >
+                            <Texte graisse="tresGras" taille={12.5} couleur={couleurs.ocean800}>{n} j avant</Texte>
+                          </Pressable>
+                        ))}
+                      </View>
+                      <View style={{ borderWidth: 1, borderColor: couleurs.ligne, borderRadius: 14, backgroundColor: couleurs.surface, overflow: 'hidden' }}>
+                        {dates.map((iso, i) => {
+                          const pub = pubs[iso] || { date: null, heure: '' };
+                          const jour = dateCourte(dateVoyage(iso));
+                          return (
+                            <View key={iso} style={{ gap: 6, paddingVertical: 10, paddingHorizontal: 12, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: couleurs.separateur }}>
+                              <Texte graisse="tresGras" taille={13.5} numberOfLines={1}>
+                                Voyage du {jour}{heureDe(iso) ? ` · ${heureDe(iso)}` : ''}
+                              </Texte>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Texte graisse="moyen" taille={12.5} couleur={couleurs.gris}>Publier le</Texte>
+                                <ChampDateHeure
+                                  libelle={`Date de publication du voyage du ${jour}`}
+                                  mode="date"
+                                  valeur={pub.date}
+                                  placeholder=""
+                                  minimumDate={aujourdhui}
+                                  onChange={(d) => setPubs((x) => ({ ...x, [iso]: { ...pub, date: d } }))}
+                                  declencheur={(ouvrir) => (
+                                    <PastilleChoix texte={pub.date ? dateCourte(pub.date) : 'Date'} icone="calendar-outline" vide={!pub.date} onPress={ouvrir} libelle={`Date de publication du voyage du ${jour} : ${pub.date ? dateCourte(pub.date) : 'à choisir'}`} />
+                                  )}
+                                />
+                                <Texte graisse="moyen" taille={12.5} couleur={couleurs.gris}>à</Texte>
+                                <ChampDateHeure
+                                  libelle={`Heure de publication du voyage du ${jour}`}
+                                  mode="time"
+                                  valeur={depuisHeure(pub.heure)}
+                                  placeholder=""
+                                  onChange={(d) => setPubs((x) => ({ ...x, [iso]: { ...pub, heure: versHeure(d) } }))}
+                                  declencheur={(ouvrir) => (
+                                    <PastilleChoix texte={pub.heure || '--:--'} icone="time-outline" vide={!pub.heure} onPress={ouvrir} libelle={`Heure de publication du voyage du ${jour} : ${pub.heure || 'à choisir'}`} />
+                                  )}
+                                />
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+                  <View style={{ flexDirection: 'row', gap: 8, padding: 12, borderRadius: 12, backgroundColor: couleurs.ocean50 }}>
+                    <Ionicons name={publication === 'maintenant' ? 'eye-outline' : publication === 'plus_tard' ? 'eye-off-outline' : 'time-outline'} size={18} color={couleurs.ocean800} />
+                    <Texte graisse="moyen" taille={12.5} couleur={couleurs.ocean800} style={{ flex: 1, lineHeight: 18 }}>
+                      {publication === 'maintenant'
+                        ? `Les clients ${plusieurs ? 'voient ces voyages' : 'voient ce voyage'} et peuvent réserver dès l’enregistrement.`
+                        : publication === 'plus_tard'
+                          ? `${plusieurs ? 'Ces voyages sont planifiés sans être publiés : ils servent' : 'Ce voyage est planifié sans être publié : il sert'} de prévision et les clients ne ${plusieurs ? 'les' : 'le'} voient pas. Vous pourrez changer la date, l’heure ou le véhicule, puis publier au moment voulu.`
+                          : publicationsDistinctes
+                            ? 'Chaque voyage reste invisible pour les clients jusqu’à sa propre date de publication, puis est publié automatiquement.'
+                            : `${plusieurs ? 'Ces voyages restent invisibles' : 'Ce voyage reste invisible'} pour les clients jusqu’à la date choisie, puis ${plusieurs ? 'sont publiés tous ensemble' : 'est publié'} automatiquement.`}
+                    </Texte>
+                  </View>
+                </View>
+              )}
             </ScrollView>
 
             {/* Pied */}
@@ -356,7 +600,15 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
                 </Texte>
               )}
               <Bouton
-                titre={edition ? 'Enregistrer les modifications' : mode === 'plusieurs' ? `Programmer ${dates.length || ''} voyage${dates.length > 1 ? 's' : ''}`.replace('  ', ' ') : 'Programmer le voyage'}
+                titre={
+                  edition && !nonPublieExistant
+                    ? 'Enregistrer les modifications'
+                    : publication === 'plus_tard'
+                      ? plusieurs ? `Planifier ${dates.length} voyages` : 'Planifier le voyage'
+                      : publication === 'programmee'
+                        ? plusieurs ? `Programmer ${dates.length} publications` : 'Programmer la publication'
+                        : plusieurs ? `Publier ${dates.length} voyages` : 'Publier le voyage'
+                }
                 onPress={enregistrer}
                 chargement={envoi}
               />
@@ -391,7 +643,7 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
         options={voituresCompatibles.map((v) => ({
           id: idVoiture(v),
           titre: v.voit_matricule,
-          detail: [[v.voit_marque, v.voit_modele].filter(Boolean).join(' '), `${v.voit_places} places`].filter(Boolean).join(' · '),
+          detail: [[v.voit_marque, v.voit_modele].filter(Boolean).join(' '), `${v.voit_places} places`, chauffeurDe(v) ? `Chauffeur : ${chauffeurDe(v)}` : 'Aucun chauffeur'].filter(Boolean).join(' · '),
           etiquette: CATEGORIES[v.voit_categorie],
         }))}
       />

@@ -2,10 +2,13 @@ import apiClient from '../api/axiosConfig';
 
 export const voyageService = {
   // Créer plusieurs voyages en une seule opération
-  ajouterVoyagesMultiples: async (voyages: any[]) => {
+  /**
+   * publication : { publication: 'maintenant' | 'plus_tard' | 'programmee', publication_date?: instant ISO }
+   * s'applique à tous les voyages du lot.
+   */
+  ajouterVoyagesMultiples: async (voyages: any[], publication: { publication?: string; publication_date?: string } = {}) => {
     try {
-      console.log('Envoi création voyages multiples:', JSON.stringify({ voyages }, null, 2));
-      const response = await apiClient.post('/api/adminCompagnie/voyage/programmerVoyagesMultiples', { voyages });
+      const response = await apiClient.post('/api/adminCompagnie/voyage/programmerVoyagesMultiples', { voyages, ...publication });
       console.log('Réponse création voyages multiples:', response.data);
       return {
         statut: true,
@@ -165,6 +168,30 @@ export const voyageService = {
         message: error.response?.data?.message || 'Erreur lors de la modification du voyage',
         data: null,
       };
+    }
+  },
+
+  /**
+   * Rappels de publication de l'onglet Planning :
+   * { total, jours, bientot_publies: voyages publiés automatiquement sous peu, a_publier: départ proche sans date de publication }
+   */
+  obtenirRappelsPublication: async () => {
+    try {
+      const response = await apiClient.get('/api/adminCompagnie/voyage/rappels-publication');
+      const d = response.data?.data || {};
+      return { statut: true, total: Number(d.total) || 0, jours: Number(d.jours) || 3, bientotPublies: (d.bientot_publies || []) as any[], aPublier: (d.a_publier || []) as any[] };
+    } catch {
+      return { statut: false, total: 0, jours: 3, bientotPublies: [] as any[], aPublier: [] as any[] };
+    }
+  },
+
+  /** Publie tout de suite un voyage planifié : visible et ouvert aux réservations. */
+  publierVoyage: async (id: number) => {
+    try {
+      const response = await apiClient.patch(`/api/adminCompagnie/voyage/${id}/publier`);
+      return { statut: true, message: response.data?.message || 'Voyage publié', data: response.data?.data };
+    } catch (error: any) {
+      return { statut: false, message: error.response?.data?.message || 'Erreur lors de la publication du voyage', data: null };
     }
   },
 

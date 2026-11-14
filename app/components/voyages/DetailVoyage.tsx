@@ -11,7 +11,7 @@ import { useConfirmDialog } from '../common/ConfirmDialog';
 import { Skeleton } from '../common/Skeleton';
 import { Bouton, BoutonIcone, Carte, FeuilleModale, LegendePlan, Pastille, PlanSieges, Segmente, Texte, ModalPleinEcran } from '../ui';
 import { couleurs, formatAriary } from '../../theme/ocean';
-import { dateCourte, dateVoyage, estEnPause, infoStatutVoyage, statutValeur } from '../../utils/voyageStatut';
+import { dateCourte, dateHeureCourte, dateVoyage, estNonPublie, estEnPause, infoStatutVoyage, publicationPrevue, statutValeur } from '../../utils/voyageStatut';
 import { ChampDateHeure } from './ChampDateHeure';
 
 type Onglet = 'plan' | 'voyageurs' | 'billets';
@@ -132,6 +132,8 @@ function DetailVoyageContenu({ visible, voyageId, apercu, onClose, onModifier, o
   const statut = statutValeur(v);
   const actif = statut === 1 || statut === 2;
   const pause = estEnPause(v);
+  const nonPublie = estNonPublie(v);
+  const prevue = publicationPrevue(v);
   const info = infoStatutVoyage(v);
   const depart = v.trajet?.province_depart || '';
   const arrivee = v.trajet?.province_arrivee || '';
@@ -162,6 +164,15 @@ function DetailVoyageContenu({ visible, voyageId, apercu, onClose, onModifier, o
     setActions(false);
     showDialog({ title: titre, message: texte, type: danger ? 'danger' : 'warning', confirmText: bouton, cancelText: 'Retour', onConfirm: action, onCancel: () => {} });
   };
+
+  const publier = () =>
+    confirmer(
+      'Publier ce voyage ?',
+      `${depart} → ${arrivee}, ${dateCourte(date)} à ${heure}. Les clients le verront tout de suite et pourront réserver.`,
+      'Publier',
+      false,
+      () => executer(() => voyageService.publierVoyage(id), 'Le voyage est publié.')
+    );
 
   const reprogrammer = (d: Date) => {
     const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -294,7 +305,7 @@ function DetailVoyageContenu({ visible, voyageId, apercu, onClose, onModifier, o
               <Texte graisse="moyen" taille={12} couleur={couleurs.texteSurMarine}>Revenu encaissé</Texte>
               <Texte variante="montant" taille={24} couleur="#FFFFFF">{formatAriary(Number(resumeBillets.revenu_total ?? v.revenu_total) || 0)} Ar</Texte>
             </View>
-            {actif && !pause ? (
+            {actif && !pause && !nonPublie ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#3DD68C' }} />
                 <Texte graisse="gras" taille={12} couleur="#8BE8B7">En direct</Texte>
@@ -318,6 +329,36 @@ function DetailVoyageContenu({ visible, voyageId, apercu, onClose, onModifier, o
             </>
           ) : (
             <>
+              {nonPublie && (
+                <Carte style={{ gap: 12, backgroundColor: couleurs.ocean50, borderColor: couleurs.ocean100 }}>
+                  <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+                    <Ionicons name={prevue ? 'time-outline' : 'eye-off-outline'} size={20} color={couleurs.ocean800} style={{ marginTop: 1 }} />
+                    <View style={{ flex: 1 }}>
+                      <Texte graisse="tresGras" taille={14.5} couleur={couleurs.ocean950}>
+                        {prevue ? `Publication programmée le ${dateHeureCourte(prevue)}` : 'Voyage planifié, pas encore publié'}
+                      </Texte>
+                      <Texte graisse="moyen" taille={12.5} couleur={couleurs.ocean800} style={{ lineHeight: 18 }}>
+                        Les clients ne voient pas encore ce voyage. Vous pouvez changer sa date, son heure, son véhicule ou sa date de publication avec « Modifier », puis le publier au moment voulu.
+                      </Texte>
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <Bouton
+                      titre="Modifier"
+                      variante="secondaire"
+                      icone="create-outline"
+                      compact
+                      style={{ flex: 1 }}
+                      onPress={() => {
+                        onClose();
+                        onModifier?.(id);
+                      }}
+                    />
+                    <Bouton titre="Publier maintenant" icone="eye-outline" compact style={{ flex: 1.3 }} onPress={publier} chargement={occupe} />
+                  </View>
+                </Carte>
+              )}
+
               <Carte padding={0} style={{ flexDirection: 'row' }}>
                 {[
                   { v: plan?.sieges_reserves ?? 0, l: 'Payés', c: couleurs.encre },
@@ -374,7 +415,7 @@ function DetailVoyageContenu({ visible, voyageId, apercu, onClose, onModifier, o
               premiere
               icone="create-outline"
               titre="Modifier"
-              detail="Date, heure, véhicule, places"
+              detail={nonPublie ? 'Date, heure, véhicule, places, publication' : 'Date, heure, véhicule, places'}
               onPress={() => {
                 setActions(false);
                 onClose();
@@ -382,7 +423,10 @@ function DetailVoyageContenu({ visible, voyageId, apercu, onClose, onModifier, o
               }}
             />
           )}
-          {actif && (
+          {nonPublie && (
+            <LigneAction icone="eye-outline" titre="Publier maintenant" detail="Le voyage devient visible et réservable" onPress={publier} />
+          )}
+          {actif && !nonPublie && (
             <LigneAction
               icone={pause ? 'play-circle-outline' : 'pause-circle-outline'}
               titre={pause ? 'Rouvrir aux réservations' : 'Mettre en pause'}
@@ -424,7 +468,7 @@ function DetailVoyageContenu({ visible, voyageId, apercu, onClose, onModifier, o
               danger
               icone="close-circle-outline"
               titre="Annuler le voyage"
-              detail="Les clients ayant payé seront remboursés"
+              detail={nonPublie ? 'Ce voyage planifié ne sera pas publié' : 'Les clients ayant payé seront remboursés'}
               onPress={() =>
                 confirmer(
                   'Annuler ce voyage ?',

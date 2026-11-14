@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, SectionList, 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { voyageService } from '../services/voyages/voyageService';
 import { couleurs, dateLocaleISO, ombres } from '../theme/ocean';
-import { dateVoyage, infoStatutVoyage, libelleType, remplissage, titreJour } from '../utils/voyageStatut';
+import { dateHeureCourte, dateVoyage, estNonPublie, infoStatutVoyage, libelleType, publicationPrevue, remplissage, titreJour } from '../utils/voyageStatut';
 import { Skeleton } from './common/Skeleton';
 import { Carte, FeuilleModale, Pastille, Puce, Texte } from './ui';
 import { DetailVoyage } from './voyages/DetailVoyage';
@@ -56,6 +56,8 @@ function LigneVoyage({ v, premiere, onPress }: { v: any; premiere: boolean; onPr
   const info = infoStatutVoyage(v);
   const trajet = `${v.trajet?.province_depart || 'Départ'} → ${v.trajet?.province_arrivee || 'Arrivée'}`;
   const heure = String(v.heure_depart || '').slice(0, 5);
+  const nonPublie = estNonPublie(v);
+  const prevue = publicationPrevue(v);
   return (
     <Pressable
       onPress={onPress}
@@ -74,6 +76,11 @@ function LigneVoyage({ v, premiere, onPress }: { v: any; premiere: boolean; onPr
         <Texte graisse="moyen" taille={11.5} couleur={couleurs.gris} numberOfLines={1}>
           {[v.voiture?.matricule, [v.voiture?.marque, v.voiture?.modele].filter(Boolean).join(' ')].filter(Boolean).join(' · ')}
         </Texte>
+        {nonPublie && (
+          <Texte graisse="gras" taille={11.5} couleur={couleurs.ocean800} numberOfLines={1}>
+            {prevue ? `Publication le ${dateHeureCourte(prevue)}` : 'Planifié · pas encore publié'}
+          </Texte>
+        )}
         <View style={{ height: 4, borderRadius: 999, backgroundColor: couleurs.ocean50, marginTop: 6, overflow: 'hidden' }}>
           <View style={{ width: `${r.pct}%`, height: '100%', backgroundColor: r.complet ? couleurs.succes : couleurs.ocean800 }} />
         </View>
