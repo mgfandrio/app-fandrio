@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import apiClient from '../../services/api/axiosConfig';
 import voitureService from '../../services/voitures/voitureService';
 import { voyageService } from '../../services/voyages/voyageService';
+import { suiviService, CompagnieSuivi } from '../../services/suivi/suiviService';
 import { useConfirmDialog } from '../common/ConfirmDialog';
 import { Skeleton } from '../common/Skeleton';
 import { Bouton, BoutonIcone, ChampSaisie, Segmente, Texte, ModalPleinEcran } from '../ui';
@@ -70,7 +71,11 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
   const [envoi, setEnvoi] = useState(false);
   const [trajets, setTrajets] = useState<any[]>([]);
   const [voitures, setVoitures] = useState<any[]>([]);
-  const [feuille, setFeuille] = useState<'trajet' | 'voiture' | null>(null);
+  const [feuille, setFeuille] = useState<'trajet' | 'voiture' | 'reception' | null>(null);
+  // Compagnie de réception : partenaire située dans la province d'arrivée ('' = aucune)
+  const [receptionId, setReceptionId] = useState('');
+  const [receptions, setReceptions] = useState<CompagnieSuivi[]>([]);
+  const [receptionsChargees, setReceptionsChargees] = useState(false);
 
   const [trajId, setTrajId] = useState('');
   const [voitId, setVoitId] = useState('');
@@ -109,6 +114,9 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
     setPubs({});
     setType('1');
     setPlaces('');
+    setReceptionId('');
+    setReceptions([]);
+    setReceptionsChargees(false);
     charger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, voyageId]);
@@ -146,6 +154,7 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
         setHeure(String(v.heure_depart || v.voyage_heure_depart || '').slice(0, 5));
         setType(Number(v.type ?? v.voyage_type) === 2 ? '2' : '1');
         setPlaces(String(v.places_disponibles ?? ''));
+        setReceptionId(v.reception?.id ? String(v.reception.id) : '');
       } else if (voyageId) {
         message('Voyage introuvable', 'Impossible de charger ce voyage.', 'danger', onClose);
       }
@@ -159,6 +168,34 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
 
   const trajet = trajets.find((t) => String(t.id_trajet) === trajId);
   const categorie = (trajet?.categorie || 'classique') as string;
+  const provinceArrivee: number | null = Number(trajet?.province_arrivee?.id_province) || null;
+  const nomArrivee: string = trajet?.province_arrivee?.nom_province || "la province d'arrivée";
+
+  // Compagnies de réception possibles pour la destination du trajet
+  useEffect(() => {
+    if (!provinceArrivee) {
+      setReceptions([]);
+      setReceptionsChargees(false);
+      return;
+    }
+    let actif = true;
+    setReceptionsChargees(false);
+    suiviService.receptionsPourProvince(provinceArrivee).then((r) => {
+      if (!actif) return;
+      const liste = r.statut ? r.data : [];
+      setReceptions(liste);
+      setReceptionsChargees(true);
+      // Garde le choix s'il convient encore ; sinon, une seule possibilité est choisie d'office
+      // (à la création seulement : en modification, « aucune » reste un choix)
+      setReceptionId((actuel) =>
+        liste.some((c) => String(c.id) === actuel) ? actuel : !edition && liste.length === 1 ? String(liste[0].id) : ''
+      );
+    });
+    return () => {
+      actif = false;
+    };
+  }, [provinceArrivee, edition]);
+  const reception = receptions.find((c) => String(c.id) === receptionId);
   const voituresCompatibles = useMemo(
     () => voitures.filter((v) => !trajet || (v.voit_categorie || v.categorie || 'classique') === categorie),
     [voitures, trajet, categorie]
@@ -270,6 +307,8 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
       voit_id: parseInt(voitId, 10),
       voyage_type: parseInt(type, 10),
       places_disponibles: nbPlaces,
+      // Compagnie partenaire qui accueille la voiture à destination (null = suivi interne)
+      comp_reception: receptionId ? parseInt(receptionId, 10) : null,
     };
     // Publication : envoyée à la création, et à la modification d'un voyage non publié
     const instant = instantPublication();
@@ -386,6 +425,37 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
                 onPress={() => setFeuille('voiture')}
                 desactive={!trajId}
               />
+
+              {/* Compagnie de réception : partenaire à destination, prévenue au départ de la voiture */}
+              {!!trajId && receptionsChargees && receptions.length === 0 ? (
+                <View style={{ flexDirection: 'row', gap: 10, padding: 12, borderRadius: 14, backgroundColor: couleurs.ocean50 }}>
+                  <Ionicons name="information-circle-outline" size={19} color={couleurs.ocean800} />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Texte graisse="tresGras" taille={13}>Compagnie de réception : aucune</Texte>
+                    <Texte graisse="moyen" taille={12.5} couleur={couleurs.encreDouce} style={{ lineHeight: 18 }}>
+                      Aucune de vos compagnies partenaires n'est à {nomArrivee}. Vous suivrez ce voyage vous-même et confirmerez son arrivée. Pour ajouter un partenaire : Paramètres › Compagnies partenaires.
+                    </Texte>
+                  </View>
+                </View>
+              ) : (
+                <ChampChoix
+                  libelle="Compagnie de réception"
+                  icone="flag-outline"
+                  titre={reception ? reception.nom : trajId && receptionsChargees ? 'Aucune (suivi par votre compagnie)' : undefined}
+                  detail={
+                    reception
+                      ? `À ${reception.province?.nom || nomArrivee} · reçoit la liste des voyageurs au départ et confirme l'arrivée`
+                      : trajId
+                        ? receptionsChargees
+                          ? `${receptions.length} partenaire${receptions.length > 1 ? 's' : ''} à ${nomArrivee}`
+                          : 'Recherche de vos partenaires…'
+                        : "Choisissez d'abord le trajet"
+                  }
+                  placeholder="Choisir la compagnie de réception"
+                  onPress={() => setFeuille('reception')}
+                  desactive={!trajId || !receptionsChargees}
+                />
+              )}
 
               {/* Dates : calendrier (une ou plusieurs dates à la création, une seule en modification) */}
               <View style={{ gap: 8 }}>
@@ -646,6 +716,22 @@ function FormulaireVoyageContenu({ visible, voyageId, onClose, onSuccess }: Prop
           detail: [[v.voit_marque, v.voit_modele].filter(Boolean).join(' '), `${v.voit_places} places`, chauffeurDe(v) ? `Chauffeur : ${chauffeurDe(v)}` : 'Aucun chauffeur'].filter(Boolean).join(' · '),
           etiquette: CATEGORIES[v.voit_categorie],
         }))}
+      />
+      <FeuilleChoix
+        visible={feuille === 'reception'}
+        onClose={() => setFeuille(null)}
+        titre="Compagnie de réception"
+        recherche="Rechercher une compagnie"
+        valeur={receptionId || '0'}
+        onChoisir={(id) => {
+          setReceptionId(id === '0' ? '' : id);
+          setFeuille(null);
+        }}
+        vide={`Aucune compagnie partenaire à ${nomArrivee}.`}
+        options={[
+          ...receptions.map((c) => ({ id: String(c.id), titre: c.nom, detail: `${c.province?.nom || nomArrivee} · prévenue au départ, confirme l'arrivée` })),
+          { id: '0', titre: 'Aucune', detail: 'Vous suivez le voyage et confirmez son arrivée vous-même' },
+        ]}
       />
     </>
   );

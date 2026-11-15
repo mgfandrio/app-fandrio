@@ -53,6 +53,11 @@ function Contenu({ compagnieId, onClose, onSuccess }: Props) {
   const [modes, setModes] = useState<any[]>([]);
   const [f, setF] = useState({ ...VIDE });
   const [feuilleSiege, setFeuilleSiege] = useState(false);
+  // Compagnies partenaires (création) : au moins une, s'il existe déjà d'autres compagnies
+  const [compagnies, setCompagnies] = useState<any[]>([]);
+  const [partenaires, setPartenaires] = useState<number[]>([]);
+  const [feuillePartenaires, setFeuillePartenaires] = useState(false);
+  const basculerPartenaire = (id: number) => setPartenaires((x) => (x.includes(id) ? x.filter((i) => i !== id) : [...x, id]));
 
   const etapes = edition ? ['Identité', 'Activité'] : ['Identité', 'Activité', 'Administrateur'];
   const maj = (champ: Partial<typeof VIDE>) => setF((x) => ({ ...x, ...champ }));
@@ -61,10 +66,13 @@ function Contenu({ compagnieId, onClose, onSuccess }: Props) {
 
   useEffect(() => {
     (async () => {
-      const [rp, rc] = await Promise.all([
+      const [rp, rc, rl] = await Promise.all([
         provinceService.listerProvinces({ per_page: 200 } as any).catch(() => null),
         compagnieId ? compagnieService.getCompagnie(compagnieId).catch(() => null) : Promise.resolve(null),
+        compagnieId ? Promise.resolve(null) : compagnieService.listerCompagnies({ statut: 1, per_page: 200 } as any).catch(() => null),
       ]);
+      const l: any = donnees(rl);
+      setCompagnies((l?.compagnies || []).filter((c: any) => Number(c.statut) === 1));
       const p: any = donnees(rp);
       setProvinces(p?.provinces || (Array.isArray(p) ? p : []));
       const c: any = donnees(rc);
@@ -107,6 +115,7 @@ function Contenu({ compagnieId, onClose, onSuccess }: Props) {
       if (!f.comp_localisation) return 'Choisissez la province du siège.';
       if (!f.comp_nif.trim() || !f.comp_stat.trim()) return 'Indiquez le NIF et le numéro STAT.';
       if (f.papi_actif && !papiConfigure && !f.papi_api_key.trim()) return 'Saisissez la clé API PAPI pour activer le paiement en ligne.';
+      if (!edition && compagnies.length > 0 && partenaires.length === 0) return 'Choisissez au moins une compagnie partenaire.';
     }
     if (n === 2) {
       if (!f.admin_prenom.trim() || !f.admin_nom.trim()) return 'Indiquez le prénom et le nom de l’administrateur.';
@@ -152,6 +161,7 @@ function Contenu({ compagnieId, onClose, onSuccess }: Props) {
             admin_email: f.admin_email.trim(),
             admin_telephone: f.admin_telephone.trim(),
             admin_mot_de_passe: f.admin_mot_de_passe,
+            partenaires,
           });
       if (r?.statut) {
         message(edition ? 'Compagnie modifiée' : 'Compagnie créée', edition ? 'Les modifications sont enregistrées.' : `${f.admin_prenom} peut maintenant se connecter avec ${f.admin_email}.`, 'success', () => {
@@ -262,6 +272,37 @@ function Contenu({ compagnieId, onClose, onSuccess }: Props) {
                       <ChampSaisie libelle="Secret du webhook" value={f.papi_webhook_secret} onChangeText={(t) => maj({ papi_webhook_secret: t })} autoCapitalize="none" motDePasse />
                     </>
                   )}
+                  {!edition && compagnies.length > 0 && (
+                    <View style={{ gap: 6 }}>
+                      <ChampChoix
+                        libelle="Compagnies partenaires (au moins une)"
+                        icone="people-outline"
+                        titre={partenaires.length ? `${partenaires.length} compagnie${partenaires.length > 1 ? 's' : ''} choisie${partenaires.length > 1 ? 's' : ''}` : undefined}
+                        detail={`Recherche par nom ou par province parmi ${compagnies.length} compagnie${compagnies.length > 1 ? 's' : ''}`}
+                        placeholder="Choisir les compagnies partenaires"
+                        onPress={() => setFeuillePartenaires(true)}
+                      />
+                      {/* Compagnies choisies : un appui la retire */}
+                      {partenaires.length > 0 && (
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                          {compagnies
+                            .filter((c) => partenaires.includes(Number(c.id)))
+                            .map((c) => (
+                              <Puce
+                                key={c.id}
+                                icone="close"
+                                libelle={c.localisation?.nom ? `${c.nom} · ${c.localisation.nom}` : c.nom}
+                                active
+                                onPress={() => basculerPartenaire(Number(c.id))}
+                              />
+                            ))}
+                        </View>
+                      )}
+                      <Texte graisse="moyen" taille={12} couleur={couleurs.gris}>
+                        Elles accueillent les voitures de cette compagnie à destination : au départ, elles reçoivent le véhicule, le chauffeur et la liste des voyageurs, puis confirment l’arrivée. L’administrateur pourra en ajouter ou en retirer.
+                      </Texte>
+                    </View>
+                  )}
                 </>
               )}
 
@@ -307,6 +348,20 @@ function Contenu({ compagnieId, onClose, onSuccess }: Props) {
           setDesservies((x) => (x.includes(Number(id)) ? x : [...x, Number(id)]));
         }}
         options={provinces.map((p) => ({ id: String(p.id), titre: p.nom, detail: p.orientation }))}
+      />
+      <FeuilleChoix
+        visible={feuillePartenaires}
+        onClose={() => setFeuillePartenaires(false)}
+        titre="Compagnies partenaires"
+        recherche="Nom de la compagnie ou province"
+        multiple
+        valeurs={partenaires.map(String)}
+        onChoisir={(id) => basculerPartenaire(Number(id))}
+        vide="Aucune compagnie ne correspond."
+        options={[...compagnies]
+          // Ordre alphabétique stable : les lignes ne bougent pas quand on coche
+          .sort((a, b) => String(a.nom).localeCompare(String(b.nom)))
+          .map((c) => ({ id: String(c.id), titre: c.nom, detail: c.localisation?.nom || 'Province non renseignée' }))}
       />
     </>
   );

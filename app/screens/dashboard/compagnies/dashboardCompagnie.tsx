@@ -11,6 +11,9 @@ import { MenuLateral, SectionMenu } from '../../../components/dashboard/MenuLate
 import { InfosCompagnie } from '../../../components/dashboard/InfosCompagnie';
 import { RenderPlanning } from '../../../components/renders/planning/RenderPlanning';
 import { voyageService } from '../../../services/voyages/voyageService';
+import { RenderSuivi } from '../../../components/renders/suivi/RenderSuivi';
+import { GestionPartenaires } from '../../../components/renders/suivi/GestionPartenaires';
+import { suiviService } from '../../../services/suivi/suiviService';
 import { BarreOngletsAdmin, OngletAdmin } from '../../../components/dashboard/BarreOngletsAdmin';
 import { Bouton, BoutonIcone, Carte, FeuilleModale, Texte } from '../../../components/ui';
 import { RenderChauffers } from '../../../components/renders/chauffeurs/RenderChauffers';
@@ -36,6 +39,7 @@ const MENU: SectionMenu[] = [
       { key: 'dashboard', label: 'Tableau de bord', icon: 'home-outline', activeIcon: 'home' },
       { key: 'voyages', label: 'Voyages', icon: 'git-commit-outline', activeIcon: 'git-commit' },
       { key: 'planning', label: 'Planning des voyages', icon: 'calendar-outline', activeIcon: 'calendar' },
+      { key: 'suivi', label: 'Suivi des voyages', icon: 'navigate-outline', activeIcon: 'navigate' },
       { key: 'reservations', label: 'Réservations', icon: 'ticket-outline', activeIcon: 'ticket' },
       { key: 'guichet', label: 'Vente au guichet', icon: 'storefront-outline', activeIcon: 'storefront' },
     ],
@@ -111,6 +115,9 @@ export default function DashboardCompagnie() {
   const [infosOuvertes, setInfosOuvertes] = useState(false);
   // Voyages en attente de publication : pastille sur « Planning des voyages » dans le menu
   const [rappelsPlanning, setRappelsPlanning] = useState(0);
+  // Départs à clôturer et voitures en retard : pastille sur « Suivi des voyages »
+  const [alertesSuivi, setAlertesSuivi] = useState(0);
+  const [partenairesOuvert, setPartenairesOuvert] = useState(false);
   const [compagnieLogo, setCompagnieLogo] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [feuilleLogo, setFeuilleLogo] = useState(false);
@@ -239,14 +246,23 @@ export default function DashboardCompagnie() {
     voyageService.obtenirRappelsPublication().then((r) => {
       if (actif && r.statut) setRappelsPlanning(r.total);
     });
+    suiviService.compteurs().then((r) => {
+      if (actif && r.statut) setAlertesSuivi(r.data.total);
+    });
     return () => {
       actif = false;
     };
   }, [activeTab, menuOuvert]);
 
   const menuAvecRappels = useMemo(
-    () => MENU.map((s) => ({ ...s, items: s.items.map((i) => (i.key === 'planning' ? { ...i, compteur: rappelsPlanning || undefined } : i)) })),
-    [rappelsPlanning]
+    () =>
+      MENU.map((s) => ({
+        ...s,
+        items: s.items.map((i) =>
+          i.key === 'planning' ? { ...i, compteur: rappelsPlanning || undefined } : i.key === 'suivi' ? { ...i, compteur: alertesSuivi || undefined } : i
+        ),
+      })),
+    [rappelsPlanning, alertesSuivi]
   );
 
   const fermerMenu = useCallback(() => setMenuOuvert(false), []);
@@ -301,6 +317,7 @@ export default function DashboardCompagnie() {
         <LigneReglage premiere icone="business-outline" titre="Informations publiques" sousTitre="Description, contact, adresse" onPress={() => setInfosOuvertes(true)} />
         <LigneReglage icone="card-outline" titre="Modes de paiement" sousTitre="MVola, Orange Money, Airtel Money" onPress={() => setActiveTab('paiements')} />
         <LigneReglage icone="map-outline" titre="Provinces desservies" sousTitre="Où les clients vous trouvent" onPress={() => setInfosOuvertes(true)} />
+        <LigneReglage icone="people-outline" titre="Compagnies partenaires" sousTitre="Accueillent vos voitures à destination" onPress={() => setPartenairesOuvert(true)} />
       </Carte>
 
       <Texte variante="etiquette" style={{ marginLeft: 4 }}>Mon compte</Texte>
@@ -357,6 +374,7 @@ export default function DashboardCompagnie() {
         {activeTab === 'trajets' && <RenderTrajets onMenu={() => setMenuOuvert(true)} />}
         {activeTab === 'voyages' && <RenderVoyages />}
         {activeTab === 'planning' && <RenderPlanning onMenu={() => setMenuOuvert(true)} onRappels={setRappelsPlanning} />}
+        {activeTab === 'suivi' && <RenderSuivi onMenu={() => setMenuOuvert(true)} onCompteurs={setAlertesSuivi} />}
         {activeTab === 'reservations' && <RenderReservations />}
         {activeTab === 'factures' && <RenderFactures onMenu={() => setMenuOuvert(true)} />}
         {activeTab === 'paiements' && <RenderPaiements onMenu={() => setMenuOuvert(true)} />}
@@ -368,6 +386,7 @@ export default function DashboardCompagnie() {
       <BarreOngletsAdmin onglets={ONGLETS} actif={ongletActif} onPress={appuiOnglet} />
 
       <InfosCompagnie visible={infosOuvertes} onClose={() => setInfosOuvertes(false)} />
+      <GestionPartenaires visible={partenairesOuvert} onClose={() => setPartenairesOuvert(false)} />
 
       <MenuLateral
         visible={menuOuvert}

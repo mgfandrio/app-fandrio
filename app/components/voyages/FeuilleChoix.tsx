@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FlatList, Pressable, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FeuilleModale, Texte } from '../ui';
+import { Bouton, FeuilleModale, Texte } from '../ui';
 import { couleurs, polices } from '../../theme/ocean';
 
 export interface OptionChoix {
@@ -22,10 +22,16 @@ interface Props {
   /** Message quand la liste est vide. */
   vide?: string;
   recherche?: string;
+  /**
+   * Choix multiple : chaque appui coche ou décoche (onChoisir reçoit l'élément
+   * touché) et la feuille reste ouverte jusqu'au bouton « Terminé ».
+   */
+  multiple?: boolean;
+  valeurs?: string[];
 }
 
-/** Feuille de sélection avec recherche (trajet, véhicule, chauffeur...). */
-export function FeuilleChoix({ visible, onClose, titre, options, valeur, onChoisir, vide = 'Aucun élément.', recherche = 'Rechercher' }: Props) {
+/** Feuille de sélection avec recherche (trajet, véhicule, chauffeur...), simple ou multiple. */
+export function FeuilleChoix({ visible, onClose, titre, options, valeur, onChoisir, vide = 'Aucun élément.', recherche = 'Rechercher', multiple, valeurs = [] }: Props) {
   const [q, setQ] = useState('');
   useEffect(() => {
     if (visible) setQ('');
@@ -35,7 +41,14 @@ export function FeuilleChoix({ visible, onClose, titre, options, valeur, onChois
   const liste = filtre ? options.filter((o) => `${o.titre} ${o.detail || ''}`.toLowerCase().includes(filtre)) : options;
 
   return (
-    <FeuilleModale visible={visible} onClose={onClose} titre={titre} hauteur="pleine">
+    <FeuilleModale
+      visible={visible}
+      onClose={onClose}
+      titre={titre}
+      sousTitre={multiple ? `${valeurs.length} sélectionnée${valeurs.length > 1 ? 's' : ''} sur ${options.length}` : undefined}
+      hauteur="pleine"
+      pied={multiple ? <Bouton titre="Terminé" onPress={onClose} /> : undefined}
+    >
       <View style={{ paddingHorizontal: 20, paddingBottom: 10 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, height: 48, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1.5, borderColor: couleurs.champ, backgroundColor: couleurs.surface }}>
           <Ionicons name="search" size={18} color={couleurs.gris} />
@@ -56,15 +69,15 @@ export function FeuilleChoix({ visible, onClose, titre, options, valeur, onChois
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 30 }}
         ListEmptyComponent={<Texte variante="legende" centre style={{ paddingVertical: 30 }}>{vide}</Texte>}
         renderItem={({ item, index }) => {
-          const actif = item.id === valeur;
+          const actif = multiple ? valeurs.includes(item.id) : item.id === valeur;
           return (
             <Pressable
               onPress={() => {
                 onChoisir(item.id);
-                onClose();
+                if (!multiple) onClose();
               }}
-              accessibilityRole="button"
-              accessibilityState={{ selected: actif }}
+              accessibilityRole={multiple ? 'checkbox' : 'button'}
+              accessibilityState={multiple ? { checked: actif } : { selected: actif }}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderTopWidth: index === 0 ? 0 : 1, borderTopColor: couleurs.separateur }}
             >
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -76,7 +89,11 @@ export function FeuilleChoix({ visible, onClose, titre, options, valeur, onChois
                   <Texte graisse="tresGras" taille={10.5} couleur={couleurs.ocean800}>{item.etiquette}</Texte>
                 </View>
               )}
-              {actif && <Ionicons name="checkmark-circle" size={22} color={couleurs.ocean800} />}
+              {multiple ? (
+                <Ionicons name={actif ? 'checkbox' : 'square-outline'} size={23} color={actif ? couleurs.ocean800 : couleurs.grisClair} />
+              ) : (
+                actif && <Ionicons name="checkmark-circle" size={22} color={couleurs.ocean800} />
+              )}
             </Pressable>
           );
         }}

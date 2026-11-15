@@ -65,8 +65,6 @@ class VoitureService {
         data: voitures
       };
     } catch (error: any) {
-      console.error('Erreur lors du chargement de la liste des voitures:', error);
-      
       // Vérifier le statut et le message
       const status = error?.response?.status;
       const errorData = error?.response?.data;
@@ -80,7 +78,9 @@ class VoitureService {
           data: []
         };
       }
-      
+
+      // Liste vide (404 des anciennes versions de l'API) : pas une erreur ; seules les vraies erreurs sont journalisées
+      console.error('Erreur lors du chargement de la liste des voitures:', error);
       throw error.response?.data || error;
     }
   }

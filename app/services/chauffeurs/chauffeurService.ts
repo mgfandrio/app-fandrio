@@ -64,8 +64,6 @@ class ChauffeurService {
         data: chauffeurs
       };
     } catch (error: any) {
-      console.error('Erreur lors du chargement de la liste des chauffeurs:', error);
-      
       // Vérifier le statut et le message
       const status = error?.response?.status;
       const errorData = error?.response?.data;
@@ -79,7 +77,9 @@ class ChauffeurService {
           data: []
         };
       }
-      
+
+      // Liste vide (404 des anciennes versions de l'API) : pas une erreur ; seules les vraies erreurs sont journalisées
+      console.error('Erreur lors du chargement de la liste des chauffeurs:', error);
       throw error.response?.data || error;
     }
   }

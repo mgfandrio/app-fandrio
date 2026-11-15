@@ -18,6 +18,11 @@ const getNotifIcon = (type: number): { nom: NomIcone; tonalite: Tonalite } => {
         case 2: return { nom: 'alarm', tonalite: 'alerte' };
         case 3: return { nom: 'close-circle', tonalite: 'danger' };
         case 4: return { nom: 'ticket', tonalite: 'info' };
+        case 13: return { nom: 'bus', tonalite: 'info' }; // voiture en route vers vous
+        case 14: return { nom: 'flag', tonalite: 'succes' }; // voiture arrivée
+        case 15: return { nom: 'warning', tonalite: 'danger' }; // voiture en retard
+        case 16: return { nom: 'time', tonalite: 'alerte' }; // embarquement non clôturé
+        case 17: return { nom: 'people', tonalite: 'neutre' }; // partenariat
         default: return { nom: 'notifications', tonalite: 'neutre' };
     }
 };
@@ -99,6 +104,12 @@ export default function NotificationsScreen() {
         if (notif.notif_statut !== 3) markAsRead(notif.notif_id);
 
         // Notifications liées à une réservation (types 1 à 4)
+        // Suivi des voitures en route et partenariats (types 13 à 17) : écran Suivi des voyages
+        if (notif.notif_type >= 13 && notif.notif_type <= 17) {
+            router.replace({ pathname: '/screens/dashboard/compagnies/dashboardCompagnie', params: { tab: 'suivi' } });
+            return;
+        }
+
         if (notif.res_id) {
             try {
                 const userJson = await SecureStore.getItemAsync('fandrioUser');

@@ -133,6 +133,8 @@ function DetailVoyageContenu({ visible, voyageId, apercu, onClose, onModifier, o
   const actif = statut === 1 || statut === 2;
   const pause = estEnPause(v);
   const nonPublie = estNonPublie(v);
+  // Voiture partie (embarquement clôturé) : le voyage ne se modifie ni ne s'annule plus
+  const parti = v.suivi === 'en_route' || v.suivi === 'arrive';
   const prevue = publicationPrevue(v);
   const info = infoStatutVoyage(v);
   const depart = v.trajet?.province_depart || '';
@@ -359,6 +361,25 @@ function DetailVoyageContenu({ visible, voyageId, apercu, onClose, onModifier, o
                 </Carte>
               )}
 
+              {/* Suivi de la voiture et compagnie de réception */}
+              {'reception' in v && (
+                <Carte style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+                  <Ionicons name={parti ? (v.suivi === 'arrive' ? 'flag' : 'navigate') : 'flag-outline'} size={19} color={v.suivi === 'arrive' ? couleurs.succes : couleurs.ocean800} style={{ marginTop: 1 }} />
+                  <View style={{ flex: 1 }}>
+                    <Texte graisse="tresGras" taille={13.5}>
+                      {v.suivi === 'en_route' ? 'Voiture en route' : v.suivi === 'arrive' ? 'Voiture arrivée à destination' : `Réception : ${v.reception?.nom || 'aucune compagnie'}`}
+                    </Texte>
+                    <Texte graisse="moyen" taille={12.5} couleur={couleurs.gris} style={{ lineHeight: 18 }}>
+                      {parti
+                        ? `${v.reception?.nom ? `Compagnie de réception : ${v.reception.nom}. ` : ''}Détail et confirmation d'arrivée : Menu › Suivi des voyages.`
+                        : v.reception?.nom
+                          ? "Elle recevra le véhicule, le chauffeur et la liste des voyageurs quand vous clôturerez l'embarquement."
+                          : "Vous confirmerez vous-même l'arrivée. Choisissez une compagnie partenaire avec « Modifier »."}
+                    </Texte>
+                  </View>
+                </Carte>
+              )}
+
               <Carte padding={0} style={{ flexDirection: 'row' }}>
                 {[
                   { v: plan?.sieges_reserves ?? 0, l: 'Payés', c: couleurs.encre },
@@ -410,7 +431,7 @@ function DetailVoyageContenu({ visible, voyageId, apercu, onClose, onModifier, o
       {/* Actions */}
       <FeuilleModale visible={actions} onClose={() => setActions(false)} titre="Actions du voyage" sousTitre={`${depart} → ${arrivee} · ${dateCourte(date)} ${heure}`}>
         <View style={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 20 }}>
-          {actif && (
+          {actif && !parti && (
             <LigneAction
               premiere
               icone="create-outline"
@@ -463,7 +484,7 @@ function DetailVoyageContenu({ visible, voyageId, apercu, onClose, onModifier, o
               onPress={() => confirmer('Réactiver le voyage ?', 'Vous devrez ensuite le modifier pour lui donner une date à venir.', 'Réactiver', false, () => executer(() => voyageService.reactiverVoyage(id), 'Le voyage est réactivé.'))}
             />
           )}
-          {actif && (
+          {actif && !parti && (
             <LigneAction
               danger
               icone="close-circle-outline"
