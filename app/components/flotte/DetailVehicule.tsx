@@ -93,7 +93,7 @@ function DetailVehiculeContenu({ visible, voitureId, onClose, onModifier, onChan
         setEnvoi(true);
         try {
           const comp_id = await compagnieIdCourante();
-          const r: any = await voitureService.modifierVoiture(voitureId!, { voit_statut: disponible ? 0 : 1, ...(comp_id ? { comp_id } : {}) });
+          const r: any = await voitureService.modifierVoiture(voitureId!, { voit_statut: disponible ? 2 : 1 /* 1 disponible, 2 indisponible (la base refuse 0) */, ...(comp_id ? { comp_id } : {}) });
           if (r?.statut === false) throw new Error(r.message);
           await charger();
           onChange?.();
