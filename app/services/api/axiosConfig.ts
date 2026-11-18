@@ -2,6 +2,7 @@ import config from '@/app/config/env';
 import { checkOnlineNow } from '@/app/hooks/useNetwork';
 import { ApiError, ApiResponse } from '@/app/types/api';
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 
 // Créer l'instance axios
@@ -65,6 +66,17 @@ apiClient.interceptors.response.use(
       // rafraîchissement du token : c'est le splash (verifierSession)
       // qui décidera quoi faire, pour ne pas casser le "Se souvenir de moi".
       const requestUrl: string = error.config?.url || '';
+
+      // Mot de passe provisoire non changé : l'API refuse tout le reste
+      if (status === 403 && data?.code === 'MDP_PROVISOIRE') {
+        try {
+          const json = await SecureStore.getItemAsync('fandrioUser');
+          if (json) await SecureStore.setItemAsync('fandrioUser', JSON.stringify({ ...JSON.parse(json), mdp_provisoire: true }));
+          router.replace('/screens/authentification/premierMotDePasse');
+        } catch (e) {
+          console.warn('Redirection mot de passe provisoire impossible:', e);
+        }
+      }
       const isRefreshEndpoint = requestUrl.includes('/api/rafraichir-token');
 
       if (status === 401 && !isRefreshEndpoint) {

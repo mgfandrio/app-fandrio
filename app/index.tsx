@@ -91,6 +91,11 @@ export default function Index() {
       if (userJson) {
         try {
           const user = JSON.parse(userJson);
+          if (user?.mdp_provisoire) {
+            setShowSplash(false);
+            router.replace('/screens/authentification/premierMotDePasse');
+            return;
+          }
           if (user?.role) {
             setShowSplash(false);
             redirectByRole(user.role);

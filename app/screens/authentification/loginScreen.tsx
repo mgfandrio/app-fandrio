@@ -158,6 +158,12 @@ export default function LoginScreen() {
         // Mémorise la préférence "Se souvenir de moi"
         await SecureStore.setItemAsync('fandrioRememberMe', rememberMe ? 'true' : 'false');
 
+        // Mot de passe provisoire (donné par l'admin principal ou FANDRIO) : à changer d'abord
+        if (utilisateur?.mdp_provisoire) {
+          router.replace('/screens/authentification/premierMotDePasse');
+          return;
+        }
+
         const role = utilisateur?.role ?? null;
         if (role != null) {
           setLoggedUserName(utilisateur?.prenom || '');
