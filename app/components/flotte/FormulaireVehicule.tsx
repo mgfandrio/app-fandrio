@@ -36,6 +36,8 @@ export function FormulaireVehicule({ visible, voitureId, onClose, onSuccess }: P
   const [categorie, setCategorie] = useState<Categorie>('classique');
   const [chauffId, setChauffId] = useState('');
   const [statut, setStatut] = useState(1);
+  const [proprietaire, setProprietaire] = useState<'1' | '2'>('1');
+  const [taux, setTaux] = useState('');
 
   const message = (title: string, msg: string, type: 'success' | 'danger' | 'warning' = 'danger', ensuite?: () => void) =>
     showDialog({ title, message: msg, type, confirmText: 'OK', onConfirm: () => ensuite?.(), onCancel: () => ensuite?.() });
@@ -49,6 +51,8 @@ export function FormulaireVehicule({ visible, voitureId, onClose, onSuccess }: P
     setCategorie('classique');
     setChauffId('');
     setStatut(1);
+    setProprietaire('1');
+    setTaux('');
     (async () => {
       setChargement(true);
       try {
@@ -68,6 +72,8 @@ export function FormulaireVehicule({ visible, voitureId, onClose, onSuccess }: P
           setCategorie((v.voit_categorie as Categorie) || 'classique');
           setChauffId(v.chauff_id ? String(v.chauff_id) : '');
           setStatut(Number(v.voit_statut ?? 1));
+          setProprietaire(Number(v.voit_proprietaire) === 2 ? '2' : '1');
+          setTaux(v.voit_taux_compagnie != null ? String(v.voit_taux_compagnie).replace('.', ',') : '');
         } else if (voitureId) {
           message('Véhicule introuvable', 'Impossible de charger ce véhicule.', 'danger', onClose);
         }
@@ -84,6 +90,10 @@ export function FormulaireVehicule({ visible, voitureId, onClose, onSuccess }: P
   const enregistrer = async () => {
     if (!marque.trim() || !modele.trim() || !matricule.trim()) return message('Formulaire incomplet', 'Indiquez la marque, le modèle et l’immatriculation.', 'warning');
     if (!chauffId) return message('Formulaire incomplet', 'Choisissez le chauffeur attitré du véhicule.', 'warning');
+    const tauxNombre = Number(taux.replace(',', '.'));
+    if (proprietaire === '2' && (taux.trim() === '' || Number.isNaN(tauxNombre) || tauxNombre < 0 || tauxNombre > 100)) {
+      return message('Pourcentage manquant', 'Indiquez le pourcentage pris par la compagnie (entre 0 et 100).', 'warning');
+    }
     const comp_id = await compagnieIdCourante();
     if (!comp_id) return message('Compte incomplet', 'Votre compte n’est rattaché à aucune compagnie.');
     const data: any = {
@@ -95,6 +105,8 @@ export function FormulaireVehicule({ visible, voitureId, onClose, onSuccess }: P
       voit_categorie: categorie,
       chauff_id: Number(chauffId),
       comp_id,
+      voit_proprietaire: Number(proprietaire),
+      voit_taux_compagnie: proprietaire === '2' ? tauxNombre : null,
     };
     setEnvoi(true);
     try {
@@ -155,6 +167,24 @@ export function FormulaireVehicule({ visible, voitureId, onClose, onSuccess }: P
           <Texte graisse="moyen" taille={12} couleur={couleurs.gris}>Les catégories VIP et Premium s’activent avec FANDRIO.</Texte>
         )}
       </View>
+
+      <View style={{ gap: 6 }}>
+        <Libelle>À qui appartient cette voiture ?</Libelle>
+        <Choix libelle="Propriétaire" plein options={[{ valeur: '1', libelle: 'À la compagnie' }, { valeur: '2', libelle: 'À un particulier' }]} valeur={proprietaire} onChange={setProprietaire} />
+        <Texte graisse="moyen" taille={12} couleur={couleurs.gris}>
+          {proprietaire === '1' ? 'Toute la recette revient à la compagnie. Pas de versement.' : 'La compagnie prend un pourcentage sur chaque siège vendu ; le reste revient au chauffeur (« Versements »).'}
+        </Texte>
+      </View>
+      {proprietaire === '2' && (
+        <View style={{ gap: 6 }}>
+          <ChampSaisie libelle="Pourcentage pris par la compagnie (%)" value={taux} onChangeText={(t) => setTaux(t.replace(/[^\d.,]/g, '').slice(0, 5))} placeholder="Ex. : 10" keyboardType="decimal-pad" aide={edition ? 'Un nouveau pourcentage s’applique aux voyages pas encore partis.' : 'Calculé après la commission FANDRIO de 5 % sur les ventes en ligne.'} />
+          {taux.trim() !== '' && !Number.isNaN(Number(taux.replace(',', '.'))) && (
+            <Texte graisse="moyen" taille={12} couleur={couleurs.encreDouce}>
+              Exemple, siège à 25 000 Ar vendu au guichet : compagnie {Math.round((25000 * Number(taux.replace(',', '.'))) / 100).toLocaleString('fr-FR')} Ar, chauffeur {(25000 - Math.round((25000 * Number(taux.replace(',', '.'))) / 100)).toLocaleString('fr-FR')} Ar.
+            </Texte>
+          )}
+        </View>
+      )}
 
       <ChampChoix
         libelle="Chauffeur attitré"

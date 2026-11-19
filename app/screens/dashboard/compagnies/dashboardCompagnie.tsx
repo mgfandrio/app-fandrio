@@ -23,6 +23,7 @@ import { RenderPaiements } from '../../../components/renders/paiements/RenderPai
 import { RenderReservations } from '../../../components/renders/reservations/RenderReservations';
 import { RenderFactures } from '../../../components/renders/factures/RenderFactures';
 import { RenderPortefeuille } from '../../../components/renders/portefeuille/RenderPortefeuille';
+import { RenderVersements } from '../../../components/renders/versements/RenderVersements';
 import { RenderRemboursements } from '../../../components/renders/remboursements/RenderRemboursements';
 import { RenderVoyages } from '../../../components/RenderVoyages';
 import { useNotifications } from '../../../hooks/useNotifications';
@@ -48,6 +49,7 @@ const MENU: SectionMenu[] = [
     title: 'Finances',
     items: [
       { key: 'portefeuille', label: 'Portefeuille', icon: 'wallet-outline', activeIcon: 'wallet' },
+      { key: 'versements', label: 'Versements aux chauffeurs', icon: 'swap-horizontal-outline', activeIcon: 'swap-horizontal' },
       { key: 'factures', label: 'Factures', icon: 'receipt-outline', activeIcon: 'receipt' },
       { key: 'remboursements', label: 'Remboursements', icon: 'refresh-outline', activeIcon: 'refresh' },
       { key: 'paiements', label: 'Paiements', icon: 'card-outline', activeIcon: 'card' },
@@ -377,6 +379,7 @@ export default function DashboardCompagnie() {
         {activeTab === 'suivi' && <RenderSuivi onMenu={() => setMenuOuvert(true)} onCompteurs={setAlertesSuivi} />}
         {activeTab === 'reservations' && <RenderReservations />}
         {activeTab === 'factures' && <RenderFactures onMenu={() => setMenuOuvert(true)} />}
+        {activeTab === 'versements' && <RenderVersements onMenu={() => setMenuOuvert(true)} />}
         {activeTab === 'paiements' && <RenderPaiements onMenu={() => setMenuOuvert(true)} />}
         {activeTab === 'portefeuille' && <RenderPortefeuille />}
         {activeTab === 'remboursements' && <RenderRemboursements onMenu={() => setMenuOuvert(true)} />}
