@@ -4,6 +4,7 @@ import * as Sharing from 'expo-sharing';
 import * as SecureStore from 'expo-secure-store';
 import { Alert, Platform } from 'react-native';
 import { reservationAdminService } from '../services/reservations/reservationAdminService';
+import { dispositionGrille, dispositionMinibus } from '../components/ui/PlanSieges';
 
 /**
  * Génère et partage un PDF "Fiche Voyageurs" pour un voyage donné.
@@ -11,8 +12,11 @@ import { reservationAdminService } from '../services/reservations/reservationAdm
  */
 export const genererFicheVoyageurs = async (voyage: any): Promise<void> => {
   try {
-    // 1. Récupérer les voyageurs depuis l'API
-    const res = await reservationAdminService.obtenirVoyageurs(voyage.voyage_id);
+    // 1. Récupérer les voyageurs et le plan de la voiture depuis l'API
+    const [res, resPlan] = await Promise.all([
+      reservationAdminService.obtenirVoyageurs(voyage.voyage_id),
+      reservationAdminService.obtenirPlanSieges(voyage.voyage_id).catch(() => null),
+    ]);
     if (!res.statut || !res.data?.voyageurs) {
       Alert.alert('Erreur', 'Impossible de récupérer la liste des voyageurs.');
       return;
@@ -30,7 +34,9 @@ export const genererFicheVoyageurs = async (voyage: any): Promise<void> => {
     const trajet = voyageInfo.trajet || `${voyage.trajet?.province_depart || ''} → ${voyage.trajet?.province_arrivee || ''}`;
     const date = voyageInfo.date || voyage.date || '';
     const heure = voyageInfo.heure || voyage.heure_depart || '';
-    const voitureMatricule = voyage.voiture?.matricule || '';
+    const voitureMatricule = voyage.voiture?.matricule || resPlan?.data?.voiture?.matricule || '';
+    const nomChauffeur: string = resPlan?.data?.voiture?.chauffeur || '';
+    const planHtml = construirePlanHtml(resPlan?.data, voyageurs, nomChauffeur);
 
     // Récupérer le nom de la compagnie depuis SecureStore
     let nomCompagnie = '';
@@ -97,9 +103,22 @@ export const genererFicheVoyageurs = async (voyage: any): Promise<void> => {
           .total-badge { display: inline-block; background: #c2410c; color: white; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 11px; margin-bottom: 12px; }
           
           .generation-info { text-align: center; font-size: 8px; color: #94a3b8; margin-top: 16px; }
+
+          .plan-page { page-break-after: always; }
+          .plan-titre { display: flex; justify-content: space-between; font-size: 11px; font-weight: bold; margin-bottom: 6px; }
+          table.plan { border-collapse: separate; border-spacing: 6px; table-layout: fixed; margin: 0; }
+          table.plan td { height: 64px; vertical-align: top; padding: 5px 6px; border-radius: 6px; }
+          table.plan td.chauffeur { background: #1e293b; color: #fff; border: 2px solid #1e293b; }
+          table.plan td.occupe { background: #fef7f0; border: 2px solid #c2410c; }
+          table.plan td.libre { border: 2px dashed #cbd5e1; color: #94a3b8; }
+          table.plan .num { font-size: 13px; font-weight: bold; }
+          table.plan .nom { font-size: 9.5px; font-weight: bold; line-height: 1.2; word-break: break-word; }
+          table.plan .petit { font-size: 9px; }
+          .plan-legende { font-size: 9px; color: #64748b; margin-top: 8px; }
         </style>
       </head>
       <body>
+        ${planHtml}
         <div class="header">
           ${nomCompagnie ? `<div class="company">${escapeHtml(nomCompagnie)}</div>` : ''}
           <h1>FICHE DE TRANSPORT — LISTE DES VOYAGEURS</h1>
@@ -128,6 +147,11 @@ export const genererFicheVoyageurs = async (voyage: any): Promise<void> => {
             <div class="info-label">Véhicule</div>
             <div class="info-value">${escapeHtml(voitureMatricule)}</div>
           </div>
+          ${nomChauffeur ? `
+          <div class="info-item">
+            <div class="info-label">Chauffeur</div>
+            <div class="info-value">${escapeHtml(nomChauffeur)}</div>
+          </div>` : ''}
         </div>
 
         <div class="legal-notice">
@@ -210,6 +234,46 @@ export const genererFicheVoyageurs = async (voyage: any): Promise<void> => {
     Alert.alert('Erreur', error?.message || 'Impossible de générer la fiche voyageurs.');
   }
 };
+
+/**
+ * Page 1 de la fiche : plan de la voiture vu de dessus, avant en haut, avec le
+ * nom du voyageur sur chaque siège occupé. Vide si le plan est indisponible.
+ */
+function construirePlanHtml(plan: any, voyageurs: any[], chauffeur: string): string {
+  const codes: string[] = (plan?.plan || []).map((s: any) => String(s.code));
+  if (!codes.length) return '';
+  const rangees = plan?.grille?.length ? dispositionGrille(plan.grille) : dispositionMinibus([...codes].sort((a, b) => Number(a) - Number(b)));
+  const parSiege = new Map<string, any>(voyageurs.map((v: any) => [String(v.siege), v]));
+  const colonnes = Math.max(1, ...rangees.map((r: any[]) => r.length));
+  const occupes = codes.filter((c) => parSiege.has(c)).length;
+
+  const lignes = rangees
+    .map((r: any[]) => {
+      const cases = Array.from({ length: colonnes }, (_, j) => {
+        const c = r[j] || { type: 'vide' };
+        if (c.type === 'chauffeur') return `<td class="chauffeur"><div class="petit"><b>CHAUFFEUR</b></div><div class="nom">${escapeHtml(chauffeur || '—')}</div></td>`;
+        if (c.type !== 'siege') return '<td></td>';
+        const v = parSiege.get(String(c.code));
+        return v
+          ? `<td class="occupe"><div class="num">${escapeHtml(String(c.code))}</div><div class="nom">${escapeHtml(`${v.prenom || ''} ${v.nom || ''}`.trim())}</div></td>`
+          : `<td class="libre"><div class="num">${escapeHtml(String(c.code))}</div><div class="petit">Libre</div></td>`;
+      }).join('');
+      return `<tr>${cases}</tr>`;
+    })
+    .join('');
+
+  return `
+    <div class="plan-page">
+      <div class="header">
+        <h1>PLAN DE LA VOITURE ET VOYAGEURS</h1>
+        <div class="subtitle">Document destiné au chauffeur pour les contrôles routiers</div>
+      </div>
+      <div class="plan-titre"><span>▲ Avant de la voiture</span><span>${occupes} siège(s) occupé(s) sur ${codes.length}</span></div>
+      <table class="plan" style="width: 100%;"><tbody>${lignes}</tbody></table>
+      <div class="plan-titre" style="margin-top: 6px;"><span>▼ Arrière de la voiture</span><span></span></div>
+      <div class="plan-legende">Sièges encadrés en orange : occupés (nom du voyageur). Pointillés : libres. Le détail des voyageurs (CIN, téléphone, âge, réservation) est en page suivante.</div>
+    </div>`;
+}
 
 /** Échappe les caractères HTML spéciaux */
 function escapeHtml(text: string): string {
