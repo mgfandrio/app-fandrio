@@ -179,34 +179,17 @@ export default function LoginScreen() {
         const status = error.response?.status;
         const errorMessage = error.response?.data?.message || error.message || 'Erreur de connexion';
 
-        // Vérifier si c'est une erreur 401 avec un message spécifique
-        if (status === 401) {
-          const specificMessage = error.response?.data?.message || 'Identifiants incorrects ou compte non autorisé';
-          showDialog({
-            title: 'Erreur d\'authentification',
-            message: specificMessage,
-            type: 'danger',
-            confirmText: 'OK',
-            onConfirm: () => {},
-            onCancel: () => {}
-          });
-        } else {
-          // Afficher l'erreur dans le champ approprié
-          if (errorMessage.toLowerCase().includes('identifiant')) {
-            setErrors(prev => ({ ...prev, identifiant: errorMessage }));
-          } else if (errorMessage.toLowerCase().includes('mot de passe')) {
-            setErrors(prev => ({ ...prev, motDePasse: errorMessage }));
-          } else {
-            showDialog({
-              title: 'Erreur',
-              message: errorMessage,
-              type: 'danger',
-              confirmText: 'OK',
-              onConfirm: () => {},
-              onCancel: () => {}
-            });
-          }
-        }
+        // Un seul message, affiché sans désigner de champ : aucune piste sur ce qui est faux
+        // (identifiant ou mot de passe). Le message vient de l'API ; repli générique sinon.
+        const message401 = error.response?.data?.message || 'Identifiant ou mot de passe incorrect.';
+        showDialog({
+          title: status === 401 ? 'Connexion impossible' : 'Erreur',
+          message: status === 401 ? message401 : errorMessage,
+          type: 'danger',
+          confirmText: 'OK',
+          onConfirm: () => {},
+          onCancel: () => {}
+        });
       } else {
         showDialog({
           title: 'Erreur',
