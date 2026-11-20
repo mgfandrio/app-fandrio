@@ -9,26 +9,19 @@
  * EXPO_PUBLIC_X_API_KEY=fandrio_abc123def456ghi789jkl012mno345pqr678stu901vwx234yz
  */
 
-const getEnvVar = (key: string, defaultValue?: string): string => {
-  const value = process.env[key];
-
-  // Debug: Afficher si la variable est chargée depuis .env ou utilise la valeur par défaut
-  if (__DEV__) {
-    if (value) {
-      console.log(`Variable ${key} chargée depuis .env`);
-    } else if (defaultValue) {
-      console.warn(`Variable ${key} non trouvée, utilisation de la valeur par défaut`);
-    } else {
-      console.warn(`Variable d'environnement ${key} non définie`);
-    }
-  }
-
-  return value || defaultValue || '';
+/**
+ * Les variables EXPO_PUBLIC_* ne sont remplacées au build que si elles sont
+ * écrites en toutes lettres (process.env.EXPO_PUBLIC_…) : un accès dynamique
+ * (process.env[cle]) reste vide dans une app installée (APK).
+ */
+const lire = (cle: string, valeur: string | undefined): string => {
+  if (__DEV__ && !valeur) console.warn(`Variable d'environnement ${cle} non définie`);
+  return valeur || '';
 };
 
 export const config = {
-  API_URL: getEnvVar('EXPO_PUBLIC_API_URL', 'http://144.91.123.212:18010'),
-  X_API_KEY: getEnvVar('EXPO_PUBLIC_X_API_KEY', 'fandrio_abc123def456ghi789jkl012mno345pqr678stu901vwx234yz'),
+  API_URL: lire('EXPO_PUBLIC_API_URL', process.env.EXPO_PUBLIC_API_URL),
+  X_API_KEY: lire('EXPO_PUBLIC_X_API_KEY', process.env.EXPO_PUBLIC_X_API_KEY),
 } as const;
 
 // Validation des variables critiques
