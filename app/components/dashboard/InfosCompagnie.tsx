@@ -10,6 +10,7 @@ import { ChampChoix, FeuilleChoix } from '../voyages/FeuilleChoix';
 import { Bouton, Carte, ChampSaisie, EnTete, ModalPleinEcran, Puce, Texte } from '../ui';
 import { couleurs } from '../../theme/ocean';
 
+import { saisirTelephone } from '../../utils/telephone';
 /**
  * Admin compagnie : informations publiques de sa compagnie, telles que les
  * clients les voient (fiche compagnie) : description, contacts, adresse,
@@ -125,7 +126,7 @@ function InfosCompagnieContenu({ visible, onClose, onEnregistre }: Props) {
                   maxLength={2000}
                   style={{ minHeight: 96, textAlignVertical: 'top' }}
                 />
-                <ChampSaisie libelle="Téléphone" icone="call-outline" keyboardType="phone-pad" value={telephone} onChangeText={setTelephone} placeholder="034 00 000 00" />
+                <ChampSaisie libelle="Téléphone" icone="call-outline" maxLength={10} keyboardType="number-pad" value={telephone} onChangeText={(t) => setTelephone(saisirTelephone(t))} placeholder="034 00 000 00" />
                 <ChampSaisie libelle="E-mail" icone="mail-outline" keyboardType="email-address" autoCapitalize="none" value={email} onChangeText={setEmail} erreur={erreurs.email} placeholder="contact@compagnie.mg" />
                 <ChampSaisie libelle="Adresse de la gare / du bureau" icone="location-outline" value={adresse} onChangeText={setAdresse} placeholder="Ex. : Gare routière d’Ampasampito" />
                 <ChampChoix libelle="Ville principale" icone="business-outline" titre={nomProvince(localisation) || undefined} placeholder="Choisir une ville" onPress={() => setChoixVille(true)} />

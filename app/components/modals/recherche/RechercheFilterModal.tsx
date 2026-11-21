@@ -6,7 +6,8 @@ import { compagnieService } from '@/app/services/compagnies/compagnieService';
 import { voyageService } from '@/app/services/voyages/voyageService';
 import { SearchableDropdown } from '@/app/components/common';
 import { Bouton, ChampSaisie, FeuilleModale, Puce, Texte } from '@/app/components/ui';
-import { couleurs, dateLocaleISO } from '@/app/theme/ocean';
+import { couleurs } from '@/app/theme/ocean';
+import { CalendrierDates } from '@/app/components/voyages/CalendrierDates';
 
 interface RechercheFilterModalProps {
     visible: boolean;
@@ -44,20 +45,20 @@ export default function RechercheFilterModal({ visible, onClose, onApply, setLoa
     const [compagnies, setCompagnies] = useState<any[]>([]);
     const [searchFilters, setSearchFilters] = useState(FILTRES_VIDES);
 
-    // 7 prochains jours (dates LOCALES : voir dateLocaleISO)
-    const jours = useMemo(() => {
-        return Array.from({ length: 7 }, (_, i) => {
-            const d = new Date();
-            d.setDate(d.getDate() + i);
-            return {
-                valeur: dateLocaleISO(d),
-                libelle: i === 0 ? "Aujourd'hui" : i === 1 ? 'Demain' : JOURS[d.getDay()],
-                detail: `${d.getDate()} ${MOIS[d.getMonth()]}`,
-            };
-        });
-        // Recalculé à chaque ouverture (la date peut avoir changé)
+    // Calendrier replié par défaut ; « aujourd'hui » recalculé à chaque ouverture
+    const [calendrierOuvert, setCalendrierOuvert] = useState(false);
+    const aujourdhui = useMemo(() => {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        return d;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
+    const libelleDate = (iso: string) => {
+        const d = new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)));
+        const ecart = Math.round((d.getTime() - aujourdhui.getTime()) / 86400000);
+        const prefixe = ecart === 0 ? "Aujourd'hui, " : ecart === 1 ? 'Demain, ' : '';
+        return `${prefixe}${JOURS[d.getDay()]} ${d.getDate()} ${MOIS[d.getMonth()]} ${d.getFullYear()}`;
+    };
 
     useEffect(() => {
         if (visible) {
@@ -157,18 +158,36 @@ export default function RechercheFilterModal({ visible, onClose, onApply, setLoa
                 />
 
                 <Section titre="Date du voyage">
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                        <Puce libelle="Peu importe" detail="toutes dates" active={searchFilters.date_exacte === ''} onPress={() => setSearchFilters(f => ({ ...f, date_exacte: '' }))} />
-                        {jours.map((j) => (
-                            <Puce
-                                key={j.valeur}
-                                libelle={j.libelle}
-                                detail={j.detail}
-                                active={searchFilters.date_exacte === j.valeur}
-                                onPress={() => setSearchFilters(f => ({ ...f, date_exacte: j.valeur }))}
+                    <Pressable
+                        onPress={() => setCalendrierOuvert(o => !o)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Choisir la date du voyage"
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1.5, borderColor: calendrierOuvert ? couleurs.ocean800 : couleurs.champ, backgroundColor: couleurs.surface, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13 }}
+                    >
+                        <Ionicons name="calendar-outline" size={20} color={couleurs.ocean800} />
+                        <Texte graisse="moyen" taille={14.5} couleur={searchFilters.date_exacte ? couleurs.encre : couleurs.encreDouce} style={{ flex: 1 }}>
+                            {searchFilters.date_exacte ? libelleDate(searchFilters.date_exacte) : 'Toutes les dates'}
+                        </Texte>
+                        <Ionicons name={calendrierOuvert ? 'chevron-up' : 'chevron-down'} size={18} color={couleurs.encreDouce} />
+                    </Pressable>
+                    {calendrierOuvert && (
+                        <View style={{ borderWidth: 1, borderColor: couleurs.ligne, borderRadius: 14, padding: 10, backgroundColor: couleurs.surface }}>
+                            <CalendrierDates
+                                multiple={false}
+                                minimum={aujourdhui}
+                                selection={searchFilters.date_exacte ? [searchFilters.date_exacte] : []}
+                                onChange={(dates) => {
+                                    setSearchFilters(f => ({ ...f, date_exacte: dates[0] ?? '' }));
+                                    if (dates[0]) setCalendrierOuvert(false);
+                                }}
                             />
-                        ))}
-                    </ScrollView>
+                        </View>
+                    )}
+                    {searchFilters.date_exacte !== '' && (
+                        <Pressable onPress={() => setSearchFilters(f => ({ ...f, date_exacte: '' }))} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'flex-start' }}>
+                            <Texte graisse="moyen" taille={13} couleur={couleurs.ocean800}>Afficher toutes les dates</Texte>
+                        </Pressable>
+                    )}
                 </Section>
 
                 <SearchableDropdown

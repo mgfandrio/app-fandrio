@@ -13,6 +13,7 @@ import type { GrillePlan, SiegePlan } from '../ui';
 import { couleurs, formatAriary } from '../../theme/ocean';
 import { dateCourte, dateVoyage, statutValeur, titreJour } from '../../utils/voyageStatut';
 
+import { saisirTelephone } from '../../utils/telephone';
 /**
  * Vente au guichet : un voyageur se présente sur place sans billet.
  * L'agent choisit le voyage, les sièges libres, saisit les noms et encaisse
@@ -326,7 +327,7 @@ export function VenteGuichet({ onClose }: Props) {
                 <ChampSaisie libelle="Prénom" value={f.prenom} onChangeText={(t) => majFiche(code, 'prenom', t)} autoCapitalize="words" />
               </View>
             </View>
-            <ChampSaisie libelle="Téléphone" placeholder="Facultatif" keyboardType="phone-pad" value={f.telephone} onChangeText={(t) => majFiche(code, 'telephone', t)} />
+            <ChampSaisie libelle="Téléphone" placeholder="Facultatif" maxLength={10} keyboardType="number-pad" value={f.telephone} onChangeText={(t) => majFiche(code, 'telephone', saisirTelephone(t))} />
           </Carte>
         );
       })}

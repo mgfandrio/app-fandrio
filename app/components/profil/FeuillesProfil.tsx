@@ -4,6 +4,7 @@ import { UtilisateurMoi } from '@/app/services/auth/authService';
 import { profilService } from '@/app/services/profil/profilService';
 import { Bouton, ChampSaisie, FeuilleModale } from '@/app/components/ui';
 
+import { saisirTelephone } from '../../utils/telephone';
 /** Affiche un message (succès ou erreur) via le ConfirmDialog de l'écran parent. */
 export type AfficherMessage = (titre: string, message: string, type?: 'success' | 'danger' | 'warning') => void;
 
@@ -77,7 +78,7 @@ export function FeuilleInfosPerso({ visible, onClose, utilisateur, onEnregistre,
           </View>
         </View>
         <ChampSaisie libelle="Email" icone="mail-outline" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
-        <ChampSaisie libelle="Téléphone" icone="call-outline" value={telephone} onChangeText={setTelephone} keyboardType="phone-pad" autoComplete="tel" />
+        <ChampSaisie libelle="Téléphone" icone="call-outline" value={telephone} onChangeText={(t) => setTelephone(saisirTelephone(t))} maxLength={10} keyboardType="number-pad" autoComplete="tel" />
       </ScrollView>
     </FeuilleModale>
   );

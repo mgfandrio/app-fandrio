@@ -13,6 +13,7 @@ import authService from '../../services/auth/authService';
 import { profilService } from '../../services/profil/profilService';
 import { couleurs } from '../../theme/ocean';
 
+import { saisirTelephone } from '../../utils/telephone';
 /** Profil d'un administrateur (compagnie ou système) : photo, identité, téléphone, mot de passe. */
 export default function MonProfil() {
   const router = useRouter();
@@ -229,7 +230,7 @@ export default function MonProfil() {
                 <ChampSaisie libelle="Nom" value={nom} onChangeText={setNom} autoCapitalize="words" autoComplete="family-name" />
               </View>
             </View>
-            <ChampSaisie libelle="Téléphone" value={telephone} onChangeText={setTelephone} keyboardType="phone-pad" autoComplete="tel" />
+            <ChampSaisie libelle="Téléphone" value={telephone} onChangeText={(t) => setTelephone(saisirTelephone(t))} maxLength={10} keyboardType="number-pad" autoComplete="tel" />
             <ChampSaisie
               libelle="Email"
               value={utilisateur.email || ''}

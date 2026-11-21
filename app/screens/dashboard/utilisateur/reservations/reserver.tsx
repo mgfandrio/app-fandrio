@@ -28,6 +28,7 @@ import { couleurs, dateLocaleISO, formatAriary } from '@/app/theme/ocean';
 import { LEGENDE_QR, AvisSansInternet } from '@/app/components/billets/AvisSansInternet';
 import { memoriserBillet } from '@/app/services/reservations/billetsHorsLigne';
 
+import { MESSAGE_TELEPHONE, saisirTelephone, telephoneValide } from '../../../../utils/telephone';
 /*
  * Parcours de réservation (étapes internes) :
  *   1 Itinéraire  2 Voyage  3 Sièges  4 Voyageurs  5 Paiement  6 Billet
@@ -530,6 +531,7 @@ export default function ReserverScreen() {
                 v.nom.trim() !== '' && v.prenom.trim() !== '' && v.phone.trim() !== '' && v.phone2.trim() !== ''
             );
             if (!isValid) alerte('Informations manquantes', 'Renseignez le nom, le prénom, le téléphone et le contact d\'urgence de chaque voyageur.');
+            else if (!voyageurs.every((v) => telephoneValide(v.phone) && telephoneValide(v.phone2))) alerte('Numéro de téléphone incorrect', MESSAGE_TELEPHONE + ' Vérifiez le téléphone et le contact d\'urgence de chaque voyageur.');
             else createInitialReservation();
         } else if (currentStep === 5) {
             confirmPayment();
@@ -819,14 +821,14 @@ export default function ReserverScreen() {
                     <ChampSaisie libelle="N° CIN" value={v.cin} onChangeText={(val) => updateVoyageur(index, 'cin', val)} placeholder="Facultatif" keyboardType="number-pad" />
                 </View>
             </View>
-            <ChampSaisie libelle="Téléphone" obligatoire prefixe="+261" value={v.phone} onChangeText={(val) => updateVoyageur(index, 'phone', val)} keyboardType="phone-pad" placeholder="032 XX XXX XX" />
+            <ChampSaisie libelle="Téléphone" obligatoire value={v.phone} onChangeText={(val) => updateVoyageur(index, 'phone', saisirTelephone(val))} maxLength={10} keyboardType="number-pad" placeholder="032 XX XXX XX" />
             <ChampSaisie
                 libelle="Contact d'urgence"
                 obligatoire
-                prefixe="+261"
                 value={v.phone2}
-                onChangeText={(val) => updateVoyageur(index, 'phone2', val)}
-                keyboardType="phone-pad"
+                onChangeText={(val) => updateVoyageur(index, 'phone2', saisirTelephone(val))}
+                keyboardType="number-pad"
+                maxLength={10}
                 placeholder="034 XX XXX XX"
                 aide="Un proche à prévenir en cas de problème sur la route."
             />

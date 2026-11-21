@@ -11,6 +11,7 @@ import { ChampChoix, FeuilleChoix } from '../voyages/FeuilleChoix';
 import { LigneInterrupteur } from '../flotte/communs';
 import { donnees } from './outils';
 
+import { saisirTelephone } from '../../utils/telephone';
 interface Props {
   visible: boolean;
   /** Compagnie à modifier ; absent = création (avec son administrateur). */
@@ -203,7 +204,7 @@ function Contenu({ compagnieId, onClose, onSuccess }: Props) {
                   <ChampSaisie libelle="Description" value={f.comp_description} onChangeText={(t) => maj({ comp_description: t })} placeholder="Ce que les voyageurs doivent savoir" multiline style={{ minHeight: 80, textAlignVertical: 'top' }} />
                   <View style={{ flexDirection: 'row', gap: 10 }}>
                     <View style={{ flex: 1 }}>
-                      <ChampSaisie libelle="Téléphone" value={f.comp_phone} onChangeText={(t) => maj({ comp_phone: t })} keyboardType="phone-pad" placeholder="034 00 000 00" />
+                      <ChampSaisie libelle="Téléphone" value={f.comp_phone} onChangeText={(t) => maj({ comp_phone: saisirTelephone(t) })} maxLength={10} keyboardType="number-pad" placeholder="034 00 000 00" />
                     </View>
                     <View style={{ flex: 1 }}>
                       <ChampSaisie libelle="Email" value={f.comp_email} onChangeText={(t) => maj({ comp_email: t })} keyboardType="email-address" autoCapitalize="none" placeholder="contact@…" />
@@ -318,7 +319,7 @@ function Contenu({ compagnieId, onClose, onSuccess }: Props) {
                     </View>
                   </View>
                   <ChampSaisie libelle="Email de connexion" value={f.admin_email} onChangeText={(t) => maj({ admin_email: t })} keyboardType="email-address" autoCapitalize="none" icone="mail-outline" />
-                  <ChampSaisie libelle="Téléphone" value={f.admin_telephone} onChangeText={(t) => maj({ admin_telephone: t })} keyboardType="phone-pad" icone="call-outline" />
+                  <ChampSaisie libelle="Téléphone" value={f.admin_telephone} onChangeText={(t) => maj({ admin_telephone: saisirTelephone(t) })} maxLength={10} keyboardType="number-pad" icone="call-outline" />
                   <ChampSaisie libelle="Mot de passe provisoire" value={f.admin_mot_de_passe} onChangeText={(t) => maj({ admin_mot_de_passe: t })} motDePasse autoCapitalize="none" aide="Au moins 6 caractères. À transmettre à l’administrateur, qui pourra le changer." />
                 </>
               )}

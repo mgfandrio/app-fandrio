@@ -16,6 +16,7 @@ import { useConfirmDialog } from '../../components/common/ConfirmDialog';
 import { Bouton, BoutonIcone, CaseACocher, ChampSaisie, Etapes, Texte } from '../../components/ui';
 import { couleurs } from '../../theme/ocean';
 
+import { saisirTelephone, telephoneValide, MESSAGE_TELEPHONE } from '../../utils/telephone';
 const ETAPES = ['Identité', 'Sécurité', 'Vérification'];
 
 export default function RegisterScreen() {
@@ -94,8 +95,8 @@ export default function RegisterScreen() {
       if (isEmpty(telephone)) {
         newErrors.telephone = 'Le numéro de téléphone est requis';
         isValid = false;
-      } else if (telephone.trim().length < 10) {
-        newErrors.telephone = 'Le numéro de téléphone doit contenir au moins 10 chiffres';
+      } else if (!telephoneValide(telephone)) {
+        newErrors.telephone = MESSAGE_TELEPHONE;
         isValid = false;
       } else {
         newErrors.telephone = '';
@@ -330,8 +331,9 @@ export default function RegisterScreen() {
                 icone="call-outline"
                 placeholder="03X XX XXX XX"
                 value={telephone}
-                onChangeText={(text) => { setTelephone(text); clearFieldError('telephone'); }}
-                keyboardType="phone-pad"
+                onChangeText={(text) => { setTelephone(saisirTelephone(text)); clearFieldError('telephone'); }}
+                keyboardType="number-pad"
+                maxLength={10}
                 autoComplete="tel"
                 erreur={errors.telephone}
                 aide="Pour la confirmation de paiement mobile money."

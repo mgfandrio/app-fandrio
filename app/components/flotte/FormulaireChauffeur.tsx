@@ -6,6 +6,7 @@ import { Bouton, ChampSaisie, Texte } from '../ui';
 import { couleurs } from '../../theme/ocean';
 import { Choix, compagnieIdCourante, EcranFormulaire, Libelle, LigneInterrupteur } from './communs';
 
+import { saisirTelephone } from '../../utils/telephone';
 interface Props {
   visible: boolean;
   /** Chauffeur à modifier ; absent = ajout. */
@@ -155,7 +156,7 @@ export function FormulaireChauffeur({ visible, chauffeurId, onClose, onSuccess }
           <ChampSaisie libelle="Âge" value={age} onChangeText={(t) => setAge(t.replace(/\D/g, '').slice(0, 2))} keyboardType="number-pad" erreur={erreurAge} />
         </View>
       </View>
-      <ChampSaisie libelle="Téléphone" value={telephone} onChangeText={setTelephone} keyboardType="phone-pad" placeholder="034 12 345 67" icone="call-outline" />
+      <ChampSaisie libelle="Téléphone" value={telephone} onChangeText={(t) => setTelephone(saisirTelephone(t))} maxLength={10} keyboardType="number-pad" placeholder="034 12 345 67" icone="call-outline" />
 
       <View style={{ gap: 6 }}>
         <Libelle>Catégorie de permis</Libelle>
