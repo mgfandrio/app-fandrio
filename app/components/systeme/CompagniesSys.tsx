@@ -131,7 +131,7 @@ export function CompagniesSys() {
                   {[
                     [formatAriary(Number(info.billets) || 0), 'Billets vendus'],
                     [formatAriary(Number(info.commission) || 0), 'Commission (Ar)'],
-                    [(info.frequence_collecte || c.frequence_collecte) === 'hebdomadaire' ? 'Hebdo.' : 'Mensuelle', 'Collecte'],
+                    [`${info.seuil_voyages || c.seuil_voyages || 5} voyages`, 'Versement'],
                   ].map(([v, l]) => (
                     <View key={l} style={{ flex: 1 }}>
                       <Texte variante="montant" taille={14}>{v}</Texte>

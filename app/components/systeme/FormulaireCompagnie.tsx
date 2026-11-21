@@ -29,7 +29,8 @@ const VIDE = {
   comp_nif: '',
   comp_stat: '',
   comp_localisation: '',
-  comm_frequence_collecte: 'mensuelle' as 'mensuelle' | 'hebdomadaire',
+  comm_mode_versement: 'manuel' as 'manuel' | 'automatique',
+  comm_seuil_voyages: '5',
   papi_actif: false,
   papi_api_key: '',
   papi_webhook_secret: '',
@@ -88,7 +89,8 @@ function Contenu({ compagnieId, onClose, onSuccess }: Props) {
           comp_nif: c.nif || '',
           comp_stat: c.stat || '',
           comp_localisation: c.localisation?.id ? String(c.localisation.id) : '',
-          comm_frequence_collecte: c.frequence_collecte === 'hebdomadaire' ? 'hebdomadaire' : 'mensuelle',
+          comm_mode_versement: c.mode_versement === 'automatique' ? 'automatique' : 'manuel',
+          comm_seuil_voyages: String(c.seuil_voyages || 5),
           papi_actif: !!c.papi_actif,
         });
         setDesservies((c.provinces_desservies || []).map((x: any) => Number(x.id)));
@@ -145,7 +147,8 @@ function Contenu({ compagnieId, onClose, onSuccess }: Props) {
       comp_stat: f.comp_stat.trim(),
       comp_localisation: Number(f.comp_localisation),
       provinces_desservies: desservies,
-      comm_frequence_collecte: f.comm_frequence_collecte,
+      comm_mode_versement: f.comm_mode_versement,
+      comm_seuil_voyages: Number(f.comm_seuil_voyages),
       papi_actif: f.papi_actif,
       ...(f.papi_api_key.trim() ? { papi_api_key: f.papi_api_key.trim() } : {}),
       ...(f.papi_webhook_secret.trim() ? { papi_webhook_secret: f.papi_webhook_secret.trim() } : {}),
@@ -243,16 +246,29 @@ function Contenu({ compagnieId, onClose, onSuccess }: Props) {
                     </View>
                   </View>
                   <View style={{ gap: 6 }}>
-                    <Texte graisse="gras" taille={12.5} couleur={couleurs.encreDouce}>Collecte de la commission</Texte>
-                    <Segmente<'hebdomadaire' | 'mensuelle'>
-                      libelleAccessible="Fréquence de collecte"
-                      valeur={f.comm_frequence_collecte}
-                      onChange={(v) => maj({ comm_frequence_collecte: v })}
+                    <Texte graisse="gras" taille={12.5} couleur={couleurs.encreDouce}>Verser la commission tous les… (voyages)</Texte>
+                    <Segmente<string>
+                      libelleAccessible="Nombre de voyages avant le versement de la commission"
+                      valeur={f.comm_seuil_voyages}
+                      onChange={(v) => maj({ comm_seuil_voyages: v })}
+                      options={Array.from(new Set([3, 5, 10, 20, Number(f.comm_seuil_voyages) || 5])).sort((a, b) => a - b).map((n) => ({ valeur: String(n), libelle: String(n) }))}
+                    />
+                    <Texte graisse="moyen" taille={11.5} couleur={couleurs.gris}>Au plus tard 30 jours après le premier voyage de la tranche.</Texte>
+                  </View>
+                  <View style={{ gap: 6 }}>
+                    <Texte graisse="gras" taille={12.5} couleur={couleurs.encreDouce}>Mode de versement</Texte>
+                    <Segmente<'manuel' | 'automatique'>
+                      libelleAccessible="Mode de versement de la commission"
+                      valeur={f.comm_mode_versement}
+                      onChange={(v) => maj({ comm_mode_versement: v })}
                       options={[
-                        { valeur: 'hebdomadaire', libelle: 'Hebdomadaire' },
-                        { valeur: 'mensuelle', libelle: 'Mensuelle' },
+                        { valeur: 'manuel', libelle: 'Manuel' },
+                        { valeur: 'automatique', libelle: 'Automatique' },
                       ]}
                     />
+                    <Texte graisse="moyen" taille={11.5} couleur={couleurs.gris}>
+                      {f.comm_mode_versement === 'automatique' ? 'Le lien de paiement est envoyé dès que la tranche est atteinte.' : 'La compagnie touche « Verser la commission » dans son portefeuille.'}
+                    </Texte>
                   </View>
                   <LigneInterrupteur
                     titre="Paiement en ligne"

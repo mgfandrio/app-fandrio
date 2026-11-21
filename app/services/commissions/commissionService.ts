@@ -30,7 +30,7 @@ class CommissionService {
   /**
    * Récupère la liste des compagnies avec résumé commissions
    */
-  async getCompagnies(filtres?: { recherche?: string; frequence?: string; suspendu?: boolean }) {
+  async getCompagnies(filtres?: { recherche?: string; mode?: string; suspendu?: boolean }) {
     try {
       const response = await apiClient.get(`${this.BASE_PATH}/compagnies`, { params: filtres });
       return handleApiResponse(response);
@@ -64,11 +64,11 @@ class CommissionService {
   }
 
   /**
-   * Mettre à jour la fréquence et le jour de collecte d'une compagnie
+   * Paramètres de versement de la commission : mode (manuel/automatique) et nombre de voyages par tranche
    */
-  async updateFrequence(compagnieId: number, data: { frequence?: 'hebdomadaire' | 'mensuelle'; jour_collecte?: string }) {
+  async updateVersement(compagnieId: number, data: { mode?: 'manuel' | 'automatique'; seuil?: number }) {
     try {
-      const response = await apiClient.patch(`${this.BASE_PATH}/compagnies/${compagnieId}/frequence`, data);
+      const response = await apiClient.patch(`${this.BASE_PATH}/compagnies/${compagnieId}/versement`, data);
       return handleApiResponse(response);
     } catch (error) {
       return handleApiError(error);
@@ -90,7 +90,7 @@ class CommissionService {
   /**
    * Récupère la liste des collectes avec filtres
    */
-  async getCollectes(filtres?: { statut?: number; comp_id?: number; dues?: boolean; per_page?: number; page?: number }) {
+  async getCollectes(filtres?: { statut?: number; comp_id?: number; dues?: boolean; en_retard?: boolean; per_page?: number; page?: number }) {
     try {
       const response = await apiClient.get(`${this.BASE_PATH}/collectes`, { params: filtres });
       return handleApiResponse(response);

@@ -8,7 +8,7 @@ import { Skeleton } from '../common/Skeleton';
 import { Carte, Pastille, Puce, Segmente, Texte } from '../ui';
 import { couleurs, formatAriary } from '../../theme/ocean';
 import { DetailCollecte } from './DetailCollecte';
-import { donnees, etatCollecte, initialesNom, MOIS, moisDePeriode } from './outils';
+import { depuisJours, donnees, etatCollecte, initialesNom, MOIS } from './outils';
 
 type Periode = 'cette_semaine' | 'ce_mois' | 'cette_annee';
 type Filtre = 'toutes' | 'attente' | 'retard' | 'payee';
@@ -123,8 +123,8 @@ export function CommissionsSys() {
 
           <Carte style={{ gap: 10 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <Texte graisse="tresGras" taille={15}>État des collectes</Texte>
-              <Texte graisse="moyen" taille={12} couleur={couleurs.gris}>{page.total} collecte{page.total > 1 ? 's' : ''}</Texte>
+              <Texte graisse="tresGras" taille={15}>État des versements</Texte>
+              <Texte graisse="moyen" taille={12} couleur={couleurs.gris}>{page.total} tranche{page.total > 1 ? 's' : ''}</Texte>
             </View>
             {totalSommes > 0 && (
               <View style={{ flexDirection: 'row', gap: 3, height: 10, borderRadius: 999, overflow: 'hidden' }}>
@@ -135,9 +135,9 @@ export function CommissionsSys() {
             )}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
               {([
-                ['payee', 'Payées'],
-                ['attente', 'En attente'],
-                ['retard', 'En retard'],
+                ['payee', 'Versées'],
+                ['attente', 'À verser'],
+                ['retard', 'Averties (7 j +)'],
               ] as const).map(([k, l]) => (
                 <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: COULEURS_ETAT[k] }} />
@@ -147,13 +147,13 @@ export function CommissionsSys() {
             </View>
           </Carte>
 
-          <Texte graisse="tresGras" taille={16} style={{ marginTop: 4, marginLeft: 2 }}>Collectes</Texte>
+          <Texte graisse="tresGras" taille={16} style={{ marginTop: 4, marginLeft: 2 }}>Commissions à verser et versées</Texte>
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
             {([
               ['toutes', 'Toutes'],
-              ['retard', 'En retard'],
-              ['attente', 'En attente'],
-              ['payee', 'Payées'],
+              ['retard', 'Averties (7 j +)'],
+              ['attente', 'À verser'],
+              ['payee', 'Versées'],
             ] as [Filtre, string][]).map(([v, l]) => (
               <Puce key={v} libelle={l} active={filtre === v} onPress={() => setFiltre(v)} />
             ))}
@@ -178,7 +178,7 @@ export function CommissionsSys() {
           chargement ? null : (
             <View style={{ alignItems: 'center', paddingVertical: 28, gap: 6 }}>
               <Ionicons name="calendar-outline" size={32} color={couleurs.grisClair} />
-              <Texte variante="legende" centre>Aucune collecte.</Texte>
+              <Texte variante="legende" centre>Aucune tranche de commission.</Texte>
             </View>
           )
         }
@@ -215,7 +215,7 @@ export function CommissionsSys() {
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Texte graisse="tresGras" taille={14} numberOfLines={1}>{c.comp_nom}</Texte>
                 <Texte graisse="moyen" taille={12} couleur={couleurs.gris} numberOfLines={1}>
-                  {moisDePeriode(c.periode_debut).replace(/^./, (x) => x.toUpperCase())} · {c.nb_billets} billets · échéance {c.date_prevue}
+                  {c.nb_voyages} voyage{c.nb_voyages > 1 ? 's' : ''} · {c.nb_billets} billets · {etatCollecte(c).cle === 'payee' ? `versée le ${(c.date_confirmation || '').slice(0, 10)}` : `à verser ${depuisJours(c)}`}
                 </Texte>
               </View>
               <View style={{ alignItems: 'flex-end', gap: 4 }}>

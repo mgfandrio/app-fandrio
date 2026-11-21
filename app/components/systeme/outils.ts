@@ -8,15 +8,26 @@ export function donnees<T = any>(r: any): T | null {
 
 export const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 
-/** Collecte : 1 = en attente, 2 = confirmée ; en retard = en attente et échéance passée. */
+/**
+ * Tranche de commission (état calculé par l'API) : versée, à verser,
+ * averti (7 jours sans versement), suspendu (plus de 14 jours).
+ */
 export function etatCollecte(c: any): { libelle: string; tonalite: Tonalite; cle: 'payee' | 'attente' | 'retard' } {
-  if (Number(c?.statut) === 2) return { libelle: 'Payée', tonalite: 'succes', cle: 'payee' };
-  const echeance = dateVoyage(c?.date_prevue);
-  const auj = new Date();
-  auj.setHours(0, 0, 0, 0);
-  if (echeance && echeance < auj) return { libelle: 'En retard', tonalite: 'danger', cle: 'retard' };
-  return { libelle: 'En attente', tonalite: 'alerte', cle: 'attente' };
+  if (Number(c?.statut) === 2 || c?.etat === 'verse') return { libelle: 'Versée', tonalite: 'succes', cle: 'payee' };
+  if (c?.etat === 'suspendu') return { libelle: 'Suspension', tonalite: 'danger', cle: 'retard' };
+  if (c?.etat === 'averti') return { libelle: 'Averti', tonalite: 'danger', cle: 'retard' };
+  return { libelle: 'À verser', tonalite: 'alerte', cle: 'attente' };
 }
+
+/** « depuis 3 jours » pour une tranche non versée. */
+export function depuisJours(c: any): string {
+  const j = Number(c?.jours_ecoules) || 0;
+  return j <= 0 ? "depuis aujourd'hui" : `depuis ${j} jour${j > 1 ? 's' : ''}`;
+}
+
+/** Choix du nombre de voyages par versement (la valeur actuelle est toujours incluse). */
+export const optionsSeuil = (actuel?: number): number[] => Array.from(new Set([1, 3, 5, 10, 15, 20, 30, ...(actuel ? [actuel] : [])])).sort((a, b) => a - b);
+export const libelleSeuil = (n: number): string => (n === 1 ? 'Après chaque voyage' : `Tous les ${n} voyages`);
 
 /** « 01/10/2026 » -> « octobre » (mois de début de la période collectée). */
 export function moisDePeriode(debut?: string) {

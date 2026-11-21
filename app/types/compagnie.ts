@@ -13,8 +13,8 @@ export interface Compagnie {
   logo?: string;
   mode_vip?: boolean;
   mode_premium?: boolean;
-  frequence_collecte?: string;
-  jour_collecte?: string;
+  mode_versement?: 'manuel' | 'automatique';
+  seuil_voyages?: number;
   commission_active?: boolean;
   papi_configure?: boolean;
   papi_actif?: boolean;
@@ -96,8 +96,8 @@ export interface CompagnieFormData {
   comp_localisation: number;
   provinces_desservies?: number[];
   modes_paiement?: (number | ModePaiementDetail)[];
-  comm_frequence_collecte?: string;
-  comm_jour_collecte?: string;
+  comm_mode_versement?: 'manuel' | 'automatique';
+  comm_seuil_voyages?: number;
   papi_api_key?: string;
   papi_webhook_secret?: string;
   papi_actif?: boolean;
@@ -119,8 +119,8 @@ export interface CompagnieUpdateData {
   comp_localisation: number;
   provinces_desservies?: number[];
   modes_paiement?: (number | ModePaiementDetail)[];
-  comm_frequence_collecte?: string;
-  comm_jour_collecte?: string;
+  comm_mode_versement?: 'manuel' | 'automatique';
+  comm_seuil_voyages?: number;
   papi_api_key?: string;
   papi_webhook_secret?: string;
   papi_actif?: boolean;

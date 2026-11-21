@@ -7,7 +7,8 @@ import { useConfirmDialog } from '../common/ConfirmDialog';
 import { Skeleton } from '../common/Skeleton';
 import { Bouton, BoutonIcone, Carte, ModalPleinEcran, Pastille, Texte } from '../ui';
 import { couleurs, formatAriary } from '../../theme/ocean';
-import { donnees, etatCollecte, moisDePeriode } from './outils';
+import { depuisJours, donnees, etatCollecte } from './outils';
+import { JournalCommission } from '../commission/Commission';
 
 interface Props {
   visible: boolean;
@@ -21,23 +22,6 @@ function Ligne({ libelle, valeur }: { libelle: string; valeur?: string }) {
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
       <Texte graisse="moyen" taille={13.5} couleur={couleurs.gris}>{libelle}</Texte>
       <Texte graisse="gras" taille={13.5} style={{ flexShrink: 1, textAlign: 'right' }}>{valeur || '—'}</Texte>
-    </View>
-  );
-}
-
-/** Étape du suivi : faite (verte), en défaut (rouge) ou à venir (grise). */
-function Etape({ etat, titre, detail }: { etat: 'fait' | 'alerte' | 'avenir'; titre: string; detail?: string }) {
-  const couleur = etat === 'fait' ? couleurs.succesVif : etat === 'alerte' ? couleurs.danger : couleurs.grisClair;
-  return (
-    <View style={{ flexDirection: 'row', gap: 12 }}>
-      <View style={{ width: 20, height: 20, borderRadius: 10, marginTop: 1, backgroundColor: etat === 'avenir' ? 'transparent' : couleur, borderWidth: etat === 'avenir' ? 2 : 0, borderColor: couleurs.champ, alignItems: 'center', justifyContent: 'center' }}>
-        {etat === 'fait' && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
-        {etat === 'alerte' && <Ionicons name="alert" size={12} color="#FFFFFF" />}
-      </View>
-      <View style={{ flex: 1 }}>
-        <Texte graisse="gras" taille={13} couleur={etat === 'alerte' ? couleurs.danger : etat === 'avenir' ? couleurs.grisClair : couleurs.encre}>{titre}</Texte>
-        {!!detail && <Texte graisse="moyen" taille={12} couleur={couleurs.gris}>{detail}</Texte>}
-      </View>
     </View>
   );
 }
@@ -61,8 +45,8 @@ function Contenu({ collecteId, onClose, onChange }: Props) {
 
   const confirmer = () => {
     showDialog({
-      title: 'Confirmer la collecte ?',
-      message: `Vous confirmez avoir reçu ${formatAriary(c.montant_commission)} Ar de ${c.compagnie?.nom || c.comp_nom}. Si la compagnie était suspendue, ses voyages redeviennent visibles.`,
+      title: 'Confirmer le versement ?',
+      message: `Vous confirmez avoir reçu ${formatAriary(c.montant_commission)} Ar de ${nom} (paiement hors ligne). Votre nom sera inscrit dans l'historique. Si la compagnie était suspendue, ses voyages redeviennent visibles.`,
       type: 'warning',
       confirmText: 'Confirmer',
       cancelText: 'Retour',
@@ -88,7 +72,7 @@ function Contenu({ collecteId, onClose, onChange }: Props) {
   const relancer = () => {
     showDialog({
       title: 'Relancer la compagnie ?',
-      message: `Les administrateurs de ${c.compagnie?.nom || c.comp_nom} recevront une notification leur rappelant de régler ${formatAriary(c.montant_commission)} Ar.`,
+      message: `Les administrateurs de ${c.compagnie?.nom || c.comp_nom} recevront une notification leur rappelant de verser ${formatAriary(c.montant_commission)} Ar.`,
       type: 'warning',
       confirmText: 'Relancer',
       cancelText: 'Retour',
@@ -113,7 +97,7 @@ function Contenu({ collecteId, onClose, onChange }: Props) {
   };
 
   const etat = c ? etatCollecte(c) : null;
-  const nom = c?.compagnie?.nom || c?.comp_nom || '';
+  const nom = c?.compagnie_detail?.nom || c?.comp_nom || '';
 
   return (
     <>
@@ -123,7 +107,7 @@ function Contenu({ collecteId, onClose, onChange }: Props) {
         <View style={{ backgroundColor: couleurs.surface, borderBottomWidth: 1, borderBottomColor: couleurs.ligne, paddingTop: insets.top + 8, paddingBottom: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <BoutonIcone icone="chevron-back" libelle="Retour" onPress={onClose} />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Texte graisse="tresGras" taille={16} numberOfLines={1}>{c ? `Collecte ${c.periode_debut?.slice(0, 2) === '01' ? `de ${moisDePeriode(c.periode_debut)}` : `du ${c.periode_debut}`}` : 'Collecte'}</Texte>
+            <Texte graisse="tresGras" taille={16} numberOfLines={1}>{c ? `Commission · ${c.nb_voyages} voyage${c.nb_voyages > 1 ? 's' : ''}` : 'Commission'}</Texte>
             <Texte graisse="moyen" taille={12.5} couleur={couleurs.gris} numberOfLines={1}>{nom}</Texte>
           </View>
           {etat && <Pastille libelle={etat.libelle} tonalite={etat.tonalite} />}
@@ -143,37 +127,55 @@ function Contenu({ collecteId, onClose, onChange }: Props) {
           <>
             <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} showsVerticalScrollIndicator={false}>
               <Carte style={{ gap: 10 }}>
-                <Texte graisse="gras" taille={12} couleur={couleurs.gris}>Commission due</Texte>
+                <Texte graisse="gras" taille={12} couleur={couleurs.gris}>Commission {etat!.cle === 'payee' ? 'versée' : 'à verser'}</Texte>
                 <Texte variante="montant" taille={30} style={{ letterSpacing: -0.5 }}>
                   {formatAriary(c.montant_commission)} <Texte graisse="tresGras" taille={14} couleur={couleurs.gris}>Ar</Texte>
                 </Texte>
                 <View style={{ gap: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: couleurs.separateur }}>
-                  <Ligne libelle="Période" valeur={`${c.periode_debut} → ${c.periode_fin}`} />
-                  <Ligne libelle="Revenu brut" valeur={`${formatAriary(c.montant_brut)} Ar`} />
+                  <Ligne libelle="Voyages" valeur={`${c.nb_voyages} · du ${c.periode_debut} au ${c.periode_fin}`} />
+                  <Ligne libelle="Ventes en ligne" valeur={`${formatAriary(c.montant_brut)} Ar`} />
                   <Ligne libelle="Billets vendus" valeur={String(c.nb_billets ?? '—')} />
-                  <Ligne libelle="Taux" valeur={`${String(c.taux).replace('.', ',')} % par billet`} />
+                  {etat!.cle === 'payee' ? (
+                    <Ligne libelle="Versée le" valeur={c.date_confirmation} />
+                  ) : (
+                    <>
+                      <Ligne libelle="À verser" valeur={`${c.date_prevue} (${depuisJours(c)})`} />
+                      <Ligne libelle="Suspension si non versée le" valeur={c.suspension_le} />
+                    </>
+                  )}
                 </View>
               </Carte>
 
-              <Texte variante="etiquette" style={{ marginLeft: 4 }}>Suivi</Texte>
-              <Carte style={{ gap: 12 }}>
-                <Etape etat="fait" titre="Collecte calculée" detail={c.created_at ? `${c.created_at} · automatique` : 'Automatique'} />
-                <Etape etat="fait" titre="Compagnie notifiée" detail={`Échéance le ${c.date_prevue}`} />
-                {etat!.cle === 'retard' && <Etape etat="alerte" titre="Échéance dépassée" detail={`Prévue le ${c.date_prevue} · compagnie suspendue`} />}
-                <Etape
-                  etat={etat!.cle === 'payee' ? 'fait' : 'avenir'}
-                  titre="Paiement reçu"
-                  detail={etat!.cle === 'payee' ? [c.date_confirmation, c.confirme_par ? `par ${c.confirme_par.prenom} ${c.confirme_par.nom}` : null].filter(Boolean).join(' · ') : 'En attente'}
-                />
+              {c.motif === 'delai' && (
+                <Texte graisse="gras" taille={12.5} couleur={couleurs.alerte} style={{ backgroundColor: couleurs.alerteFond, padding: 12, borderRadius: 12, lineHeight: 18 }}>
+                  Tranche incomplète : due car 30 jours se sont écoulés depuis son premier voyage.
+                </Texte>
+              )}
+              <Texte variante="etiquette" style={{ marginLeft: 4 }}>Voyages compris</Texte>
+              <Carte style={{ paddingVertical: 4 }}>
+                {((c.voyages || []) as any[]).map((v, i) => (
+                  <View key={v.voyage_id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: couleurs.separateur }}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Texte graisse="tresGras" taille={13} numberOfLines={1}>{v.trajet}</Texte>
+                      <Texte graisse="moyen" taille={12} couleur={couleurs.gris}>{v.date} à {v.heure} · {v.billets} billet{v.billets > 1 ? 's' : ''}</Texte>
+                    </View>
+                    <Texte variante="montant" taille={13}>{formatAriary(v.commission)} Ar</Texte>
+                  </View>
+                ))}
               </Carte>
 
-              {!!c.compagnie && (
+              <Texte variante="etiquette" style={{ marginLeft: 4 }}>Historique</Texte>
+              <Carte style={{ paddingVertical: 4 }}>
+                <JournalCommission journal={c.journal} />
+              </Carte>
+
+              {!!c.compagnie_detail && (
                 <>
                   <Texte variante="etiquette" style={{ marginLeft: 4 }}>Compagnie</Texte>
                   <Carte style={{ gap: 8 }}>
-                    <Ligne libelle="Téléphone" valeur={c.compagnie.phone} />
-                    <Ligne libelle="Email" valeur={c.compagnie.email} />
-                    <Ligne libelle="NIF · STAT" valeur={[c.compagnie.nif, c.compagnie.stat].filter(Boolean).join(' · ')} />
+                    <Ligne libelle="Téléphone" valeur={c.compagnie_detail.phone} />
+                    <Ligne libelle="Email" valeur={c.compagnie_detail.email} />
+                    <Ligne libelle="NIF · STAT" valeur={[c.compagnie_detail.nif, c.compagnie_detail.stat].filter(Boolean).join(' · ')} />
                   </Carte>
                 </>
               )}
@@ -182,7 +184,7 @@ function Contenu({ collecteId, onClose, onChange }: Props) {
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <Ionicons name="information-circle-outline" size={18} color={couleurs.ocean800} />
                   <Texte graisse="moyen" taille={12.5} couleur={couleurs.gris} style={{ flex: 1, lineHeight: 18 }}>
-                    Confirmer la collecte lève la suspension : les voyages de la compagnie redeviennent visibles pour les clients.
+                    Confirmer le versement lève la suspension : les voyages de la compagnie redeviennent visibles pour les clients.
                   </Texte>
                 </View>
               )}
@@ -202,7 +204,7 @@ function Contenu({ collecteId, onClose, onChange }: Props) {
   );
 }
 
-/** Détail d'une collecte de commission (maquette « Détail d'une collecte »). */
+/** Détail d'une tranche de commission : voyages compris, historique, relance, confirmation. */
 export function DetailCollecte(props: Props) {
   return (
     <ModalPleinEcran visible={props.visible} onClose={props.onClose}>

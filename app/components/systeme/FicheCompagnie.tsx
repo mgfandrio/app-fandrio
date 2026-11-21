@@ -6,9 +6,10 @@ import commissionService from '../../services/commissions/commissionService';
 import compagnieService from '../../services/compagnies/compagnieService';
 import { useConfirmDialog } from '../common/ConfirmDialog';
 import { Skeleton } from '../common/Skeleton';
-import { Bouton, BoutonIcone, Carte, ModalPleinEcran, Texte } from '../ui';
+import { Bouton, BoutonIcone, Carte, ModalPleinEcran, Pastille, Texte } from '../ui';
 import { couleurs, formatAriary } from '../../theme/ocean';
-import { donnees, etatCollecte, etatCompagnie, initialesNom, moisDePeriode } from './outils';
+import { depuisJours, donnees, etatCollecte, etatCompagnie, initialesNom, libelleSeuil } from './outils';
+import { JournalCommission, ProgressionTranche } from '../commission/Commission';
 
 interface Props {
   visible: boolean;
@@ -47,6 +48,7 @@ function Contenu({ compagnieId, suspendu, onClose, onModifier, onVoirCollecte, o
   const [c, setC] = useState<any>(null);
   const [totaux, setTotaux] = useState<any>(null);
   const [collecte, setCollecte] = useState<any>(null);
+  const [commission, setCommission] = useState<any>(null);
   const [chargement, setChargement] = useState(true);
   const [occupe, setOccupe] = useState(false);
 
@@ -58,11 +60,14 @@ function Contenu({ compagnieId, suspendu, onClose, onModifier, onVoirCollecte, o
     const [rc, rt, rcol] = await Promise.all([
       compagnieService.getCompagnie(compagnieId).catch(() => null),
       commissionService.getDetailCompagnie(compagnieId).catch(() => null),
-      commissionService.getCollectes({ comp_id: compagnieId, statut: 1, per_page: 5 }).catch(() => null),
+      commissionService.getHistoriqueCollectes(compagnieId).catch(() => null),
     ]);
     setC(donnees(rc));
     setTotaux(donnees<any>(rt)?.totaux || null);
-    setCollecte((donnees<any>(rcol)?.collectes || [])[0] || null);
+    const h = donnees<any>(rcol);
+    setCommission(h);
+    // La plus ancienne tranche non versée
+    setCollecte(((h?.collectes || []) as any[]).filter((x) => x.payable).pop() || null);
   };
 
   useEffect(() => {
@@ -165,10 +170,10 @@ function Contenu({ compagnieId, suspendu, onClose, onModifier, onVoirCollecte, o
             {collecte && (suspendu || retard) && (
               <View style={{ gap: 10, padding: 12, paddingHorizontal: 14, borderRadius: 14, backgroundColor: couleurs.dangerFond }}>
                 <Texte graisse="gras" taille={13} couleur="#8A1A14" style={{ lineHeight: 19 }}>
-                  Commission impayée de <Texte graisse="tresGras" taille={13} couleur="#8A1A14">{formatAriary(collecte.montant_commission)} Ar</Texte> depuis le {collecte.date_prevue} (collecte de {moisDePeriode(collecte.periode_debut)}).
+                  Commission non versée de <Texte graisse="tresGras" taille={13} couleur="#8A1A14">{formatAriary(collecte.montant_commission)} Ar</Texte> {depuisJours(collecte)} ({collecte.nb_voyages} voyage{collecte.nb_voyages > 1 ? 's' : ''}).
                   {suspendu ? ' Les clients ne voient plus ses voyages.' : ''}
                 </Texte>
-                <Bouton titre="Voir la collecte" variante="dangerPlein" compact onPress={() => onVoirCollecte(collecte.coll_id)} />
+                <Bouton titre="Voir le détail" variante="dangerPlein" compact onPress={() => onVoirCollecte(collecte.coll_id)} />
               </View>
             )}
 
@@ -194,7 +199,7 @@ function Contenu({ compagnieId, suspendu, onClose, onModifier, onVoirCollecte, o
               <Ligne libelle="Email" valeur={c.email} onPress={() => Linking.openURL(`mailto:${c.email}`)} />
               <Ligne libelle="Siège" valeur={c.localisation?.nom} />
               <Ligne libelle="NIF · STAT" valeur={[c.nif, c.stat].filter(Boolean).join(' · ')} />
-              <Ligne libelle="Collecte" valeur={c.frequence_collecte === 'hebdomadaire' ? 'Hebdomadaire' : 'Mensuelle'} />
+              <Ligne libelle="Commission" valeur={`${libelleSeuil(Number(c.seuil_voyages) || 5)} · ${c.mode_versement === 'automatique' ? 'automatique' : 'manuel'}`} />
               <Ligne libelle="Provinces desservies" valeur={(c.provinces_desservies || []).map((p: any) => p.nom).join(', ')} />
             </Carte>
 
@@ -204,6 +209,30 @@ function Contenu({ compagnieId, suspendu, onClose, onModifier, onVoirCollecte, o
               <Option titre="Offres VIP" detail="Véhicules et trajets VIP" valeur={!!c.mode_vip} onChange={(v) => agir(() => compagnieService.mettreAJourModes(compagnieId!, { mode_vip: v } as any))} desactive={occupe} />
               <Option titre="Offres Premium" detail="Véhicules et trajets Premium" valeur={!!c.mode_premium} onChange={(v) => agir(() => compagnieService.mettreAJourModes(compagnieId!, { mode_premium: v } as any))} desactive={occupe} />
               <Option titre="Commission active" detail="Prélever la commission FANDRIO" valeur={c.commission_active !== false} onChange={(v) => agir(() => commissionService.toggleCommission(compagnieId!, v))} desactive={occupe} />
+            </Carte>
+
+            <Texte variante="etiquette" style={{ marginLeft: 4 }}>Commission FANDRIO</Texte>
+            <ProgressionTranche tranche={commission?.tranche_en_cours} />
+            {((commission?.collectes || []) as any[]).length > 0 && (
+              <Carte style={{ paddingVertical: 4 }}>
+                {((commission?.collectes || []) as any[]).slice(0, 6).map((x, i) => {
+                  const e = etatCollecte(x);
+                  return (
+                    <Pressable key={x.coll_id} onPress={() => onVoirCollecte(x.coll_id)} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: couleurs.separateur }}>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Texte graisse="tresGras" taille={13.5}>{formatAriary(x.montant_commission)} Ar · {x.nb_voyages} voyage{x.nb_voyages > 1 ? 's' : ''}</Texte>
+                        <Texte graisse="moyen" taille={12} couleur={couleurs.gris}>du {x.periode_debut} au {x.periode_fin}</Texte>
+                      </View>
+                      <Pastille libelle={e.libelle} tonalite={e.tonalite} />
+                      <Ionicons name="chevron-forward" size={16} color={couleurs.grisClair} />
+                    </Pressable>
+                  );
+                })}
+              </Carte>
+            )}
+            <Texte variante="etiquette" style={{ marginLeft: 4 }}>Historique des actions</Texte>
+            <Carte style={{ paddingVertical: 4 }}>
+              <JournalCommission journal={commission?.journal} limite={10} />
             </Carte>
 
             {Number(c.statut) !== 3 && (

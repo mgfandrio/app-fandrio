@@ -9,10 +9,12 @@ import { couleurs, formatAriary } from '../../../theme/ocean';
 import { useConfirmDialog } from '../../common/ConfirmDialog';
 import { Skeleton } from '../../common/Skeleton';
 import { Bouton, Carte, FeuilleModale, Pastille, Texte } from '../../ui';
+import { JournalCommission, ProgressionTranche } from '../../commission/Commission';
+import { depuisJours, etatCollecte } from '../../systeme/outils';
 
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 
-/** Onglet « Portefeuille » : solde du mois, collecte de commission, encaissements, transactions. */
+/** Onglet « Portefeuille » : solde du mois, commission FANDRIO à verser (par tranche de voyages), encaissements, transactions. */
 export function RenderPortefeuille() {
   const insets = useSafeAreaInsets();
   const { showDialog, DialogComponent } = useConfirmDialog();
@@ -76,7 +78,10 @@ export function RenderPortefeuille() {
     setPaiementEnCours(coll.coll_id);
     try {
       const r = await reservationAdminService.payerCollecte(coll.coll_id);
-      if (r.statut && r.data?.payment_url) await Linking.openURL(r.data.payment_url);
+      if (r.statut && r.data?.payment_url) {
+        await Linking.openURL(r.data.payment_url);
+        charger();
+      }
       else showDialog({ title: 'Paiement indisponible', message: r.message || "Impossible d'ouvrir le paiement pour le moment.", type: 'warning', confirmText: 'OK', onConfirm: () => {}, onCancel: () => {} });
     } catch (e: any) {
       showDialog({ title: 'Paiement indisponible', message: e?.message || 'Une erreur est survenue.', type: 'danger', confirmText: 'OK', onConfirm: () => {}, onCancel: () => {} });
@@ -87,8 +92,8 @@ export function RenderPortefeuille() {
 
   const mois = data?.par_periode?.ce_mois || { brut: 0, commission: 0, net: 0, billets: 0, guichet: 0 };
   const taux = data?.taux_commission ?? collecte?.config?.taux;
-  const aPayer = (collecte?.collectes || []).find((c: any) => c.payable);
-  const prochaine = collecte?.prochaine_collecte;
+  const aVerser: any[] = collecte?.a_verser || [];
+  const seuil = Number(collecte?.config?.seuil_voyages) || 5;
   const operateurs: any[] = data?.repartition_operateur || [];
   const maxOp = Math.max(...operateurs.map((o) => Number(o.brut) || 0), 1);
 
@@ -143,42 +148,41 @@ export function RenderPortefeuille() {
             <View style={{ flexDirection: 'row', gap: 10, padding: 12, borderRadius: 14, backgroundColor: couleurs.dangerFond }}>
               <Ionicons name="alert-circle" size={20} color={couleurs.danger} />
               <Texte graisse="gras" taille={12.5} couleur={couleurs.danger} style={{ flex: 1, lineHeight: 18 }}>
-                Compte suspendu : commission impayée. Vos voyages sont masqués des clients jusqu’au règlement.
+                Compte suspendu : la commission n’a pas été versée à temps. Vos voyages sont masqués aux clients jusqu’au versement.
               </Texte>
             </View>
           )}
 
-          {/* Collecte de commission */}
-          {collecte && (
-            <Carte style={{ gap: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: aPayer?.en_retard ? couleurs.dangerFond : couleurs.alerteFond, alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="calendar-outline" size={20} color={aPayer?.en_retard ? couleurs.danger : couleurs.alerte} />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Texte graisse="tresGras" taille={14}>{aPayer ? 'Commission à payer' : 'Prochaine collecte'}</Texte>
-                  <Texte graisse="moyen" taille={12} couleur={couleurs.gris} numberOfLines={1}>
-                    {aPayer ? `${aPayer.periode_debut} → ${aPayer.periode_fin} · ${aPayer.nb_billets} billets` : prochaine ? prochaine.periode : 'Aucune collecte prévue'}
-                  </Texte>
-                </View>
-                {(aPayer || prochaine) && (
-                  <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                    <Texte variante="montant" taille={15}>{formatAriary(aPayer ? aPayer.montant_commission : prochaine.montant)} Ar</Texte>
-                    <Pastille
-                      libelle={aPayer?.en_retard ? 'En retard' : `Le ${aPayer ? aPayer.date_prevue : prochaine.date_prevue}`}
-                      tonalite={aPayer?.en_retard ? 'danger' : 'alerte'}
-                      point={false}
-                    />
+          {/* Commission à verser */}
+          {aVerser.map((t) => {
+            const grave = t.etat !== 'a_verser';
+            return (
+              <Carte key={t.coll_id} style={{ gap: 12, borderColor: grave ? couleurs.dangerBord : couleurs.ligne }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: grave ? couleurs.dangerFond : couleurs.alerteFond, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name={grave ? 'warning-outline' : 'wallet-outline'} size={20} color={grave ? couleurs.danger : couleurs.alerte} />
                   </View>
-                )}
-              </View>
-              {aPayer && <Bouton titre="Payer la commission" icone="card-outline" onPress={() => payer(aPayer)} chargement={paiementEnCours === aPayer.coll_id} compact />}
-              {(collecte.collectes || []).length > 0 && (
-                <Pressable onPress={() => setHistorique(true)} accessibilityRole="button" style={{ alignSelf: 'center', paddingVertical: 4 }}>
-                  <Texte graisse="tresGras" taille={13} couleur={couleurs.ocean800}>Historique des collectes</Texte>
-                </Pressable>
-              )}
-            </Carte>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Texte graisse="tresGras" taille={14} couleur={grave ? couleurs.danger : couleurs.encre}>{grave ? 'Avertissement : commission à verser' : 'Commission à verser'}</Texte>
+                    <Texte graisse="moyen" taille={12} couleur={couleurs.gris}>
+                      {t.nb_voyages} voyage{t.nb_voyages > 1 ? 's' : ''} terminé{t.nb_voyages > 1 ? 's' : ''} · {depuisJours(t)}
+                    </Texte>
+                  </View>
+                  <Texte variante="montant" taille={16}>{formatAriary(t.montant_commission)} Ar</Texte>
+                </View>
+                <Texte graisse="moyen" taille={12} couleur={grave ? couleurs.danger : couleurs.gris} style={{ lineHeight: 17 }}>
+                  {t.etat === 'suspendu' ? 'Vos voyages sont masqués aux clients jusqu’au versement.' : `Sans versement, vos voyages seront masqués aux clients le ${t.suspension_le}.`}
+                </Texte>
+                <Bouton titre="Verser la commission" icone="card-outline" onPress={() => payer(t)} chargement={paiementEnCours === t.coll_id} />
+              </Carte>
+            );
+          })}
+
+          {collecte && <ProgressionTranche tranche={collecte.tranche_en_cours} pourCompagnie />}
+          {collecte && ((collecte.collectes || []).length > 0 || (collecte.journal || []).length > 0) && (
+            <Pressable onPress={() => setHistorique(true)} accessibilityRole="button" style={{ alignSelf: 'center', paddingVertical: 6 }}>
+              <Texte graisse="tresGras" taille={13} couleur={couleurs.ocean800}>Historique des versements</Texte>
+            </Pressable>
           )}
 
           {/* Par opérateur */}
@@ -265,29 +269,39 @@ export function RenderPortefeuille() {
         )}
       />
 
-      <FeuilleModale visible={historique} onClose={() => setHistorique(false)} titre="Historique des collectes" sousTitre={collecte?.config ? `Collecte ${collecte.config.frequence} · ${collecte.config.taux} %` : undefined} hauteur="pleine">
+      <FeuilleModale visible={historique} onClose={() => setHistorique(false)} titre="Historique des versements" sousTitre={`Commission ${collecte?.config?.taux ?? 5} % · versement tous les ${seuil} voyages`} hauteur="pleine">
         <FlatList
           data={collecte?.collectes || []}
           keyExtractor={(c) => String(c.coll_id)}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 24 }}
-          renderItem={({ item: c, index }) => (
-            <View style={{ paddingVertical: 12, gap: 6, borderTopWidth: index === 0 ? 0 : 1, borderTopColor: couleurs.separateur }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <Texte graisse="tresGras" taille={14} style={{ flex: 1 }}>{c.periode_debut} → {c.periode_fin}</Texte>
-                <Pastille libelle={c.en_retard ? 'En retard' : c.statut_label} tonalite={c.statut === 2 ? 'succes' : c.en_retard ? 'danger' : 'alerte'} />
-              </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Texte graisse="moyen" taille={12} couleur={couleurs.gris}>
-                  {c.nb_billets} billets · brut {formatAriary(c.montant_brut)} Ar
+          ListEmptyComponent={<Texte variante="legende" centre style={{ paddingVertical: 16 }}>Aucun versement pour le moment.</Texte>}
+          renderItem={({ item: c, index }) => {
+            const e = etatCollecte(c);
+            return (
+              <View style={{ paddingVertical: 12, gap: 6, borderTopWidth: index === 0 ? 0 : 1, borderTopColor: couleurs.separateur }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <Texte graisse="tresGras" taille={14} style={{ flex: 1 }}>{c.nb_voyages} voyage{c.nb_voyages > 1 ? 's' : ''} · du {c.periode_debut} au {c.periode_fin}</Texte>
+                  <Pastille libelle={e.libelle} tonalite={e.tonalite} />
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Texte graisse="moyen" taille={12} couleur={couleurs.gris}>
+                    {c.nb_billets} billets · ventes {formatAriary(c.montant_brut)} Ar
+                  </Texte>
+                  <Texte variante="montant" taille={13.5}>− {formatAriary(c.montant_commission)} Ar</Texte>
+                </View>
+                <Texte graisse="moyen" taille={11.5} couleur={couleurs.gris}>
+                  {c.date_confirmation ? `Versée le ${c.date_confirmation}${c.initie_par || c.confirme_par ? ` · par ${c.initie_par || c.confirme_par}` : ''}` : `À verser ${depuisJours(c)}`}
                 </Texte>
-                <Texte variante="montant" taille={13.5}>− {formatAriary(c.montant_commission)} Ar</Texte>
+                {c.payable && <Bouton titre="Verser la commission" compact onPress={() => payer(c)} chargement={paiementEnCours === c.coll_id} />}
               </View>
-              <Texte graisse="moyen" taille={11.5} couleur={couleurs.gris}>
-                {c.date_confirmation ? `Réglée le ${c.date_confirmation}` : `Prévue le ${c.date_prevue}`}
-              </Texte>
-              {c.payable && <Bouton titre="Payer" compact onPress={() => payer(c)} chargement={paiementEnCours === c.coll_id} />}
+            );
+          }}
+          ListFooterComponent={
+            <View style={{ gap: 8, marginTop: 18 }}>
+              <Texte graisse="tresGras" taille={15}>Historique des actions</Texte>
+              <JournalCommission journal={collecte?.journal} />
             </View>
-          )}
+          }
         />
       </FeuilleModale>
     </View>
